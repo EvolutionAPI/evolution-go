@@ -6,6 +6,7 @@ Documentação completa dos endpoints para gerenciar grupos WhatsApp.
 
 - [Listar Grupos](#listar-grupos)
 - [Informações do Grupo](#informações-do-grupo)
+- [Informações via Link de Convite](#informações-via-link-de-convite)
 - [Link de Convite](#link-de-convite)
 - [Criar Grupo](#criar-grupo)
 - [Gerenciar Participantes](#gerenciar-participantes)
@@ -141,11 +142,59 @@ curl -X POST http://localhost:4000/group/info \
     "groupJid": "120363XXXXXXXXXX@g.us"
   }'
 ```
+}'
+
+---
+
+## Informações via Link de Convite
+
+Obtém informações de um grupo através de um link de convite sem precisar entrar nele.
+
+**Endpoint**: `POST /group/invite-info`
+
+**Body**:
+```json
+{
+"code": "https://chat.whatsapp.com/ABCDEFGHIJKLMNOP"
+}
+```
+
+**Parâmetros**:
+
+| Campo | Tipo | Obrigatório | Descrição |
+|-------|------|-------------|-----------|
+| `code` | string | ✅ Sim | Código do link ou URL completa |
+
+**Resposta de Sucesso (200)**:
+```json
+{
+"message": "success",
+"data": {
+  "JID": "120363XXXXXXXXXX@g.us",
+  "OwnerJID": "5511999999999@s.whatsapp.net",
+  "GroupName": {
+    "Name": "Nome do Grupo",
+    "NameSetAt": "2025-01-15T10:30:00Z",
+    "NameSetBy": "5511999999999@s.whatsapp.net"
+  },
+  "GroupCreated": "2025-01-15T10:00:00Z"
+}
+}
+```
+
+**Exemplo cURL**:
+```bash
+curl -X POST http://localhost:4000/group/invite-info \
+-H "Content-Type: application/json" \
+-H "apikey: SUA-CHAVE-API" \
+-d '{
+  "code": "https://chat.whatsapp.com/ABCDEFGHIJKLMNOP"
+}'
+```
 
 ---
 
 ## Link de Convite
-
 Obtém ou regenera o link de convite do grupo.
 
 **Endpoint**: `POST /group/invitelink`
