@@ -894,8 +894,10 @@ Deleta uma mensagem para todos (revoke).
 **Body**:
 ```json
 {
-  "chat": "5511999999999@s.whatsapp.net",
-  "messageId": "3EB0C5A277F7F9B6C599"
+  "chat": "120363XXXXXXXXXX@g.us",
+  "messageId": "3EB0C5A277F7F9B6C599",
+  "fromMe": false,
+  "participant": "5511888888888@s.whatsapp.net"
 }
 ```
 
@@ -905,8 +907,13 @@ Deleta uma mensagem para todos (revoke).
 |-------|------|-------------|-----------|
 | `chat` | string | ✅ Sim | JID do chat |
 | `messageId` | string | ✅ Sim | ID da mensagem a deletar |
+| `fromMe` | bool | ❌ Não | Se a mensagem foi enviada por você (padrão: true) |
+| `participant` | string | ❌ Não | JID do autor (obrigatório se fromMe=false em grupos) |
 
-**Nota**: Só é possível deletar mensagens enviadas por você. O WhatsApp tem limite de tempo para deletar mensagens (geralmente até 1 hora).
+**Nota**: 
+- Para deletar suas próprias mensagens, use `fromMe: true` (ou omita).
+- Para deletar mensagens de **outros usuários** (Admin Revoke), você deve ser **administrador** do grupo e passar `fromMe: false` e o `participant` (JID do autor).
+- O WhatsApp tem um limite de tempo para deletar suas próprias mensagens (geralmente ~2 dias), mas admins podem deletar mensagens de outros a qualquer momento.
 
 **Resposta de Sucesso (200)**:
 ```json
@@ -921,12 +928,24 @@ Deleta uma mensagem para todos (revoke).
 
 **Exemplo cURL**:
 ```bash
+# Deletar sua própria mensagem
 curl -X POST http://localhost:4000/message/delete \
   -H "Content-Type: application/json" \
   -H "apikey: SUA-CHAVE-API" \
   -d '{
     "chat": "5511999999999@s.whatsapp.net",
     "messageId": "3EB0C5A277F7F9B6C599"
+  }'
+
+# Deletar mensagem de outro (Admin Revoke)
+curl -X POST http://localhost:4000/message/delete \
+  -H "Content-Type: application/json" \
+  -H "apikey: SUA-CHAVE-API" \
+  -d '{
+    "chat": "120363XXXXXXXXXX@g.us",
+    "messageId": "3EB0C5A277F7F9B6C599",
+    "fromMe": false,
+    "participant": "5511888888888@s.whatsapp.net"
   }'
 ```
 
