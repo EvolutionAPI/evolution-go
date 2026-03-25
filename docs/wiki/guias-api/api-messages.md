@@ -209,7 +209,7 @@ delay: 0
 | Tipo | Formatos Aceitos | Observações |
 |------|------------------|-------------|
 | `image` | JPG, PNG, WebP | WebP convertido para JPEG |
-| `video` | MP4 | Apenas MP4 |
+| `video` | MP4, GIF | MP4. **GIF** URLs são convertidos automaticamente para vídeo com `GifPlayback` |
 | `audio` | Qualquer | Convertido para Opus (PTT) automaticamente |
 | `document` | Qualquer | Qualquer tipo de arquivo |
 
@@ -334,7 +334,8 @@ Envia um sticker (figurinha) via URL.
 ```json
 {
   "number": "5511999999999",
-  "sticker": "https://example.com/sticker.webp"
+  "sticker": "https://example.com/video.mp4",
+  "transparentColor": "#000000"
 }
 ```
 
@@ -343,9 +344,13 @@ Envia um sticker (figurinha) via URL.
 | Campo | Tipo | Obrigatório | Descrição |
 |-------|------|-------------|-----------|
 | `number` | string | ✅ Sim | Número do destinatário |
-| `sticker` | string | ✅ Sim | URL da imagem (convertida para WebP automaticamente) |
+| `sticker` | string | ✅ Sim | URL da imagem ou vídeo (convertida para WebP automaticamente) |
+| `transparentColor` | string | ❌ Não | Cor em Hex (ex: #000000) para tornar transparente (útil para vídeos) |
 
-**Nota**: O sistema converte automaticamente a imagem para o formato WebP (formato de sticker do WhatsApp).
+**Nota**: 
+- O sistema converte automaticamente imagens e **vídeos (MP4)** para o formato WebP (formato de sticker do WhatsApp).
+- Vídeos são convertidos para **stickers animados**.
+- O parâmetro `transparentColor` permite remover o fundo de uma cor específica durante a conversão.
 
 **Resposta de Sucesso (200)**:
 ```json
@@ -362,12 +367,23 @@ Envia um sticker (figurinha) via URL.
 
 **Exemplo cURL**:
 ```bash
+# Sticker estático (Imagem)
 curl -X POST http://localhost:4000/send/sticker \
   -H "Content-Type: application/json" \
   -H "apikey: SUA-CHAVE-API" \
   -d '{
     "number": "5511999999999",
     "sticker": "https://exemplo.com/figurinha.png"
+  }'
+
+# Sticker animado (Vídeo com fundo removido)
+curl -X POST http://localhost:4000/send/sticker \
+  -H "Content-Type: application/json" \
+  -H "apikey: SUA-CHAVE-API" \
+  -d '{
+    "number": "5511999999999",
+    "sticker": "https://exemplo.com/video.mp4",
+    "transparentColor": "#000000"
   }'
 ```
 
