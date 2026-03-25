@@ -175,6 +175,7 @@ func (r *Routes) AssignRoutes(eng *gin.Engine) {
 			routes.GET("/list", r.groupHandler.ListGroups)
 			routes.POST("/info", r.jidValidationMiddleware.ValidateNumberField(), r.groupHandler.GetGroupInfo)
 			routes.POST("/invitelink", r.jidValidationMiddleware.ValidateNumberField(), r.groupHandler.GetGroupInviteLink)
+			routes.POST("/invite-info", r.groupHandler.GetGroupInfoFromInviteLink)
 			routes.POST("/photo", r.jidValidationMiddleware.ValidateNumberField(), r.groupHandler.SetGroupPhoto)
 			routes.POST("/name", r.jidValidationMiddleware.ValidateNumberField(), r.groupHandler.SetGroupName)
 			routes.POST("/description", r.jidValidationMiddleware.ValidateNumberField(), r.groupHandler.SetGroupDescription)

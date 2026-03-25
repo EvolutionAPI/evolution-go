@@ -12,6 +12,7 @@ type GroupHandler interface {
 	ListGroups(ctx *gin.Context)
 	GetGroupInfo(ctx *gin.Context)
 	GetGroupInviteLink(ctx *gin.Context)
+	GetGroupInfoFromInviteLink(ctx *gin.Context)
 	SetGroupPhoto(ctx *gin.Context)
 	SetGroupName(ctx *gin.Context)
 	SetGroupDescription(ctx *gin.Context)
@@ -127,6 +128,47 @@ func (g *groupHandler) GetGroupInviteLink(ctx *gin.Context) {
 	}
 
 	resp, err := g.groupService.GetGroupInviteLink(data, instance)
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	ctx.JSON(http.StatusOK, gin.H{"message": "success", "data": resp})
+}
+
+// Get group info from invite link
+// @Summary Get group info from invite link
+// @Description Get group info from invite link
+// @Tags Group
+// @Accept json
+// @Produce json
+// @Param message body group_service.GetGroupInfoFromInviteLinkStruct true "Group Invite Data"
+// @Success 200 {object} gin.H "success"
+// @Failure 400 {object} gin.H "Error on validation"
+// @Failure 500 {object} gin.H "Internal server error"
+// @Router /group/invite-info [post]
+func (g *groupHandler) GetGroupInfoFromInviteLink(ctx *gin.Context) {
+	getInstance := ctx.MustGet("instance")
+
+	instance, ok := getInstance.(*instance_model.Instance)
+	if !ok {
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "instance not found"})
+		return
+	}
+
+	var data *group_service.GetGroupInfoFromInviteLinkStruct
+	err := ctx.ShouldBindBodyWithJSON(&data)
+	if err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	if data.Code == "" {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "code is required"})
+		return
+	}
+
+	resp, err := g.groupService.GetGroupInfoFromInviteLink(data, instance)
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return

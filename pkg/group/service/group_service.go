@@ -23,6 +23,7 @@ type GroupService interface {
 	ListGroups(instance *instance_model.Instance) ([]*types.GroupInfo, error)
 	GetGroupInfo(data *GetGroupInfoStruct, instance *instance_model.Instance) (*types.GroupInfo, error)
 	GetGroupInviteLink(data *GetGroupInviteLinkStruct, instance *instance_model.Instance) (string, error)
+	GetGroupInfoFromInviteLink(data *GetGroupInfoFromInviteLinkStruct, instance *instance_model.Instance) (*types.GroupInfo, error)
 	SetGroupPhoto(data *SetGroupPhotoStruct, instance *instance_model.Instance) (string, error)
 	SetGroupName(data *SetGroupNameStruct, instance *instance_model.Instance) error
 	SetGroupDescription(data *SetGroupDescriptionStruct, instance *instance_model.Instance) error
@@ -58,6 +59,10 @@ type GetGroupInfoStruct struct {
 type GetGroupInviteLinkStruct struct {
 	GroupJID string `json:"groupJid"`
 	Reset    bool   `json:"reset"`
+}
+
+type GetGroupInfoFromInviteLinkStruct struct {
+	Code string `json:"code"`
 }
 
 type SetGroupPhotoStruct struct {
@@ -217,6 +222,29 @@ func (g *groupService) GetGroupInviteLink(data *GetGroupInviteLinkStruct, instan
 	if err != nil {
 		g.loggerWrapper.GetLogger(instance.Id).LogError("[%s] error mute chat: %v", instance.Id, err)
 		return "", err
+	}
+
+	return resp, nil
+}
+
+func (g *groupService) GetGroupInfoFromInviteLink(data *GetGroupInfoFromInviteLinkStruct, instance *instance_model.Instance) (*types.GroupInfo, error) {
+	client, err := g.ensureClientConnected(instance.Id)
+	if err != nil {
+		return nil, err
+	}
+
+	code := data.Code
+	if strings.Contains(code, "chat.whatsapp.com/") {
+		parts := strings.Split(code, "chat.whatsapp.com/")
+		if len(parts) > 1 {
+			code = parts[1]
+		}
+	}
+
+	resp, err := client.GetGroupInfoFromLink(context.Background(), code)
+	if err != nil {
+		g.loggerWrapper.GetLogger(instance.Id).LogError("[%s] error getting group info from link: %v", instance.Id, err)
+		return nil, err
 	}
 
 	return resp, nil
