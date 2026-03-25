@@ -68,8 +68,10 @@ type MessageStatusStruct struct {
 }
 
 type MessageStruct struct {
-	Chat      string `json:"chat"`
-	MessageID string `json:"messageId"`
+	Chat        string `json:"chat"`
+	MessageID   string `json:"messageId"`
+	FromMe      bool   `json:"fromMe"`
+	Participant string `json:"participant,omitempty"`
 }
 
 type EditMessageStruct struct {
@@ -376,12 +378,27 @@ func (m *messageService) DeleteMessageEveryone(data *MessageStruct, instance *in
 		return "", "", errors.New("invalid phone number")
 	}
 
+	var senderJID types.JID
+	if data.FromMe {
+		senderJID = types.EmptyJID
+	} else {
+		if data.Participant == "" {
+			return "", "", errors.New("participant is required to delete a message from another user")
+		}
+		parsedJID, ok := utils.ParseJID(data.Participant)
+		if !ok {
+			m.loggerWrapper.GetLogger(instance.Id).LogError("[%s] Error parsing participant JID for non-FromMe message: %s", data.Participant)
+			return "", "", errors.New("invalid participant JID")
+		}
+		senderJID = parsedJID
+	}
+
 	m.loggerWrapper.GetLogger(instance.Id).LogInfo("Revoking message %s from %s", data.MessageID, recipient)
 
 	resp, err := client.SendMessage(
 		context.Background(),
 		recipient,
-		client.BuildRevoke(recipient, types.EmptyJID, data.MessageID))
+		client.BuildRevoke(recipient, senderJID, data.MessageID))
 	if err != nil {
 		m.loggerWrapper.GetLogger(instance.Id).LogError("[%s] error revoking message: %v", instance.Id, err)
 		return "", "", err
