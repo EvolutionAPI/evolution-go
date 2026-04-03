@@ -1,0 +1,63 @@
+version: '3.8'
+
+services:
+  evolution-go:
+    build: 
+      context: ../../
+      dockerfile: Dockerfile
+    image: evolution-go:easypanel
+    container_name: evolution-go
+    restart: unless-stopped
+    ports:
+      - "4000:4000"
+    environment:
+      # Servidor
+      SERVER_PORT: 4000
+      CLIENT_NAME: "evolution"
+
+      # Segurança
+      GLOBAL_API_KEY: "${GLOBAL_API_KEY:-configure_uma_chave_segura_no_easypanel}"
+
+      # Banco de Dados PostgreSQL  
+      # Observação: Se os dois usarem o mesmo banco (postgres), as tabelas não entram em conflito.
+      POSTGRES_AUTH_DB: "postgresql://${DB_USER:-postgres}:${DB_PASSWORD:-postgres}@postgres:5432/${DB_DATABASE:-postgres}?sslmode=disable"
+      POSTGRES_USERS_DB: "postgresql://${DB_USER:-postgres}:${DB_PASSWORD:-postgres}@postgres:5432/${DB_DATABASE:-postgres}?sslmode=disable"
+      DATABASE_SAVE_MESSAGES: "false"
+
+      # Logs e Debug
+      WADEBUG: "INFO"
+      LOGTYPE: "console"
+      LOG_DIRECTORY: "/app/logs"
+      LOG_MAX_SIZE: "100"
+      LOG_MAX_BACKUPS: "5"
+      LOG_MAX_AGE: "30"
+      LOG_COMPRESS: "true"
+
+      # Conexão
+      CONNECT_ON_STARTUP: "false"
+      WEBHOOKFILES: "true"
+
+      # Sistema
+      OS_NAME: "Linux"
+
+    volumes:
+      - evolution_data:/app/dbdata
+      - evolution_logs:/app/logs
+    depends_on:
+      - postgres
+
+  postgres:
+    image: postgres:15-alpine
+    container_name: evolution-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${DB_USER:-postgres}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-postgres}
+      POSTGRES_DB: ${DB_DATABASE:-postgres}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+volumes:
+  evolution_data:
+  evolution_logs:
+  postgres_data:

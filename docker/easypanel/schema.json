@@ -1,0 +1,51 @@
+{
+  "services": [
+    {
+      "type": "app",
+      "data": {
+        "projectName": "evolution-go",
+        "serviceName": "api",
+        "source": {
+          "type": "github",
+          "owner": "seu-usuario",
+          "repo": "evolution-go",
+          "ref": "main",
+          "path": "/",
+          "autoDeploy": true
+        },
+        "build": {
+          "type": "dockerfile",
+          "file": "Dockerfile"
+        },
+        "env": "SERVER_PORT=4000\nCLIENT_NAME=evolution\nGLOBAL_API_KEY=sua-chave-api-segura-aqui\nPOSTGRES_AUTH_DB=postgresql://postgres:postgres@db:5432/postgres?sslmode=disable\nPOSTGRES_USERS_DB=postgresql://postgres:postgres@db:5432/postgres?sslmode=disable\nDATABASE_SAVE_MESSAGES=false\nWADEBUG=INFO\nLOGTYPE=console\nLOG_DIRECTORY=/app/logs\nLOG_MAX_SIZE=100\nLOG_MAX_BACKUPS=5\nLOG_MAX_AGE=30\nLOG_COMPRESS=true\nCONNECT_ON_STARTUP=false\nWEBHOOKFILES=true\nOS_NAME=Linux",
+        "ports": [
+          {
+            "published": 4000,
+            "target": 4000
+          }
+        ],
+        "mounts": [
+          {
+            "type": "volume",
+            "name": "evolution_data",
+            "mountPath": "/app/dbdata"
+          },
+          {
+            "type": "volume",
+            "name": "evolution_logs",
+            "mountPath": "/app/logs"
+          }
+        ]
+      }
+    },
+    {
+      "type": "postgres",
+      "data": {
+        "projectName": "evolution-go",
+        "serviceName": "db",
+        "password": "postgres_password",
+        "image": "postgres:15-alpine"
+      }
+    }
+  ]
+}
