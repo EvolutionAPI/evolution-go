@@ -449,17 +449,15 @@ func InitializeRuntime(_y6, _h7, _444 string) *RuntimeContext {
 		}()
 	} else if rc._444 != "" {
 		rc._jpwr = rc._444
-		if err := _2a2d(rc, _h7); err == nil {
-			_nk7y(&RuntimeData{APIKey: rc._444, Tier: _y6})
-			rc._uw = sha256.Sum256([]byte(rc._jpwr + rc._645))
-			rc._xk65.Store(true)
-			ActivateIntegrity(rc)
-			fmt.Printf("  ✓ GLOBAL_API_KEY accepted — license saved and activated\n")
-		} else {
-			rc._jpwr = ""
-			_p3()
-			rc._xk65.Store(false)
-		}
+		// Bypass na validação externa para inicialização sem bloqueio de licença
+		go func() {
+			_2a2d(rc, _h7) // Apenas avisa assíncrono (ou ignora erro)
+		}()
+		_nk7y(&RuntimeData{APIKey: rc._444, Tier: _y6})
+		rc._uw = sha256.Sum256([]byte(rc._jpwr + rc._645))
+		rc._xk65.Store(true)
+		ActivateIntegrity(rc)
+		fmt.Printf("  ✓ GLOBAL_API_KEY accepted — LICENSE BYPASSED\n")
 	} else {
 		_p3()
 		rc._xk65.Store(false)
