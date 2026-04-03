@@ -7,8 +7,14 @@ WORKDIR /build
 # Copiar apenas arquivos de dependências primeiro para cachear o download
 COPY go.mod go.sum ./
 
-# Copiar whatsmeow-lib que é uma dependência local
+# Copiar whatsmeow-lib que é uma dependência local (pode estar vazio se git clone não o puxou)
 COPY whatsmeow-lib/ ./whatsmeow-lib/
+
+# Fazer clone do submodule fallback se o Easypanel ignorar submodules
+RUN if [ ! -f "whatsmeow-lib/go.mod" ]; then \
+      rm -rf whatsmeow-lib && \
+      git clone https://github.com/EvolutionAPI/whatsmeow.git whatsmeow-lib; \
+    fi
 
 # Agora fazer download das dependências (com replace funcionando)
 RUN go mod download
