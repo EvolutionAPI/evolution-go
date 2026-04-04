@@ -8,6 +8,8 @@ import (
 	"errors"
 	"fmt"
 	"image"
+	_ "image/gif"
+	_ "image/jpeg"
 	"image/png"
 	"io"
 	"mime/multipart"
@@ -122,14 +124,15 @@ type PollStruct struct {
 }
 
 type StickerStruct struct {
-	Number       string       `json:"number"`
-	Sticker      string       `json:"sticker"`
-	Id           string       `json:"id"`
-	Delay        int32        `json:"delay"`
-	MentionedJID []string     `json:"mentionedJid"`
-	MentionAll   bool         `json:"mentionAll"`
-	FormatJid    *bool        `json:"formatJid,omitempty"`
-	Quoted       QuotedStruct `json:"quoted"`
+	Number           string       `json:"number"`
+	Sticker          string       `json:"sticker"`
+	Id               string       `json:"id"`
+	Delay            int32        `json:"delay"`
+	MentionedJID     []string     `json:"mentionedJid"`
+	MentionAll       bool         `json:"mentionAll"`
+	FormatJid        *bool        `json:"formatJid,omitempty"`
+	TransparentColor string       `json:"transparentColor,omitempty"`
+	Quoted           QuotedStruct `json:"quoted"`
 }
 
 type LocationStruct struct {
@@ -1414,28 +1417,95 @@ func (s *sendService) sendPollWithRetry(data *PollStruct, instance *instance_mod
 	return nil, fmt.Errorf("failed to send poll after %d attempts", maxRetries)
 }
 
-func convertToWebP(imageData string) ([]byte, error) {
-	var img image.Image
-	var err error
-
-	resp, err := http.Get(imageData)
+func convertVideoToWebP(inputData []byte, transparentColor string) ([]byte, error) {
+	tmpInput, err := os.CreateTemp("", "sticker-input-*.mp4")
 	if err != nil {
-		return nil, fmt.Errorf("failed to fetch image from URL: %v", err)
+		return nil, fmt.Errorf("failed to create temp file: %v", err)
+	}
+	defer os.Remove(tmpInput.Name())
+
+	if _, err := tmpInput.Write(inputData); err != nil {
+		tmpInput.Close()
+		return nil, fmt.Errorf("failed to write to temp file: %v", err)
+	}
+
+	if err := tmpInput.Close(); err != nil {
+		return nil, fmt.Errorf("failed to close temp file: %v", err)
+	}
+
+	tmpOutput := tmpInput.Name() + ".webp"
+	defer os.Remove(tmpOutput)
+
+	// Filtros base: scale, pad, fps e loop
+	baseFilters := "fps=15,scale=512:512:force_original_aspect_ratio=decrease,pad=512:512:(ow-iw)/2:(oh-ih)/2:color=0x00000000"
+
+	filters := baseFilters
+	if transparentColor != "" {
+		cleanHex := strings.ReplaceAll(transparentColor, "#", "")
+		filters = fmt.Sprintf("colorkey=0x%s:0.1:0.0,%s", cleanHex, baseFilters)
+	}
+
+	cmd := exec.Command("ffmpeg",
+		"-i", tmpInput.Name(),
+		"-vcodec", "libwebp",
+		"-filter:v", filters,
+		"-lossless", "0",
+		"-compression_level", "4",
+		"-q:v", "50",
+		"-loop", "0",
+		"-an",
+		"-f", "webp",
+		tmpOutput,
+	)
+
+	var stderr bytes.Buffer
+	cmd.Stderr = &stderr
+
+	if err := cmd.Run(); err != nil {
+		return nil, fmt.Errorf("ffmpeg failed: %v, output: %s", err, stderr.String())
+	}
+
+	webpData, err := os.ReadFile(tmpOutput)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read generated webp: %v", err)
+	}
+
+	return webpData, nil
+}
+
+func convertToWebP(imageDataURL string, transparentColor string) ([]byte, error) {
+	resp, err := http.Get(imageDataURL)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch from URL: %v", err)
 	}
 	defer resp.Body.Close()
 
-	img, _, err = image.Decode(resp.Body)
+	data, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return nil, fmt.Errorf("failed to decode image: %v", err)
+		return nil, fmt.Errorf("failed to read response body: %v", err)
 	}
 
-	var webpBuffer bytes.Buffer
-	err = webp.Encode(&webpBuffer, img, &webp.Options{Lossless: false, Quality: 80})
-	if err != nil {
-		return nil, fmt.Errorf("failed to encode image to WebP: %v", err)
+	mime := mimetype.Detect(data)
+
+	if mime.Is("image/webp") {
+		return data, nil
+	} else if mime.Is("video/mp4") || mime.Is("image/gif") {
+		return convertVideoToWebP(data, transparentColor)
+	} else if mime.Is("image/jpeg") || mime.Is("image/png") || mime.Is("image/jpg") {
+		img, _, err := image.Decode(bytes.NewReader(data))
+		if err != nil {
+			return nil, fmt.Errorf("failed to decode image: %v", err)
+		}
+
+		var webpBuffer bytes.Buffer
+		err = webp.Encode(&webpBuffer, img, &webp.Options{Lossless: false, Quality: 80})
+		if err != nil {
+			return nil, fmt.Errorf("failed to encode image to WebP: %v", err)
+		}
+		return webpBuffer.Bytes(), nil
 	}
 
-	return webpBuffer.Bytes(), nil
+	return nil, fmt.Errorf("unsupported format: %s", mime.String())
 }
 
 func (s *sendService) SendSticker(data *StickerStruct, instance *instance_model.Instance) (*MessageSendStruct, error) {
@@ -1448,7 +1518,7 @@ func (s *sendService) SendSticker(data *StickerStruct, instance *instance_model.
 	var filedata []byte
 
 	if strings.HasPrefix(data.Sticker, "http") {
-		webpData, err := convertToWebP(data.Sticker)
+		webpData, err := convertToWebP(data.Sticker, data.TransparentColor)
 		if err != nil {
 			return nil, fmt.Errorf("failed to convert image to WebP: %v", err)
 		}
