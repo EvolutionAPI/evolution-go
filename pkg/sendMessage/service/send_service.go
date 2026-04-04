@@ -14,6 +14,7 @@ import (
 	"io"
 	"mime/multipart"
 	"net/http"
+	"os"
 	"os/exec"
 	"regexp"
 	"strconv"
@@ -1417,6 +1418,12 @@ func (s *sendService) sendPollWithRetry(data *PollStruct, instance *instance_mod
 	return nil, fmt.Errorf("failed to send poll after %d attempts", maxRetries)
 }
 
+const (
+	stickerMaxDownloadSize = 10 * 1024 * 1024 // 10MB
+	stickerDownloadTimeout = 30 * time.Second
+	stickerFFmpegTimeout  = 60 * time.Second
+)
+
 func convertVideoToWebP(inputData []byte, transparentColor string) ([]byte, error) {
 	tmpInput, err := os.CreateTemp("", "sticker-input-*.mp4")
 	if err != nil {
@@ -1445,7 +1452,10 @@ func convertVideoToWebP(inputData []byte, transparentColor string) ([]byte, erro
 		filters = fmt.Sprintf("colorkey=0x%s:0.1:0.0,%s", cleanHex, baseFilters)
 	}
 
-	cmd := exec.Command("ffmpeg",
+	ctx, cancel := context.WithTimeout(context.Background(), stickerFFmpegTimeout)
+	defer cancel()
+
+	cmd := exec.CommandContext(ctx, "ffmpeg",
 		"-i", tmpInput.Name(),
 		"-vcodec", "libwebp",
 		"-filter:v", filters,
@@ -1474,15 +1484,28 @@ func convertVideoToWebP(inputData []byte, transparentColor string) ([]byte, erro
 }
 
 func convertToWebP(imageDataURL string, transparentColor string) ([]byte, error) {
-	resp, err := http.Get(imageDataURL)
+	client := &http.Client{
+		Timeout: stickerDownloadTimeout,
+	}
+
+	resp, err := client.Get(imageDataURL)
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch from URL: %v", err)
 	}
 	defer resp.Body.Close()
 
-	data, err := io.ReadAll(resp.Body)
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("failed to fetch from URL: status code %d", resp.StatusCode)
+	}
+
+	// Limitar o tamanho da leitura para evitar exaustão de recursos
+	data, err := io.ReadAll(io.LimitReader(resp.Body, stickerMaxDownloadSize))
 	if err != nil {
 		return nil, fmt.Errorf("failed to read response body: %v", err)
+	}
+
+	if int64(len(data)) >= stickerMaxDownloadSize {
+		return nil, fmt.Errorf("sticker size exceeds limit of %d bytes", stickerMaxDownloadSize)
 	}
 
 	mime := mimetype.Detect(data)
