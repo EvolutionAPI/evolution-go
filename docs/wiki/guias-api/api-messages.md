@@ -96,7 +96,7 @@ apikey: SUA-CHAVE-API
 ```bash
 curl -X POST http://localhost:4000/send/text \
   -H "Content-Type: application/json" \
-  -H "apikey: REPLACE_WITH_YOUR_API_KEY" \
+  -H "apikey: SUA-CHAVE-API" \
   -d '{
     "number": "5511999999999",
     "text": "Olá! Esta é uma mensagem de teste."
@@ -153,7 +153,7 @@ Envia uma mensagem com preview de link (título, descrição, imagem).
 ```bash
 curl -X POST http://localhost:4000/send/link \
   -H "Content-Type: application/json" \
-  -H "apikey: REPLACE_WITH_YOUR_API_KEY" \
+  -H "apikey: SUA-CHAVE-API" \
   -d '{
     "number": "5511999999999",
     "text": "Veja esta notícia: https://g1.globo.com/tecnologia"
@@ -239,7 +239,7 @@ delay: 0
 ```bash
 curl -X POST http://localhost:4000/send/media \
   -H "Content-Type: application/json" \
-  -H "apikey: REPLACE_WITH_YOUR_API_KEY" \
+  -H "apikey: SUA-CHAVE-API" \
   -d '{
     "number": "5511999999999",
     "url": "https://exemplo.com/produto.jpg",
@@ -251,7 +251,7 @@ curl -X POST http://localhost:4000/send/media \
 **Exemplo cURL (Arquivo)**:
 ```bash
 curl -X POST http://localhost:4000/send/media \
-  -H "apikey: REPLACE_WITH_YOUR_API_KEY" \
+  -H "apikey: SUA-CHAVE-API" \
   -F "number=5511999999999" \
   -F "type=image" \
   -F "caption=Foto enviada" \
@@ -313,7 +313,7 @@ Cria uma enquete (poll) com múltiplas opções.
 ```bash
 curl -X POST http://localhost:4000/send/poll \
   -H "Content-Type: application/json" \
-  -H "apikey: REPLACE_WITH_YOUR_API_KEY" \
+  -H "apikey: SUA-CHAVE-API" \
   -d '{
     "number": "5511999999999",
     "question": "Qual plano você prefere?",
@@ -370,7 +370,7 @@ Envia um sticker (figurinha) via URL.
 # Sticker estático (Imagem)
 curl -X POST http://localhost:4000/send/sticker \
   -H "Content-Type: application/json" \
-  -H "apikey: REPLACE_WITH_YOUR_API_KEY" \
+  -H "apikey: SUA-CHAVE-API" \
   -d '{
     "number": "5511999999999",
     "sticker": "https://exemplo.com/figurinha.png"
@@ -379,7 +379,7 @@ curl -X POST http://localhost:4000/send/sticker \
 # Sticker animado (Vídeo com fundo removido)
 curl -X POST http://localhost:4000/send/sticker \
   -H "Content-Type: application/json" \
-  -H "apikey: REPLACE_WITH_YOUR_API_KEY" \
+  -H "apikey: SUA-CHAVE-API" \
   -d '{
     "number": "5511999999999",
     "sticker": "https://exemplo.com/video.mp4",
@@ -433,7 +433,7 @@ Envia uma localização geográfica.
 ```bash
 curl -X POST http://localhost:4000/send/location \
   -H "Content-Type: application/json" \
-  -H "apikey: REPLACE_WITH_YOUR_API_KEY" \
+  -H "apikey: SUA-CHAVE-API" \
   -d '{
     "number": "5511999999999",
     "name": "Teatro Municipal",
@@ -489,7 +489,7 @@ Envia um cartão de contato (VCard).
 ```bash
 curl -X POST http://localhost:4000/send/contact \
   -H "Content-Type: application/json" \
-  -H "apikey: REPLACE_WITH_YOUR_API_KEY" \
+  -H "apikey: SUA-CHAVE-API" \
   -d '{
     "number": "5511999999999",
     "vcard": {
@@ -601,7 +601,7 @@ Tipos de chave PIX: `phone`, `email`, `cpf`, `cnpj`, `random` (EVP).
 ```bash
 curl -X POST http://localhost:4000/send/button \
   -H "Content-Type: application/json" \
-  -H "apikey: REPLACE_WITH_YOUR_API_KEY" \
+  -H "apikey: SUA-CHAVE-API" \
   -d '{
     "number": "5511999999999",
     "title": "Atendimento",
@@ -712,7 +712,7 @@ curl -X POST http://localhost:4000/send/button \
 ```bash
 curl -X POST http://localhost:4000/send/list \
   -H "Content-Type: application/json" \
-  -H "apikey: REPLACE_WITH_YOUR_API_KEY" \
+  -H "apikey: SUA-CHAVE-API" \
   -d '{
     "number": "5511999999999",
     "title": "Menu Principal",
@@ -782,7 +782,7 @@ Adiciona ou remove uma reação (emoji) em uma mensagem.
 # Adicionar reação
 curl -X POST http://localhost:4000/message/react \
   -H "Content-Type: application/json" \
-  -H "apikey: REPLACE_WITH_YOUR_API_KEY" \
+  -H "apikey: SUA-CHAVE-API" \
   -d '{
     "number": "5511999999999",
     "reaction": "❤️",
@@ -793,7 +793,7 @@ curl -X POST http://localhost:4000/message/react \
 # Remover reação
 curl -X POST http://localhost:4000/message/react \
   -H "Content-Type: application/json" \
-  -H "apikey: REPLACE_WITH_YOUR_API_KEY" \
+  -H "apikey: SUA-CHAVE-API" \
   -d '{
     "number": "5511999999999",
     "reaction": "remove",
@@ -842,7 +842,7 @@ Marca mensagem(ns) como lida(s).
 ```bash
 curl -X POST http://localhost:4000/message/markread \
   -H "Content-Type: application/json" \
-  -H "apikey: REPLACE_WITH_YOUR_API_KEY" \
+  -H "apikey: SUA-CHAVE-API" \
   -d '{
     "number": "5511999999999",
     "id": ["3EB0C5A277F7F9B6C599"]
@@ -891,7 +891,7 @@ Edita o conteúdo de uma mensagem enviada.
 ```bash
 curl -X POST http://localhost:4000/message/edit \
   -H "Content-Type: application/json" \
-  -H "apikey: REPLACE_WITH_YOUR_API_KEY" \
+  -H "apikey: SUA-CHAVE-API" \
   -d '{
     "chat": "5511999999999@s.whatsapp.net",
     "messageId": "3EB0C5A277F7F9B6C599",
@@ -939,7 +939,7 @@ Deleta uma mensagem para todos (revoke).
 ```bash
 curl -X POST http://localhost:4000/message/delete \
   -H "Content-Type: application/json" \
-  -H "apikey: REPLACE_WITH_YOUR_API_KEY" \
+  -H "apikey: SUA-CHAVE-API" \
   -d '{
     "chat": "5511999999999@s.whatsapp.net",
     "messageId": "3EB0C5A277F7F9B6C599"
@@ -993,7 +993,7 @@ Define o status de presença no chat (digitando, gravando áudio, online).
 # Mostrar "digitando..."
 curl -X POST http://localhost:4000/message/presence \
   -H "Content-Type: application/json" \
-  -H "apikey: REPLACE_WITH_YOUR_API_KEY" \
+  -H "apikey: SUA-CHAVE-API" \
   -d '{
     "number": "5511999999999",
     "state": "composing",
@@ -1003,7 +1003,7 @@ curl -X POST http://localhost:4000/message/presence \
 # Mostrar "gravando áudio..."
 curl -X POST http://localhost:4000/message/presence \
   -H "Content-Type: application/json" \
-  -H "apikey: REPLACE_WITH_YOUR_API_KEY" \
+  -H "apikey: SUA-CHAVE-API" \
   -d '{
     "number": "5511999999999",
     "state": "composing",
@@ -1013,7 +1013,7 @@ curl -X POST http://localhost:4000/message/presence \
 # Parar de digitar
 curl -X POST http://localhost:4000/message/presence \
   -H "Content-Type: application/json" \
-  -H "apikey: REPLACE_WITH_YOUR_API_KEY" \
+  -H "apikey: SUA-CHAVE-API" \
   -d '{
     "number": "5511999999999",
     "state": "paused"
@@ -1072,7 +1072,7 @@ Faz download de mídia de uma mensagem recebida e retorna em base64.
 ```bash
 curl -X POST http://localhost:4000/message/downloadimage \
   -H "Content-Type: application/json" \
-  -H "apikey: REPLACE_WITH_YOUR_API_KEY" \
+  -H "apikey: SUA-CHAVE-API" \
   -d '{
     "message": {
       "imageMessage": {
@@ -1136,7 +1136,7 @@ Consulta o status de entrega/leitura de uma mensagem no banco de dados.
 ```bash
 curl -X POST http://localhost:4000/message/status \
   -H "Content-Type: application/json" \
-  -H "apikey: REPLACE_WITH_YOUR_API_KEY" \
+  -H "apikey: SUA-CHAVE-API" \
   -d '{
     "id": "3EB0C5A277F7F9B6C599"
   }'
