@@ -70,7 +70,7 @@ type MessageStatusStruct struct {
 type MessageStruct struct {
 	Chat        string `json:"chat"`
 	MessageID   string `json:"messageId"`
-	FromMe      bool   `json:"fromMe"`
+	FromMe      *bool  `json:"fromMe"`
 	Participant string `json:"participant,omitempty"`
 }
 
@@ -379,7 +379,7 @@ func (m *messageService) DeleteMessageEveryone(data *MessageStruct, instance *in
 	}
 
 	var senderJID types.JID
-	if data.FromMe {
+	if data.FromMe == nil || *data.FromMe {
 		senderJID = types.EmptyJID
 	} else {
 		if data.Participant == "" {
@@ -387,7 +387,7 @@ func (m *messageService) DeleteMessageEveryone(data *MessageStruct, instance *in
 		}
 		parsedJID, ok := utils.ParseJID(data.Participant)
 		if !ok {
-			m.loggerWrapper.GetLogger(instance.Id).LogError("[%s] Error parsing participant JID for non-FromMe message: %s", data.Participant)
+			m.loggerWrapper.GetLogger(instance.Id).LogError("[%s] Error parsing participant JID for non-FromMe message: %s", instance.Id, data.Participant)
 			return "", "", errors.New("invalid participant JID")
 		}
 		senderJID = parsedJID
