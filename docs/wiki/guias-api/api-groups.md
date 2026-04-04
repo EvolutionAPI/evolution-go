@@ -142,8 +142,6 @@ curl -X POST http://localhost:4000/group/info \
     "groupJid": "120363XXXXXXXXXX@g.us"
   }'
 ```
-}'
-
 ---
 
 ## Informações via Link de Convite

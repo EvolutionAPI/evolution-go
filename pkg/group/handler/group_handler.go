@@ -156,7 +156,7 @@ func (g *groupHandler) GetGroupInfoFromInviteLink(ctx *gin.Context) {
 		return
 	}
 
-	var data *group_service.GetGroupInfoFromInviteLinkStruct
+	var data group_service.GetGroupInfoFromInviteLinkStruct
 	err := ctx.ShouldBindBodyWithJSON(&data)
 	if err != nil {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
@@ -168,7 +168,7 @@ func (g *groupHandler) GetGroupInfoFromInviteLink(ctx *gin.Context) {
 		return
 	}
 
-	resp, err := g.groupService.GetGroupInfoFromInviteLink(data, instance)
+	resp, err := g.groupService.GetGroupInfoFromInviteLink(&data, instance)
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"strings"
 	"time"
 
@@ -227,19 +228,27 @@ func (g *groupService) GetGroupInviteLink(data *GetGroupInviteLinkStruct, instan
 	return resp, nil
 }
 
+func extractInviteCode(code string) string {
+	code = strings.TrimSpace(code)
+	if strings.Contains(code, "chat.whatsapp.com/") {
+		u, err := url.Parse(code)
+		if err == nil {
+			pathParts := strings.Split(strings.Trim(u.Path, "/"), "/")
+			if len(pathParts) > 0 {
+				return pathParts[len(pathParts)-1]
+			}
+		}
+	}
+	return code
+}
+
 func (g *groupService) GetGroupInfoFromInviteLink(data *GetGroupInfoFromInviteLinkStruct, instance *instance_model.Instance) (*types.GroupInfo, error) {
 	client, err := g.ensureClientConnected(instance.Id)
 	if err != nil {
 		return nil, err
 	}
 
-	code := data.Code
-	if strings.Contains(code, "chat.whatsapp.com/") {
-		parts := strings.Split(code, "chat.whatsapp.com/")
-		if len(parts) > 1 {
-			code = parts[1]
-		}
-	}
+	code := extractInviteCode(data.Code)
 
 	resp, err := client.GetGroupInfoFromLink(context.Background(), code)
 	if err != nil {
@@ -471,7 +480,8 @@ func (g *groupService) JoinGroupLink(data *JoinGroupStruct, instance *instance_m
 		return err
 	}
 
-	_, err = client.JoinGroupWithLink(context.Background(), data.Code)
+	code := extractInviteCode(data.Code)
+	_, err = client.JoinGroupWithLink(context.Background(), code)
 	if err != nil {
 		g.loggerWrapper.GetLogger(instance.Id).LogError("[%s] error create group: %v", instance.Id, err)
 		return err
