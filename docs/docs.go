@@ -2175,6 +2175,167 @@ const docTemplate = `{
                 }
             }
         },
+        "/send/list": {
+            "post": {
+                "description": "Send a list message",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Send Message"
+                ],
+                "summary": "Send a list message",
+                "parameters": [
+                    {
+                        "description": "List message data",
+                        "name": "message",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Zapbox-API_evolution-go_pkg_sendMessage_service.ListStruct"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "success",
+                        "schema": {
+                            "$ref": "#/definitions/gin.H"
+                        }
+                    },
+                    "400": {
+                        "description": "Error on validation",
+                        "schema": {
+                            "$ref": "#/definitions/gin.H"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/gin.H"
+                        }
+                    }
+                }
+            }
+        },
+        "/send/status/text": {
+            "post": {
+                "description": "Send a WhatsApp text status to status@broadcast",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Send Message"
+                ],
+                "summary": "Send a WhatsApp text status",
+                "parameters": [
+                    {
+                        "description": "Status text data",
+                        "name": "message",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Zapbox-API_evolution-go_pkg_sendMessage_service.StatusTextStruct"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "success",
+                        "schema": {
+                            "$ref": "#/definitions/gin.H"
+                        }
+                    },
+                    "400": {
+                        "description": "Error on validation",
+                        "schema": {
+                            "$ref": "#/definitions/gin.H"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/gin.H"
+                        }
+                    }
+                }
+            }
+        },
+        "/send/status/media": {
+            "post": {
+                "description": "Send an image or video status to status@broadcast. Supports JSON (URL) or multipart/form-data (file upload)",
+                "consumes": [
+                    "application/json",
+                    "multipart/form-data"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Send Message"
+                ],
+                "summary": "Send a WhatsApp media status (image/video)",
+                "parameters": [
+                    {
+                        "description": "Media type: image or video",
+                        "name": "type",
+                        "in": "formData",
+                        "required": true,
+                        "type": "string"
+                    },
+                    {
+                        "description": "Media file (for multipart upload)",
+                        "name": "file",
+                        "in": "formData",
+                        "type": "file"
+                    },
+                    {
+                        "description": "Media URL (for JSON upload)",
+                        "name": "url",
+                        "in": "formData",
+                        "type": "string"
+                    },
+                    {
+                        "description": "Caption for the media",
+                        "name": "caption",
+                        "in": "formData",
+                        "type": "string"
+                    },
+                    {
+                        "description": "Custom message ID",
+                        "name": "id",
+                        "in": "formData",
+                        "type": "string"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "success",
+                        "schema": {
+                            "$ref": "#/definitions/gin.H"
+                        }
+                    },
+                    "400": {
+                        "description": "Error on validation",
+                        "schema": {
+                            "$ref": "#/definitions/gin.H"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/gin.H"
+                        }
+                    }
+                }
+            }
+        },
         "/unlabel/message": {
             "post": {
                 "description": "Remove label from message",
@@ -3197,6 +3358,50 @@ const docTemplate = `{
                     "type": "string"
                 }
             }
+        },
+        "github_com_Zapbox-API_evolution-go_pkg_sendMessage_service.StatusTextStruct": {
+            "type": "object",
+            "properties": {
+                "text": {
+                    "type": "string",
+                    "description": "Text content of the status"
+                },
+                "id": {
+                    "type": "string",
+                    "description": "Custom message ID (optional)"
+                },
+                "font": {
+                    "type": "integer",
+                    "description": "Font style (0-4)"
+                },
+                "backgroundColor": {
+                    "type": "string",
+                    "description": "Background color in hex format (e.g., #FF0000)"
+                }
+            },
+            "required": ["text"]
+        },
+        "github_com_Zapbox-API_evolution-go_pkg_sendMessage_service.StatusMediaStruct": {
+            "type": "object",
+            "properties": {
+                "type": {
+                    "type": "string",
+                    "description": "Media type: image or video"
+                },
+                "url": {
+                    "type": "string",
+                    "description": "URL of the media (for JSON upload)"
+                },
+                "caption": {
+                    "type": "string",
+                    "description": "Caption for the media"
+                },
+                "id": {
+                    "type": "string",
+                    "description": "Custom message ID (optional)"
+                }
+            },
+            "required": ["type"]
         },
         "github_com_Zapbox-API_evolution-go_pkg_user_service.CheckUserStruct": {
             "type": "object",
