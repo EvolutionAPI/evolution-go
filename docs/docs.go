@@ -3369,14 +3369,6 @@ const docTemplate = `{
                 "id": {
                     "type": "string",
                     "description": "Custom message ID (optional)"
-                },
-                "font": {
-                    "type": "integer",
-                    "description": "Font style (0-4)"
-                },
-                "backgroundColor": {
-                    "type": "string",
-                    "description": "Background color in hex format (e.g., #FF0000)"
                 }
             },
             "required": ["text"]

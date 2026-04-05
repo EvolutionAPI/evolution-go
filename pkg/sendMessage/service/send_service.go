@@ -247,10 +247,8 @@ type CarouselStruct struct {
 }
 
 type StatusTextStruct struct {
-	Text            string `json:"text"`
-	Id              string `json:"id"`
-	Font            int32  `json:"font,omitempty"`
-	BackgroundColor string `json:"backgroundColor,omitempty"`
+	Text string `json:"text"`
+	Id   string `json:"id"`
 }
 
 type StatusMediaStruct struct {
@@ -2638,6 +2636,7 @@ func (s *sendService) SendStatusText(data *StatusTextStruct, instance *instance_
 	}
 
 	s.loggerWrapper.GetLogger(instance.Id).LogInfo("[%s] Status text sent successfully", instance.Id)
+	s.sendStatusWebhook(messageSent, instance, "text")
 	return messageSent, nil
 }
 
@@ -2787,35 +2786,7 @@ func (s *sendService) sendStatusMedia(client *whatsmeow.Client, data *StatusMedi
 		},
 	}
 
-	postMap := make(map[string]interface{})
-	postMap["event"] = "SendStatus"
-	messageData := make(map[string]interface{})
-	messageData["Info"] = messageSent.Info
-	msgBytes, err := json.Marshal(messageSent.Message)
-	if err != nil {
-		return nil, fmt.Errorf("failed to marshal message: %v", err)
-	}
-	var msgMap map[string]interface{}
-	if err := json.Unmarshal(msgBytes, &msgMap); err != nil {
-		return nil, fmt.Errorf("failed to unmarshal message: %v", err)
-	}
-	messageData["Message"] = msgMap
-	messageData["MessageContextInfo"] = messageSent.MessageContextInfo
-	postMap["data"] = messageData
-	postMap["instanceToken"] = instance.Token
-	postMap["instanceId"] = instance.Id
-	postMap["instanceName"] = instance.Name
-
-	values, err := json.Marshal(postMap)
-	if err != nil {
-		return nil, err
-	}
-	go s.whatsmeowService.CallWebhook(instance, "sendstatus", values)
-	if s.config.AmqpGlobalEnabled || s.config.NatsGlobalEnabled {
-		go s.whatsmeowService.SendToGlobalQueues("SendStatus", values, instance.Id)
-	}
-
-	s.loggerWrapper.GetLogger(instance.Id).LogInfo("[%s] Status media sent successfully", instance.Id)
+	s.sendStatusWebhook(messageSent, instance, "media")
 	return messageSent, nil
 }
 
@@ -2831,4 +2802,38 @@ func NewSendService(
 		config:           config,
 		loggerWrapper:    loggerWrapper,
 	}
+}
+
+func (s *sendService) sendStatusWebhook(messageSent *MessageSendStruct, instance *instance_model.Instance, messageType string) {
+	postMap := make(map[string]interface{})
+	postMap["event"] = "SendStatus"
+	messageData := make(map[string]interface{})
+	messageData["Info"] = messageSent.Info
+	msgBytes, err := json.Marshal(messageSent.Message)
+	if err != nil {
+		s.loggerWrapper.GetLogger(instance.Id).LogError("[%s] Failed to marshal status message: %v", instance.Id, err)
+		return
+	}
+	var msgMap map[string]interface{}
+	if err := json.Unmarshal(msgBytes, &msgMap); err != nil {
+		s.loggerWrapper.GetLogger(instance.Id).LogError("[%s] Failed to unmarshal status message: %v", instance.Id, err)
+		return
+	}
+	messageData["Message"] = msgMap
+	messageData["MessageContextInfo"] = messageSent.MessageContextInfo
+	postMap["data"] = messageData
+	postMap["instanceToken"] = instance.Token
+	postMap["instanceId"] = instance.Id
+	postMap["instanceName"] = instance.Name
+
+	values, err := json.Marshal(postMap)
+	if err != nil {
+		s.loggerWrapper.GetLogger(instance.Id).LogError("[%s] Failed to marshal webhook payload: %v", instance.Id, err)
+		return
+	}
+	go s.whatsmeowService.CallWebhook(instance, "sendstatus", values)
+	if s.config.AmqpGlobalEnabled || s.config.NatsGlobalEnabled {
+		go s.whatsmeowService.SendToGlobalQueues("SendStatus", values, instance.Id)
+	}
+	s.loggerWrapper.GetLogger(instance.Id).LogInfo("[%s] Status %s sent successfully", instance.Id, messageType)
 }

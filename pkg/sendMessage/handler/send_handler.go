@@ -592,8 +592,8 @@ func (s *sendHandler) SendStatusText(ctx *gin.Context) {
 		return
 	}
 
-	var data *send_service.StatusTextStruct
-	err := ctx.ShouldBindBodyWithJSON(&data)
+	data := new(send_service.StatusTextStruct)
+	err := ctx.ShouldBindBodyWithJSON(data)
 	if err != nil {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
@@ -639,7 +639,7 @@ func (s *sendHandler) SendStatusMedia(ctx *gin.Context) {
 
 	contentType := ctx.ContentType()
 
-	var data *send_service.StatusMediaStruct
+	data := new(send_service.StatusMediaStruct)
 
 	if strings.HasPrefix(contentType, "multipart/form-data") {
 		mediaType := ctx.PostForm("type")
@@ -688,7 +688,7 @@ func (s *sendHandler) SendStatusMedia(ctx *gin.Context) {
 
 		ctx.JSON(http.StatusOK, gin.H{"message": "success", "data": message})
 	} else {
-		err := ctx.ShouldBindBodyWithJSON(&data)
+		err := ctx.ShouldBindBodyWithJSON(data)
 		if err != nil {
 			ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 			return
