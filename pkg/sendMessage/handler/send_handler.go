@@ -21,6 +21,8 @@ type SendHandler interface {
 	SendContact(ctx *gin.Context)
 	SendButton(ctx *gin.Context)
 	SendList(ctx *gin.Context)
+	SendStatusText(ctx *gin.Context)
+	SendStatusMedia(ctx *gin.Context)
 }
 
 type sendHandler struct {
@@ -568,6 +570,122 @@ func (s *sendHandler) SendList(ctx *gin.Context) {
 	}
 
 	ctx.JSON(http.StatusOK, gin.H{"message": "success", "data": message})
+}
+
+func (s *sendHandler) SendStatusText(ctx *gin.Context) {
+	getInstance := ctx.MustGet("instance")
+
+	instance, ok := getInstance.(*instance_model.Instance)
+	if !ok {
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "instance not found"})
+		return
+	}
+
+	var data *send_service.StatusTextStruct
+	err := ctx.ShouldBindBodyWithJSON(&data)
+	if err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	if data.Text == "" {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "text is required"})
+		return
+	}
+
+	message, err := s.sendMessageService.SendStatusText(data, instance)
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	ctx.JSON(http.StatusOK, gin.H{"message": "success", "data": message})
+}
+
+func (s *sendHandler) SendStatusMedia(ctx *gin.Context) {
+	getInstance := ctx.MustGet("instance")
+
+	instance, ok := getInstance.(*instance_model.Instance)
+	if !ok {
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "instance not found"})
+		return
+	}
+
+	contentType := ctx.ContentType()
+
+	var data *send_service.StatusMediaStruct
+
+	if strings.HasPrefix(contentType, "multipart/form-data") {
+		mediaType := ctx.PostForm("type")
+		if mediaType == "" {
+			ctx.JSON(http.StatusBadRequest, gin.H{"error": "media type is required"})
+			return
+		}
+
+		if mediaType != "image" && mediaType != "video" {
+			ctx.JSON(http.StatusBadRequest, gin.H{"error": "type must be 'image' or 'video'"})
+			return
+		}
+
+		caption := ctx.PostForm("caption")
+		id := ctx.PostForm("id")
+
+		file, err := ctx.FormFile("file")
+		if err != nil {
+			ctx.JSON(http.StatusBadRequest, gin.H{"error": "file is required"})
+			return
+		}
+
+		fileData, err := file.Open()
+		if err != nil {
+			ctx.JSON(http.StatusInternalServerError, gin.H{"error": "cannot open file"})
+			return
+		}
+		defer fileData.Close()
+		fileBytes, err := io.ReadAll(fileData)
+		if err != nil {
+			ctx.JSON(http.StatusInternalServerError, gin.H{"error": "cannot read file"})
+			return
+		}
+
+		data = &send_service.StatusMediaStruct{
+			Type:    mediaType,
+			Caption: caption,
+			Id:      id,
+		}
+
+		message, err := s.sendMessageService.SendStatusMediaFile(data, fileBytes, instance)
+		if err != nil {
+			ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+
+		ctx.JSON(http.StatusOK, gin.H{"message": "success", "data": message})
+	} else {
+		err := ctx.ShouldBindBodyWithJSON(&data)
+		if err != nil {
+			ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
+
+		if data.Url == "" {
+			ctx.JSON(http.StatusBadRequest, gin.H{"error": "url is required"})
+			return
+		}
+
+		if data.Type != "image" && data.Type != "video" {
+			ctx.JSON(http.StatusBadRequest, gin.H{"error": "type must be 'image' or 'video'"})
+			return
+		}
+
+		message, err := s.sendMessageService.SendStatusMediaUrl(data, instance)
+		if err != nil {
+			ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+
+		ctx.JSON(http.StatusOK, gin.H{"message": "success", "data": message})
+	}
 }
 
 func NewSendHandler(

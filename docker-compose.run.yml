@@ -1,0 +1,62 @@
+version: '3.8'
+
+services:
+  evolution-go:
+    image: evolution-go:latest
+    restart: unless-stopped
+    ports:
+      - "4000:4000"
+    environment:
+      SERVER_PORT: 4000
+      CLIENT_NAME: "evolution"
+      GLOBAL_API_KEY: "429683C4C977415CAAFCCE10F7D57E11"
+      POSTGRES_AUTH_DB: "postgresql://postgres:postgres@postgres:5432/evogo_auth?sslmode=disable"
+      POSTGRES_USERS_DB: "postgresql://postgres:postgres@postgres:5432/evogo_users?sslmode=disable"
+      DATABASE_SAVE_MESSAGES: "false"
+      WADEBUG: "DEBUG"
+      LOGTYPE: "console"
+      CONNECT_ON_STARTUP: "true"
+      WEBHOOKFILES: "true"
+      OS_NAME: "Linux"
+      WEBHOOK_URL: ""
+      AMQP_URL: ""
+      MINIO_ENABLED: "false"
+      EVENT_IGNORE_GROUP: "false"
+      EVENT_IGNORE_STATUS: "true"
+      QRCODE_MAX_COUNT: "5"
+    volumes:
+      - evolution_data:/app/dbdata
+      - evolution_logs:/app/logs
+    networks:
+      - evolution_network
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  postgres:
+    image: postgres:15-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - evolution_network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  evolution_data:
+  evolution_logs:
+  postgres_data:
+
+networks:
+  evolution_network:
+    driver: bridge
