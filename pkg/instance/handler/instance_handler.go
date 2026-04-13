@@ -234,7 +234,13 @@ func (i *instanceHandler) SetPresence(ctx *gin.Context) {
 		return
 	}
 
-	if err := i.instanceService.SetPresence(&data, instance); err != nil {
+	// Validate input here so misuse returns 4xx and service errors remain 5xx
+	if data.State != "available" && data.State != "unavailable" {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "invalid state, must be 'available' or 'unavailable'"})
+		return
+	}
+
+	if err := i.instanceService.SetPresence(ctx.Request.Context(), &data, instance); err != nil {
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}

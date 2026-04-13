@@ -28,7 +28,7 @@ type InstanceService interface {
 	Connect(data *ConnectStruct, instance *instance_model.Instance) (*instance_model.Instance, string, string, error)
 	Reconnect(instance *instance_model.Instance) error
 	Disconnect(instance *instance_model.Instance) (*instance_model.Instance, error)
-	SetPresence(data *SetPresenceStruct, instance *instance_model.Instance) error
+	SetPresence(ctx context.Context, data *SetPresenceStruct, instance *instance_model.Instance) error
 	Logout(instance *instance_model.Instance) (*instance_model.Instance, error)
 	Status(instance *instance_model.Instance) (*StatusStruct, error)
 	GetQr(instance *instance_model.Instance) (*QrcodeStruct, error)
@@ -330,7 +330,9 @@ func (i instances) Disconnect(instance *instance_model.Instance) (*instance_mode
 // Permite marcar o cliente como "available" (ativo, intercepta push do celular) ou
 // "unavailable" (standby, celular volta a receber push) sem desconectar a sessão.
 // Idêntico ao comportamento do WhatsApp Web quando minimizado/em background.
-func (i instances) SetPresence(data *SetPresenceStruct, instance *instance_model.Instance) error {
+// A validação do campo State acontece no handler HTTP (retorna 400 em caso de valor inválido);
+// qualquer erro que chega aqui é considerado 5xx.
+func (i instances) SetPresence(ctx context.Context, data *SetPresenceStruct, instance *instance_model.Instance) error {
 	client, err := i.ensureClientConnected(instance.Id)
 	if err != nil {
 		return err
@@ -347,10 +349,11 @@ func (i instances) SetPresence(data *SetPresenceStruct, instance *instance_model
 	case "unavailable":
 		state = types.PresenceUnavailable
 	default:
-		return errors.New("invalid state, must be 'available' or 'unavailable'")
+		// Should never reach here because handler validates first, but keep as safety net.
+		return errors.New("invalid state")
 	}
 
-	if err := client.SendPresence(context.Background(), state); err != nil {
+	if err := client.SendPresence(ctx, state); err != nil {
 		i.loggerWrapper.GetLogger(instance.Id).LogError("[%s] SetPresence failed: %v", instance.Id, err)
 		return err
 	}

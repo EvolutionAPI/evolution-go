@@ -421,7 +421,7 @@ func (m *messageService) EditMessage(data *EditMessageStruct, instance *instance
 				},
 			}))
 	if err != nil {
-		m.loggerWrapper.GetLogger(instance.Id).LogError("[%s] error revoking message: %v", instance.Id, err)
+		m.loggerWrapper.GetLogger(instance.Id).LogError("[%s] error editing message: %v", instance.Id, err)
 		return "", "", err
 	}
 
