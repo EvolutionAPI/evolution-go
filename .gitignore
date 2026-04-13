@@ -7,3 +7,7 @@ coverage.*
 .idea/
 .vscode/
 .DS_Store
+
+# ImobDeal — arquivos locais pra rodar o Evolution Go no PC
+docker-compose.yml
+init-db.sql
