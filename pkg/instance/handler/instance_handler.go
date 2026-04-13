@@ -16,6 +16,7 @@ type InstanceHandler interface {
 	Connect(ctx *gin.Context)
 	Reconnect(ctx *gin.Context)
 	Disconnect(ctx *gin.Context)
+	SetPresence(ctx *gin.Context)
 	Logout(ctx *gin.Context)
 	Delete(ctx *gin.Context)
 	Status(ctx *gin.Context)
@@ -203,6 +204,42 @@ func (i *instanceHandler) Disconnect(ctx *gin.Context) {
 	ctx.Set("instance", updateInstance)
 
 	ctx.JSON(http.StatusOK, gin.H{"message": "success"})
+}
+
+// IMOBDEAL PATCH: SetPresence endpoint
+// @Summary Set instance presence (available/unavailable)
+// @Description Marks the instance as available or unavailable WITHOUT disconnecting.
+// @Description Mimics WhatsApp Web's behavior when minimized — the phone resumes
+// @Description receiving push notifications while the linked device stays connected.
+// @Tags Instance
+// @Accept json
+// @Produce json
+// @Param body body instance_service.SetPresenceStruct true "State: available or unavailable"
+// @Success 200 {object} gin.H "Presence updated"
+// @Failure 400 {object} gin.H "Invalid state"
+// @Failure 500 {object} gin.H "Internal server error"
+// @Router /instance/presence [post]
+func (i *instanceHandler) SetPresence(ctx *gin.Context) {
+	getInstance := ctx.MustGet("instance")
+
+	instance, ok := getInstance.(*instance_model.Instance)
+	if !ok {
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "instance not found"})
+		return
+	}
+
+	var data instance_service.SetPresenceStruct
+	if err := ctx.ShouldBindJSON(&data); err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	if err := i.instanceService.SetPresence(&data, instance); err != nil {
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	ctx.JSON(http.StatusOK, gin.H{"message": "success", "state": data.State})
 }
 
 // Logout from instance

@@ -28,6 +28,7 @@ type InstanceService interface {
 	Connect(data *ConnectStruct, instance *instance_model.Instance) (*instance_model.Instance, string, string, error)
 	Reconnect(instance *instance_model.Instance) error
 	Disconnect(instance *instance_model.Instance) (*instance_model.Instance, error)
+	SetPresence(data *SetPresenceStruct, instance *instance_model.Instance) error
 	Logout(instance *instance_model.Instance) (*instance_model.Instance, error)
 	Status(instance *instance_model.Instance) (*StatusStruct, error)
 	GetQr(instance *instance_model.Instance) (*QrcodeStruct, error)
@@ -77,6 +78,12 @@ type ConnectStruct struct {
 	RabbitmqEnable  string   `json:"rabbitmqEnable"`
 	WebSocketEnable string   `json:"websocketEnable"`
 	NatsEnable      string   `json:"natsEnable"`
+}
+
+// IMOBDEAL PATCH: struct para a rota POST /instance/presence
+// state deve ser "available" ou "unavailable"
+type SetPresenceStruct struct {
+	State string `json:"state" binding:"required"`
 }
 
 type StatusStruct struct {
@@ -317,6 +324,39 @@ func (i instances) Disconnect(instance *instance_model.Instance) (*instance_mode
 
 	i.loggerWrapper.GetLogger(instance.Id).LogWarn("[%s] Ignoring disconnect as it was not connected", instance.Id)
 	return instance, nil
+}
+
+// IMOBDEAL PATCH: SetPresence expõe SendPresence do whatsmeow como endpoint HTTP.
+// Permite marcar o cliente como "available" (ativo, intercepta push do celular) ou
+// "unavailable" (standby, celular volta a receber push) sem desconectar a sessão.
+// Idêntico ao comportamento do WhatsApp Web quando minimizado/em background.
+func (i instances) SetPresence(data *SetPresenceStruct, instance *instance_model.Instance) error {
+	client, err := i.ensureClientConnected(instance.Id)
+	if err != nil {
+		return err
+	}
+
+	if !client.IsConnected() || !client.IsLoggedIn() {
+		return errors.New("client is not connected or not logged in")
+	}
+
+	var state types.Presence
+	switch data.State {
+	case "available":
+		state = types.PresenceAvailable
+	case "unavailable":
+		state = types.PresenceUnavailable
+	default:
+		return errors.New("invalid state, must be 'available' or 'unavailable'")
+	}
+
+	if err := client.SendPresence(context.Background(), state); err != nil {
+		i.loggerWrapper.GetLogger(instance.Id).LogError("[%s] SetPresence failed: %v", instance.Id, err)
+		return err
+	}
+
+	i.loggerWrapper.GetLogger(instance.Id).LogInfo("[%s] Presence set to %s", instance.Id, data.State)
+	return nil
 }
 
 func (i instances) Logout(instance *instance_model.Instance) (*instance_model.Instance, error) {

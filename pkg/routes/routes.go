@@ -102,6 +102,7 @@ func (r *Routes) AssignRoutes(eng *gin.Engine) {
 			routes.POST("/pair", r.jidValidationMiddleware.ValidateNumberField(), r.instanceHandler.Pair)
 			routes.POST("/disconnect", r.instanceHandler.Disconnect)
 			routes.POST("/reconnect", r.instanceHandler.Reconnect)
+			routes.POST("/presence", r.instanceHandler.SetPresence) // IMOBDEAL PATCH
 			routes.DELETE("/logout", r.instanceHandler.Logout)
 			routes.GET("/:instanceId/advanced-settings", r.instanceHandler.GetAdvancedSettings)
 			routes.PUT("/:instanceId/advanced-settings", r.instanceHandler.UpdateAdvancedSettings)
