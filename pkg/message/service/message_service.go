@@ -406,6 +406,9 @@ func (m *messageService) EditMessage(data *EditMessageStruct, instance *instance
 		return "", "", errors.New("invalid phone number")
 	}
 
+	// IMOBDEAL PATCH: usar ExtendedTextMessage em vez de Conversation.
+	// SendText envia como ExtendedTextMessage; o WhatsApp ignora silenciosamente
+	// edições quando o tipo difere do original.
 	resp, err := client.SendMessage(
 		context.Background(),
 		recipient,
@@ -413,7 +416,9 @@ func (m *messageService) EditMessage(data *EditMessageStruct, instance *instance
 			recipient,
 			data.MessageID,
 			&waE2E.Message{
-				Conversation: proto.String(data.Message),
+				ExtendedTextMessage: &waE2E.ExtendedTextMessage{
+					Text: &data.Message,
+				},
 			}))
 	if err != nil {
 		m.loggerWrapper.GetLogger(instance.Id).LogError("[%s] error revoking message: %v", instance.Id, err)
