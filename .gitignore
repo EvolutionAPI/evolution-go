@@ -11,3 +11,6 @@ coverage.*
 # ImobDeal — arquivos locais pra rodar o Evolution Go no PC
 docker-compose.yml
 init-db.sql
+deploy_ssh.py
+check_deploy.py
+*.local.py
