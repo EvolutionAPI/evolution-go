@@ -15,6 +15,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"golang.org/x/image/webp"
@@ -2293,7 +2294,21 @@ func (w *whatsmeowService) SendToGlobalQueues(eventType string, payload []byte, 
 	}
 }
 
+var (
+	cachedWebVersion     *clientVersion
+	cachedWebVersionAt   time.Time
+	cachedWebVersionMu   sync.Mutex
+	webVersionCacheTTL   = 1 * time.Hour
+)
+
 func fetchWhatsAppWebVersion() (*clientVersion, error) {
+	cachedWebVersionMu.Lock()
+	defer cachedWebVersionMu.Unlock()
+
+	if cachedWebVersion != nil && time.Since(cachedWebVersionAt) < webVersionCacheTTL {
+		return cachedWebVersion, nil
+	}
+
 	resp, err := http.Get("https://web.whatsapp.com/sw.js")
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch WhatsApp Web version: %v", err)
@@ -2327,11 +2342,13 @@ func fetchWhatsAppWebVersion() (*clientVersion, error) {
 
 			// Log qual padrão funcionou
 			if clientRevision > 0 {
-				return &clientVersion{
+				cachedWebVersion = &clientVersion{
 					Major: 2,
 					Minor: 3000,
 					Patch: clientRevision,
-				}, nil
+				}
+				cachedWebVersionAt = time.Now()
+				return cachedWebVersion, nil
 			}
 		}
 	}
