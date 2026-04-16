@@ -207,10 +207,6 @@ Please contact contato@evolution-api.com for licensing inquiries. Full license d
 - [whatsmeow](https://github.com/tulir/whatsmeow) by [tulir](https://github.com/tulir)
 - [Evolution API](https://github.com/EvolutionAPI/evolution-api)
 
-## Telemetry
-
-Evolution Go collects anonymous telemetry data (routes used, API version) to improve the service. No sensitive or personal data is collected.
-
 ---
 
 <div align="center">

@@ -59,7 +59,6 @@ import (
 	server_handler "github.com/EvolutionAPI/evolution-go/pkg/server/handler"
 	storage_interfaces "github.com/EvolutionAPI/evolution-go/pkg/storage/interfaces"
 	minio_storage "github.com/EvolutionAPI/evolution-go/pkg/storage/minio"
-	"github.com/EvolutionAPI/evolution-go/pkg/telemetry"
 	user_handler "github.com/EvolutionAPI/evolution-go/pkg/user/handler"
 	user_service "github.com/EvolutionAPI/evolution-go/pkg/user/service"
 	whatsmeow_service "github.com/EvolutionAPI/evolution-go/pkg/whatsmeow/service"
@@ -200,8 +199,6 @@ func setupRouter(db *gorm.DB, authDB *sql.DB, sqliteDB *sql.DB, config *config.C
 	// NOVO: PollHandler usando PollService já inicializado no whatsmeowService (evita dupla inicialização)
 	pollHandler := poll_handler.NewPollHandler(whatsmeowService.GetPollService(), loggerWrapper)
 
-	telemetry := telemetry.NewTelemetryService()
-
 	r := gin.Default()
 
 	// CORS middleware — must be before everything else
@@ -217,8 +214,6 @@ func setupRouter(db *gorm.DB, authDB *sql.DB, sqliteDB *sql.DB, config *config.C
 		}
 		c.Next()
 	})
-
-	r.Use(telemetry.TelemetryMiddleware())
 
 	r.Use(core.GateMiddleware(runtimeCtx))
 
