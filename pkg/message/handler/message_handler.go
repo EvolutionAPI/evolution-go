@@ -168,17 +168,17 @@ func (m *messageHandler) MarkRead(ctx *gin.Context) {
 	ctx.JSON(http.StatusOK, gin.H{"message": "success", "data": responseData})
 }
 
-// DownloadImage download an image
-// @Summary Download an image
-// @Description Download an image
+// DownloadMedia download media from a message
+// @Summary Download media
+// @Description Download media (image/video/audio/document) from a WhatsApp message
 // @Tags Message
 // @Accept json
 // @Produce json
-// @Param message body message_service.DownloadImageStruct true "Download an image"
+// @Param message body message_service.DownloadMediaStruct true "Message containing media to download"
 // @Success 200 {object} gin.H "success"
 // @Failure 400 {object} gin.H "Error on validation"
 // @Failure 500 {object} gin.H "Internal server error"
-// @Router /message/downloadimage [post]
+// @Router /message/downloadmedia [post]
 func (m *messageHandler) DownloadMedia(ctx *gin.Context) {
 	getInstance := ctx.MustGet("instance")
 

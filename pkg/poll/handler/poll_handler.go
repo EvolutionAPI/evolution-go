@@ -29,7 +29,7 @@ func NewPollHandler(pollService poll_service.PollService, loggerWrapper *logger_
 // @Accept json
 // @Produce json
 // @Param pollMessageId path string true "ID da mensagem da enquete"
-// @Success 200 {object} model.PollResults
+// @Success 200 {object} github_com_EvolutionAPI_evolution-go_pkg_poll_model.PollResults
 // @Failure 400 {object} gin.H
 // @Failure 404 {object} gin.H
 // @Failure 500 {object} gin.H
