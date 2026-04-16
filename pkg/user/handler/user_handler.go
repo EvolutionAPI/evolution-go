@@ -3,9 +3,11 @@ package user_handler
 import (
 	"net/http"
 
+	_ "github.com/EvolutionAPI/evolution-go/pkg/common/response"
 	instance_model "github.com/EvolutionAPI/evolution-go/pkg/instance/model"
 	user_service "github.com/EvolutionAPI/evolution-go/pkg/user/service"
 	"github.com/gin-gonic/gin"
+	_ "go.mau.fi/whatsmeow/types"
 )
 
 type UserHandler interface {
@@ -34,9 +36,9 @@ type userHandler struct {
 // @Accept json
 // @Produce json
 // @Param message body user_service.CheckUserStruct true "User data"
-// @Success 200 {object} gin.H "success"
-// @Failure 400 {object} gin.H "Error on validation"
-// @Failure 500 {object} gin.H "Internal server error"
+// @Success 200 {object} response.Success{data=user_service.UserCollection} "success"
+// @Failure 400 {object} response.Error "Error on validation"
+// @Failure 500 {object} response.Error "Internal server error"
 // @Router /user/info [post]
 func (u *userHandler) GetUser(ctx *gin.Context) {
 	getInstance := ctx.MustGet("instance")
@@ -75,9 +77,9 @@ func (u *userHandler) GetUser(ctx *gin.Context) {
 // @Accept json
 // @Produce json
 // @Param message body user_service.CheckUserStruct true "User data"
-// @Success 200 {object} gin.H "success"
-// @Failure 400 {object} gin.H "Error on validation"
-// @Failure 500 {object} gin.H "Internal server error"
+// @Success 200 {object} response.Success{data=user_service.CheckUserCollection} "success"
+// @Failure 400 {object} response.Error "Error on validation"
+// @Failure 500 {object} response.Error "Internal server error"
 // @Router /user/check [post]
 func (u *userHandler) CheckUser(ctx *gin.Context) {
 	getInstance := ctx.MustGet("instance")
@@ -116,9 +118,9 @@ func (u *userHandler) CheckUser(ctx *gin.Context) {
 // @Accept json
 // @Produce json
 // @Param message body user_service.GetAvatarStruct true "Avatar data"
-// @Success 200 {object} gin.H "success"
-// @Failure 400 {object} gin.H "Error on validation"
-// @Failure 500 {object} gin.H "Internal server error"
+// @Success 200 {object} response.Success{data=types.ProfilePictureInfo} "success"
+// @Failure 400 {object} response.Error "Error on validation"
+// @Failure 500 {object} response.Error "Internal server error"
 // @Router /user/avatar [post]
 func (u *userHandler) GetAvatar(ctx *gin.Context) {
 	getInstance := ctx.MustGet("instance")
@@ -161,8 +163,8 @@ func (u *userHandler) GetAvatar(ctx *gin.Context) {
 // @Tags User
 // @Accept json
 // @Produce json
-// @Success 200 {object} gin.H "success"
-// @Failure 500 {object} gin.H "Internal server error"
+// @Success 200 {object} response.Success{data=[]user_service.ContactInfo} "success"
+// @Failure 500 {object} response.Error "Internal server error"
 // @Router /user/contacts [get]
 func (u *userHandler) GetContacts(ctx *gin.Context) {
 	getInstance := ctx.MustGet("instance")
@@ -188,8 +190,8 @@ func (u *userHandler) GetContacts(ctx *gin.Context) {
 // @Tags User
 // @Accept json
 // @Produce json
-// @Success 200 {object} gin.H "success"
-// @Failure 500 {object} gin.H "Internal server error"
+// @Success 200 {object} response.Success{data=types.PrivacySettings} "success"
+// @Failure 500 {object} response.Error "Internal server error"
 // @Router /user/privacy [get]
 func (u *userHandler) GetPrivacy(ctx *gin.Context) {
 	getInstance := ctx.MustGet("instance")
@@ -216,8 +218,8 @@ func (u *userHandler) GetPrivacy(ctx *gin.Context) {
 // @Accept json
 // @Produce json
 // @Param message body user_service.PrivacyStruct true "Privacy data"
-// @Success 200 {object} gin.H "success"
-// @Failure 500 {object} gin.H "Internal server error"
+// @Success 200 {object} response.Success{data=types.PrivacySettings} "success"
+// @Failure 500 {object} response.Error "Internal server error"
 // @Router /user/privacy [post]
 func (u *userHandler) SetPrivacy(ctx *gin.Context) {
 	getInstance := ctx.MustGet("instance")
@@ -286,9 +288,9 @@ func (u *userHandler) SetPrivacy(ctx *gin.Context) {
 // @Accept json
 // @Produce json
 // @Param message body user_service.BlockStruct true "Block data"
-// @Success 200 {object} gin.H "success"
-// @Failure 400 {object} gin.H "Error on validation"
-// @Failure 500 {object} gin.H "Internal server error"
+// @Success 200 {object} response.Success{data=types.Blocklist} "success"
+// @Failure 400 {object} response.Error "Error on validation"
+// @Failure 500 {object} response.Error "Internal server error"
 // @Router /user/block [post]
 func (u *userHandler) BlockContact(ctx *gin.Context) {
 	getInstance := ctx.MustGet("instance")
@@ -332,9 +334,9 @@ func (u *userHandler) BlockContact(ctx *gin.Context) {
 // @Accept json
 // @Produce json
 // @Param message body user_service.BlockStruct true "Block data"
-// @Success 200 {object} gin.H "success"
-// @Failure 400 {object} gin.H "Error on validation"
-// @Failure 500 {object} gin.H "Internal server error"
+// @Success 200 {object} response.Success{data=types.Blocklist} "success"
+// @Failure 400 {object} response.Error "Error on validation"
+// @Failure 500 {object} response.Error "Internal server error"
 // @Router /user/unblock [post]
 func (u *userHandler) UnblockContact(ctx *gin.Context) {
 	getInstance := ctx.MustGet("instance")
@@ -377,8 +379,8 @@ func (u *userHandler) UnblockContact(ctx *gin.Context) {
 // @Tags User
 // @Accept json
 // @Produce json
-// @Success 200 {object} gin.H "success"
-// @Failure 500 {object} gin.H "Internal server error"
+// @Success 200 {object} response.Success{data=types.Blocklist} "success"
+// @Failure 500 {object} response.Error "Internal server error"
 // @Router /user/blocklist [get]
 func (u *userHandler) GetBlockList(ctx *gin.Context) {
 	getInstance := ctx.MustGet("instance")
@@ -405,9 +407,9 @@ func (u *userHandler) GetBlockList(ctx *gin.Context) {
 // @Accept json
 // @Produce json
 // @Param message body user_service.SetProfilePictureStruct true "Profile picture data"
-// @Success 200 {object} gin.H "success"
-// @Failure 400 {object} gin.H "Error on validation"
-// @Failure 500 {object} gin.H "Internal server error"
+// @Success 200 {object} response.Success{data=user_service.SetProfilePictureResponse} "success"
+// @Failure 400 {object} response.Error "Error on validation"
+// @Failure 500 {object} response.Error "Internal server error"
 // @Router /user/profilePicture [post]
 func (u *userHandler) SetProfilePicture(ctx *gin.Context) {
 	getInstance := ctx.MustGet("instance")
@@ -453,9 +455,9 @@ func (u *userHandler) SetProfilePicture(ctx *gin.Context) {
 // @Accept json
 // @Produce json
 // @Param message body user_service.SetProfilePictureStruct true "Profile name data"
-// @Success 200 {object} gin.H "success"
-// @Failure 400 {object} gin.H "Error on validation"
-// @Failure 500 {object} gin.H "Internal server error"
+// @Success 200 {object} response.Success{data=user_service.SetProfileNameResponse} "success"
+// @Failure 400 {object} response.Error "Error on validation"
+// @Failure 500 {object} response.Error "Internal server error"
 // @Router /user/profileName [post]
 func (u *userHandler) SetProfileName(ctx *gin.Context) {
 	getInstance := ctx.MustGet("instance")
@@ -501,9 +503,9 @@ func (u *userHandler) SetProfileName(ctx *gin.Context) {
 // @Accept json
 // @Produce json
 // @Param message body user_service.SetProfilePictureStruct true "Profile status data"
-// @Success 200 {object} gin.H "success"
-// @Failure 400 {object} gin.H "Error on validation"
-// @Failure 500 {object} gin.H "Internal server error"
+// @Success 200 {object} response.Success{data=user_service.SetProfileStatusResponse} "success"
+// @Failure 400 {object} response.Error "Error on validation"
+// @Failure 500 {object} response.Error "Internal server error"
 // @Router /user/profileStatus [post]
 func (u *userHandler) SetProfileStatus(ctx *gin.Context) {
 	getInstance := ctx.MustGet("instance")

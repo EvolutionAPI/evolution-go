@@ -43,13 +43,13 @@ const docTemplate = `{
                     "200": {
                         "description": "success",
                         "schema": {
-                            "$ref": "#/definitions/gin.H"
+                            "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Success"
                         }
                     },
                     "500": {
                         "description": "Internal server error",
                         "schema": {
-                            "$ref": "#/definitions/gin.H"
+                            "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error"
                         }
                     }
                 }
@@ -83,19 +83,31 @@ const docTemplate = `{
                     "200": {
                         "description": "success",
                         "schema": {
-                            "$ref": "#/definitions/gin.H"
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Success"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_chat_service.TimestampResponse"
+                                        }
+                                    }
+                                }
+                            ]
                         }
                     },
                     "400": {
                         "description": "Error on validation",
                         "schema": {
-                            "$ref": "#/definitions/gin.H"
+                            "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error"
                         }
                     },
                     "500": {
                         "description": "Internal server error",
                         "schema": {
-                            "$ref": "#/definitions/gin.H"
+                            "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error"
                         }
                     }
                 }
@@ -129,19 +141,31 @@ const docTemplate = `{
                     "200": {
                         "description": "success",
                         "schema": {
-                            "$ref": "#/definitions/gin.H"
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Success"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/go_mau_fi_whatsmeow.SendResponse"
+                                        }
+                                    }
+                                }
+                            ]
                         }
                     },
                     "400": {
                         "description": "Error on validation",
                         "schema": {
-                            "$ref": "#/definitions/gin.H"
+                            "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error"
                         }
                     },
                     "500": {
                         "description": "Internal server error",
                         "schema": {
-                            "$ref": "#/definitions/gin.H"
+                            "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error"
                         }
                     }
                 }
@@ -175,19 +199,31 @@ const docTemplate = `{
                     "200": {
                         "description": "success",
                         "schema": {
-                            "$ref": "#/definitions/gin.H"
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Success"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_chat_service.TimestampResponse"
+                                        }
+                                    }
+                                }
+                            ]
                         }
                     },
                     "400": {
                         "description": "Error on validation",
                         "schema": {
-                            "$ref": "#/definitions/gin.H"
+                            "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error"
                         }
                     },
                     "500": {
                         "description": "Internal server error",
                         "schema": {
-                            "$ref": "#/definitions/gin.H"
+                            "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error"
                         }
                     }
                 }
@@ -221,19 +257,31 @@ const docTemplate = `{
                     "200": {
                         "description": "success",
                         "schema": {
-                            "$ref": "#/definitions/gin.H"
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Success"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_chat_service.TimestampResponse"
+                                        }
+                                    }
+                                }
+                            ]
                         }
                     },
                     "400": {
                         "description": "Error on validation",
                         "schema": {
-                            "$ref": "#/definitions/gin.H"
+                            "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error"
                         }
                     },
                     "500": {
                         "description": "Internal server error",
                         "schema": {
-                            "$ref": "#/definitions/gin.H"
+                            "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error"
                         }
                     }
                 }
@@ -267,19 +315,31 @@ const docTemplate = `{
                     "200": {
                         "description": "success",
                         "schema": {
-                            "$ref": "#/definitions/gin.H"
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Success"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_chat_service.TimestampResponse"
+                                        }
+                                    }
+                                }
+                            ]
                         }
                     },
                     "400": {
                         "description": "Error on validation",
                         "schema": {
-                            "$ref": "#/definitions/gin.H"
+                            "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error"
                         }
                     },
                     "500": {
                         "description": "Internal server error",
                         "schema": {
-                            "$ref": "#/definitions/gin.H"
+                            "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error"
                         }
                     }
                 }
@@ -313,19 +373,31 @@ const docTemplate = `{
                     "200": {
                         "description": "success",
                         "schema": {
-                            "$ref": "#/definitions/gin.H"
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Success"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_chat_service.TimestampResponse"
+                                        }
+                                    }
+                                }
+                            ]
                         }
                     },
                     "400": {
                         "description": "Error on validation",
                         "schema": {
-                            "$ref": "#/definitions/gin.H"
+                            "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error"
                         }
                     },
                     "500": {
                         "description": "Internal server error",
                         "schema": {
-                            "$ref": "#/definitions/gin.H"
+                            "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error"
                         }
                     }
                 }
@@ -359,19 +431,31 @@ const docTemplate = `{
                     "200": {
                         "description": "success",
                         "schema": {
-                            "$ref": "#/definitions/gin.H"
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Success"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_chat_service.TimestampResponse"
+                                        }
+                                    }
+                                }
+                            ]
                         }
                     },
                     "400": {
                         "description": "Error on validation",
                         "schema": {
-                            "$ref": "#/definitions/gin.H"
+                            "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error"
                         }
                     },
                     "500": {
                         "description": "Internal server error",
                         "schema": {
-                            "$ref": "#/definitions/gin.H"
+                            "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error"
                         }
                     }
                 }
@@ -405,19 +489,31 @@ const docTemplate = `{
                     "200": {
                         "description": "success",
                         "schema": {
-                            "$ref": "#/definitions/gin.H"
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Success"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_community_service.CommunityParticipantResponse"
+                                        }
+                                    }
+                                }
+                            ]
                         }
                     },
                     "400": {
                         "description": "Error on validation",
                         "schema": {
-                            "$ref": "#/definitions/gin.H"
+                            "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error"
                         }
                     },
                     "500": {
                         "description": "Internal server error",
                         "schema": {
-                            "$ref": "#/definitions/gin.H"
+                            "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error"
                         }
                     }
                 }
@@ -451,19 +547,31 @@ const docTemplate = `{
                     "200": {
                         "description": "success",
                         "schema": {
-                            "$ref": "#/definitions/gin.H"
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Success"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/go_mau_fi_whatsmeow_types.GroupInfo"
+                                        }
+                                    }
+                                }
+                            ]
                         }
                     },
                     "400": {
                         "description": "Error on validation",
                         "schema": {
-                            "$ref": "#/definitions/gin.H"
+                            "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error"
                         }
                     },
                     "500": {
                         "description": "Internal server error",
                         "schema": {
-                            "$ref": "#/definitions/gin.H"
+                            "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error"
                         }
                     }
                 }
@@ -497,19 +605,31 @@ const docTemplate = `{
                     "200": {
                         "description": "success",
                         "schema": {
-                            "$ref": "#/definitions/gin.H"
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Success"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_community_service.CommunityParticipantResponse"
+                                        }
+                                    }
+                                }
+                            ]
                         }
                     },
                     "400": {
                         "description": "Error on validation",
                         "schema": {
-                            "$ref": "#/definitions/gin.H"
+                            "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error"
                         }
                     },
                     "500": {
                         "description": "Internal server error",
                         "schema": {
-                            "$ref": "#/definitions/gin.H"
+                            "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error"
                         }
                     }
                 }
@@ -543,19 +663,31 @@ const docTemplate = `{
                     "200": {
                         "description": "success",
                         "schema": {
-                            "$ref": "#/definitions/gin.H"
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Success"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_group_service.CreateGroupResponse"
+                                        }
+                                    }
+                                }
+                            ]
                         }
                     },
                     "400": {
                         "description": "Error on validation",
                         "schema": {
-                            "$ref": "#/definitions/gin.H"
+                            "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error"
                         }
                     },
                     "500": {
                         "description": "Internal server error",
                         "schema": {
-                            "$ref": "#/definitions/gin.H"
+                            "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error"
                         }
                     }
                 }
@@ -589,19 +721,19 @@ const docTemplate = `{
                     "200": {
                         "description": "success",
                         "schema": {
-                            "$ref": "#/definitions/gin.H"
+                            "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Success"
                         }
                     },
                     "400": {
                         "description": "Error on validation",
                         "schema": {
-                            "$ref": "#/definitions/gin.H"
+                            "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error"
                         }
                     },
                     "500": {
                         "description": "Internal server error",
                         "schema": {
-                            "$ref": "#/definitions/gin.H"
+                            "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error"
                         }
                     }
                 }
@@ -635,19 +767,31 @@ const docTemplate = `{
                     "200": {
                         "description": "success",
                         "schema": {
-                            "$ref": "#/definitions/gin.H"
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Success"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/go_mau_fi_whatsmeow_types.GroupInfo"
+                                        }
+                                    }
+                                }
+                            ]
                         }
                     },
                     "400": {
                         "description": "Error on validation",
                         "schema": {
-                            "$ref": "#/definitions/gin.H"
+                            "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error"
                         }
                     },
                     "500": {
                         "description": "Internal server error",
                         "schema": {
-                            "$ref": "#/definitions/gin.H"
+                            "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error"
                         }
                     }
                 }
@@ -681,19 +825,31 @@ const docTemplate = `{
                     "200": {
                         "description": "success",
                         "schema": {
-                            "$ref": "#/definitions/gin.H"
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Success"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "string"
+                                        }
+                                    }
+                                }
+                            ]
                         }
                     },
                     "400": {
                         "description": "Error on validation",
                         "schema": {
-                            "$ref": "#/definitions/gin.H"
+                            "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error"
                         }
                     },
                     "500": {
                         "description": "Internal server error",
                         "schema": {
-                            "$ref": "#/definitions/gin.H"
+                            "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error"
                         }
                     }
                 }
@@ -727,19 +883,19 @@ const docTemplate = `{
                     "200": {
                         "description": "success",
                         "schema": {
-                            "$ref": "#/definitions/gin.H"
+                            "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Success"
                         }
                     },
                     "400": {
                         "description": "Error on validation",
                         "schema": {
-                            "$ref": "#/definitions/gin.H"
+                            "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error"
                         }
                     },
                     "500": {
                         "description": "Internal server error",
                         "schema": {
-                            "$ref": "#/definitions/gin.H"
+                            "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error"
                         }
                     }
                 }
@@ -773,19 +929,19 @@ const docTemplate = `{
                     "200": {
                         "description": "success",
                         "schema": {
-                            "$ref": "#/definitions/gin.H"
+                            "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Success"
                         }
                     },
                     "400": {
                         "description": "Error on validation",
                         "schema": {
-                            "$ref": "#/definitions/gin.H"
+                            "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error"
                         }
                     },
                     "500": {
                         "description": "Internal server error",
                         "schema": {
-                            "$ref": "#/definitions/gin.H"
+                            "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error"
                         }
                     }
                 }
@@ -808,13 +964,28 @@ const docTemplate = `{
                     "200": {
                         "description": "success",
                         "schema": {
-                            "$ref": "#/definitions/gin.H"
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Success"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/go_mau_fi_whatsmeow_types.GroupInfo"
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
                         }
                     },
                     "500": {
                         "description": "Internal server error",
                         "schema": {
-                            "$ref": "#/definitions/gin.H"
+                            "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error"
                         }
                     }
                 }
@@ -837,13 +1008,28 @@ const docTemplate = `{
                     "200": {
                         "description": "success",
                         "schema": {
-                            "$ref": "#/definitions/gin.H"
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Success"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/go_mau_fi_whatsmeow_types.GroupInfo"
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
                         }
                     },
                     "500": {
                         "description": "Internal server error",
                         "schema": {
-                            "$ref": "#/definitions/gin.H"
+                            "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error"
                         }
                     }
                 }
@@ -877,19 +1063,19 @@ const docTemplate = `{
                     "200": {
                         "description": "success",
                         "schema": {
-                            "$ref": "#/definitions/gin.H"
+                            "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Success"
                         }
                     },
                     "400": {
                         "description": "Error on validation",
                         "schema": {
-                            "$ref": "#/definitions/gin.H"
+                            "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error"
                         }
                     },
                     "500": {
                         "description": "Internal server error",
                         "schema": {
-                            "$ref": "#/definitions/gin.H"
+                            "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error"
                         }
                     }
                 }
@@ -923,19 +1109,19 @@ const docTemplate = `{
                     "200": {
                         "description": "success",
                         "schema": {
-                            "$ref": "#/definitions/gin.H"
+                            "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Success"
                         }
                     },
                     "400": {
                         "description": "Error on validation",
                         "schema": {
-                            "$ref": "#/definitions/gin.H"
+                            "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error"
                         }
                     },
                     "500": {
                         "description": "Internal server error",
                         "schema": {
-                            "$ref": "#/definitions/gin.H"
+                            "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error"
                         }
                     }
                 }
@@ -969,19 +1155,31 @@ const docTemplate = `{
                     "200": {
                         "description": "success",
                         "schema": {
-                            "$ref": "#/definitions/gin.H"
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Success"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "string"
+                                        }
+                                    }
+                                }
+                            ]
                         }
                     },
                     "400": {
                         "description": "Error on validation",
                         "schema": {
-                            "$ref": "#/definitions/gin.H"
+                            "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error"
                         }
                     },
                     "500": {
                         "description": "Internal server error",
                         "schema": {
-                            "$ref": "#/definitions/gin.H"
+                            "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error"
                         }
                     }
                 }
@@ -1004,13 +1202,28 @@ const docTemplate = `{
                     "200": {
                         "description": "All instances",
                         "schema": {
-                            "$ref": "#/definitions/gin.H"
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Success"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_instance_model.Instance"
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
                         }
                     },
                     "500": {
                         "description": "Internal server error",
                         "schema": {
-                            "$ref": "#/definitions/gin.H"
+                            "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error"
                         }
                     }
                 }
@@ -1044,19 +1257,31 @@ const docTemplate = `{
                     "200": {
                         "description": "Instance connected successfully",
                         "schema": {
-                            "$ref": "#/definitions/gin.H"
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Success"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_instance_service.ConnectResponse"
+                                        }
+                                    }
+                                }
+                            ]
                         }
                     },
                     "400": {
                         "description": "Error on validation",
                         "schema": {
-                            "$ref": "#/definitions/gin.H"
+                            "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error"
                         }
                     },
                     "500": {
                         "description": "Internal server error",
                         "schema": {
-                            "$ref": "#/definitions/gin.H"
+                            "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error"
                         }
                     }
                 }
@@ -1090,19 +1315,31 @@ const docTemplate = `{
                     "200": {
                         "description": "Instance created successfully",
                         "schema": {
-                            "$ref": "#/definitions/gin.H"
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Success"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_instance_model.Instance"
+                                        }
+                                    }
+                                }
+                            ]
                         }
                     },
                     "400": {
                         "description": "Error on validation",
                         "schema": {
-                            "$ref": "#/definitions/gin.H"
+                            "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error"
                         }
                     },
                     "500": {
                         "description": "Internal server error",
                         "schema": {
-                            "$ref": "#/definitions/gin.H"
+                            "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error"
                         }
                     }
                 }
@@ -1134,19 +1371,19 @@ const docTemplate = `{
                     "200": {
                         "description": "Instance deleted successfully",
                         "schema": {
-                            "$ref": "#/definitions/gin.H"
+                            "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Success"
                         }
                     },
                     "400": {
                         "description": "Error on validation",
                         "schema": {
-                            "$ref": "#/definitions/gin.H"
+                            "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error"
                         }
                     },
                     "500": {
                         "description": "Internal server error",
                         "schema": {
-                            "$ref": "#/definitions/gin.H"
+                            "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error"
                         }
                     }
                 }
@@ -1169,13 +1406,13 @@ const docTemplate = `{
                     "200": {
                         "description": "Instance disconnected successfully",
                         "schema": {
-                            "$ref": "#/definitions/gin.H"
+                            "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Success"
                         }
                     },
                     "500": {
                         "description": "Internal server error",
                         "schema": {
-                            "$ref": "#/definitions/gin.H"
+                            "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error"
                         }
                     }
                 }
@@ -1216,19 +1453,19 @@ const docTemplate = `{
                     "200": {
                         "description": "Instance force reconnected successfully",
                         "schema": {
-                            "$ref": "#/definitions/gin.H"
+                            "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Success"
                         }
                     },
                     "400": {
                         "description": "Error on validation",
                         "schema": {
-                            "$ref": "#/definitions/gin.H"
+                            "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error"
                         }
                     },
                     "500": {
                         "description": "Internal server error",
                         "schema": {
-                            "$ref": "#/definitions/gin.H"
+                            "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error"
                         }
                     }
                 }
@@ -1260,19 +1497,31 @@ const docTemplate = `{
                     "200": {
                         "description": "Instance",
                         "schema": {
-                            "$ref": "#/definitions/gin.H"
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Success"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_instance_model.Instance"
+                                        }
+                                    }
+                                }
+                            ]
                         }
                     },
                     "400": {
                         "description": "Error on validation",
                         "schema": {
-                            "$ref": "#/definitions/gin.H"
+                            "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error"
                         }
                     },
                     "500": {
                         "description": "Internal server error",
                         "schema": {
-                            "$ref": "#/definitions/gin.H"
+                            "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error"
                         }
                     }
                 }
@@ -1295,13 +1544,13 @@ const docTemplate = `{
                     "200": {
                         "description": "Instance logged out successfully",
                         "schema": {
-                            "$ref": "#/definitions/gin.H"
+                            "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Success"
                         }
                     },
                     "500": {
                         "description": "Internal server error",
                         "schema": {
-                            "$ref": "#/definitions/gin.H"
+                            "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error"
                         }
                     }
                 }
@@ -1335,19 +1584,31 @@ const docTemplate = `{
                     "200": {
                         "description": "Pairing code",
                         "schema": {
-                            "$ref": "#/definitions/gin.H"
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Success"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_instance_service.PairReturnStruct"
+                                        }
+                                    }
+                                }
+                            ]
                         }
                     },
                     "400": {
                         "description": "Error on validation",
                         "schema": {
-                            "$ref": "#/definitions/gin.H"
+                            "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error"
                         }
                     },
                     "500": {
                         "description": "Internal server error",
                         "schema": {
-                            "$ref": "#/definitions/gin.H"
+                            "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error"
                         }
                     }
                 }
@@ -1388,19 +1649,31 @@ const docTemplate = `{
                     "200": {
                         "description": "Proxy set successfully",
                         "schema": {
-                            "$ref": "#/definitions/gin.H"
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Success"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_instance_service.SetProxyResponse"
+                                        }
+                                    }
+                                }
+                            ]
                         }
                     },
                     "400": {
                         "description": "Error on validation",
                         "schema": {
-                            "$ref": "#/definitions/gin.H"
+                            "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error"
                         }
                     },
                     "500": {
                         "description": "Internal server error",
                         "schema": {
-                            "$ref": "#/definitions/gin.H"
+                            "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error"
                         }
                     }
                 }
@@ -1430,19 +1703,19 @@ const docTemplate = `{
                     "200": {
                         "description": "Proxy deleted successfully",
                         "schema": {
-                            "$ref": "#/definitions/gin.H"
+                            "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Success"
                         }
                     },
                     "400": {
                         "description": "Error on validation",
                         "schema": {
-                            "$ref": "#/definitions/gin.H"
+                            "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error"
                         }
                     },
                     "500": {
                         "description": "Internal server error",
                         "schema": {
-                            "$ref": "#/definitions/gin.H"
+                            "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error"
                         }
                     }
                 }
@@ -1465,13 +1738,25 @@ const docTemplate = `{
                     "200": {
                         "description": "Instance QR code",
                         "schema": {
-                            "$ref": "#/definitions/gin.H"
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Success"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_instance_service.QrcodeStruct"
+                                        }
+                                    }
+                                }
+                            ]
                         }
                     },
                     "500": {
                         "description": "Internal server error",
                         "schema": {
-                            "$ref": "#/definitions/gin.H"
+                            "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error"
                         }
                     }
                 }
@@ -1494,13 +1779,13 @@ const docTemplate = `{
                     "200": {
                         "description": "Instance reconnected successfully",
                         "schema": {
-                            "$ref": "#/definitions/gin.H"
+                            "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Success"
                         }
                     },
                     "500": {
                         "description": "Internal server error",
                         "schema": {
-                            "$ref": "#/definitions/gin.H"
+                            "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error"
                         }
                     }
                 }
@@ -1523,13 +1808,25 @@ const docTemplate = `{
                     "200": {
                         "description": "Instance status",
                         "schema": {
-                            "$ref": "#/definitions/gin.H"
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Success"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_instance_service.StatusStruct"
+                                        }
+                                    }
+                                }
+                            ]
                         }
                     },
                     "500": {
                         "description": "Internal server error",
                         "schema": {
-                            "$ref": "#/definitions/gin.H"
+                            "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error"
                         }
                     }
                 }
@@ -1564,19 +1861,19 @@ const docTemplate = `{
                     "400": {
                         "description": "Invalid instance ID",
                         "schema": {
-                            "$ref": "#/definitions/gin.H"
+                            "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error"
                         }
                     },
                     "404": {
                         "description": "Instance not found",
                         "schema": {
-                            "$ref": "#/definitions/gin.H"
+                            "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error"
                         }
                     },
                     "500": {
                         "description": "Internal server error",
                         "schema": {
-                            "$ref": "#/definitions/gin.H"
+                            "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error"
                         }
                     }
                 }
@@ -1615,25 +1912,25 @@ const docTemplate = `{
                     "200": {
                         "description": "Advanced settings updated successfully",
                         "schema": {
-                            "$ref": "#/definitions/gin.H"
+                            "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_instance_service.UpdateAdvancedSettingsResponse"
                         }
                     },
                     "400": {
                         "description": "Invalid request data",
                         "schema": {
-                            "$ref": "#/definitions/gin.H"
+                            "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error"
                         }
                     },
                     "404": {
                         "description": "Instance not found",
                         "schema": {
-                            "$ref": "#/definitions/gin.H"
+                            "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error"
                         }
                     },
                     "500": {
                         "description": "Internal server error",
                         "schema": {
-                            "$ref": "#/definitions/gin.H"
+                            "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error"
                         }
                     }
                 }
@@ -1656,13 +1953,16 @@ const docTemplate = `{
                     "200": {
                         "description": "success",
                         "schema": {
-                            "$ref": "#/definitions/gin.H"
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_label_model.Label"
+                            }
                         }
                     },
                     "500": {
                         "description": "Internal server error",
                         "schema": {
-                            "$ref": "#/definitions/gin.H"
+                            "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error"
                         }
                     }
                 }
@@ -1696,19 +1996,19 @@ const docTemplate = `{
                     "200": {
                         "description": "success",
                         "schema": {
-                            "$ref": "#/definitions/gin.H"
+                            "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Success"
                         }
                     },
                     "400": {
                         "description": "Error on validation",
                         "schema": {
-                            "$ref": "#/definitions/gin.H"
+                            "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error"
                         }
                     },
                     "500": {
                         "description": "Internal server error",
                         "schema": {
-                            "$ref": "#/definitions/gin.H"
+                            "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error"
                         }
                     }
                 }
@@ -1742,19 +2042,19 @@ const docTemplate = `{
                     "200": {
                         "description": "success",
                         "schema": {
-                            "$ref": "#/definitions/gin.H"
+                            "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Success"
                         }
                     },
                     "400": {
                         "description": "Error on validation",
                         "schema": {
-                            "$ref": "#/definitions/gin.H"
+                            "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error"
                         }
                     },
                     "500": {
                         "description": "Internal server error",
                         "schema": {
-                            "$ref": "#/definitions/gin.H"
+                            "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error"
                         }
                     }
                 }
@@ -1788,19 +2088,19 @@ const docTemplate = `{
                     "200": {
                         "description": "success",
                         "schema": {
-                            "$ref": "#/definitions/gin.H"
+                            "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Success"
                         }
                     },
                     "400": {
                         "description": "Error on validation",
                         "schema": {
-                            "$ref": "#/definitions/gin.H"
+                            "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error"
                         }
                     },
                     "500": {
                         "description": "Internal server error",
                         "schema": {
-                            "$ref": "#/definitions/gin.H"
+                            "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error"
                         }
                     }
                 }
@@ -1834,19 +2134,31 @@ const docTemplate = `{
                     "200": {
                         "description": "success",
                         "schema": {
-                            "$ref": "#/definitions/gin.H"
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Success"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_message_service.MessageIDResponse"
+                                        }
+                                    }
+                                }
+                            ]
                         }
                     },
                     "400": {
                         "description": "Error on validation",
                         "schema": {
-                            "$ref": "#/definitions/gin.H"
+                            "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error"
                         }
                     },
                     "500": {
                         "description": "Internal server error",
                         "schema": {
-                            "$ref": "#/definitions/gin.H"
+                            "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error"
                         }
                     }
                 }
@@ -1880,19 +2192,31 @@ const docTemplate = `{
                     "200": {
                         "description": "success",
                         "schema": {
-                            "$ref": "#/definitions/gin.H"
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Success"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_message_service.DownloadMediaResponse"
+                                        }
+                                    }
+                                }
+                            ]
                         }
                     },
                     "400": {
                         "description": "Error on validation",
                         "schema": {
-                            "$ref": "#/definitions/gin.H"
+                            "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error"
                         }
                     },
                     "500": {
                         "description": "Internal server error",
                         "schema": {
-                            "$ref": "#/definitions/gin.H"
+                            "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error"
                         }
                     }
                 }
@@ -1926,19 +2250,31 @@ const docTemplate = `{
                     "200": {
                         "description": "success",
                         "schema": {
-                            "$ref": "#/definitions/gin.H"
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Success"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_message_service.MessageIDResponse"
+                                        }
+                                    }
+                                }
+                            ]
                         }
                     },
                     "400": {
                         "description": "Error on validation",
                         "schema": {
-                            "$ref": "#/definitions/gin.H"
+                            "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error"
                         }
                     },
                     "500": {
                         "description": "Internal server error",
                         "schema": {
-                            "$ref": "#/definitions/gin.H"
+                            "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error"
                         }
                     }
                 }
@@ -1972,19 +2308,31 @@ const docTemplate = `{
                     "200": {
                         "description": "success",
                         "schema": {
-                            "$ref": "#/definitions/gin.H"
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Success"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_message_service.TimestampResponse"
+                                        }
+                                    }
+                                }
+                            ]
                         }
                     },
                     "400": {
                         "description": "Error on validation",
                         "schema": {
-                            "$ref": "#/definitions/gin.H"
+                            "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error"
                         }
                     },
                     "500": {
                         "description": "Internal server error",
                         "schema": {
-                            "$ref": "#/definitions/gin.H"
+                            "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error"
                         }
                     }
                 }
@@ -2018,19 +2366,31 @@ const docTemplate = `{
                     "200": {
                         "description": "success",
                         "schema": {
-                            "$ref": "#/definitions/gin.H"
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Success"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_message_service.TimestampResponse"
+                                        }
+                                    }
+                                }
+                            ]
                         }
                     },
                     "400": {
                         "description": "Error on validation",
                         "schema": {
-                            "$ref": "#/definitions/gin.H"
+                            "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error"
                         }
                     },
                     "500": {
                         "description": "Internal server error",
                         "schema": {
-                            "$ref": "#/definitions/gin.H"
+                            "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error"
                         }
                     }
                 }
@@ -2064,19 +2424,31 @@ const docTemplate = `{
                     "200": {
                         "description": "success",
                         "schema": {
-                            "$ref": "#/definitions/gin.H"
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Success"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_message_service.MessageSendStruct"
+                                        }
+                                    }
+                                }
+                            ]
                         }
                     },
                     "400": {
                         "description": "Error on validation",
                         "schema": {
-                            "$ref": "#/definitions/gin.H"
+                            "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error"
                         }
                     },
                     "500": {
                         "description": "Internal server error",
                         "schema": {
-                            "$ref": "#/definitions/gin.H"
+                            "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error"
                         }
                     }
                 }
@@ -2110,19 +2482,31 @@ const docTemplate = `{
                     "200": {
                         "description": "success",
                         "schema": {
-                            "$ref": "#/definitions/gin.H"
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Success"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_message_service.MessageStatusResponse"
+                                        }
+                                    }
+                                }
+                            ]
                         }
                     },
                     "400": {
                         "description": "Error on validation",
                         "schema": {
-                            "$ref": "#/definitions/gin.H"
+                            "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error"
                         }
                     },
                     "500": {
                         "description": "Internal server error",
                         "schema": {
-                            "$ref": "#/definitions/gin.H"
+                            "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error"
                         }
                     }
                 }
@@ -2156,19 +2540,31 @@ const docTemplate = `{
                     "200": {
                         "description": "success",
                         "schema": {
-                            "$ref": "#/definitions/gin.H"
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Success"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/go_mau_fi_whatsmeow_types.NewsletterMetadata"
+                                        }
+                                    }
+                                }
+                            ]
                         }
                     },
                     "400": {
                         "description": "Error on validation",
                         "schema": {
-                            "$ref": "#/definitions/gin.H"
+                            "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error"
                         }
                     },
                     "500": {
                         "description": "Internal server error",
                         "schema": {
-                            "$ref": "#/definitions/gin.H"
+                            "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error"
                         }
                     }
                 }
@@ -2202,19 +2598,31 @@ const docTemplate = `{
                     "200": {
                         "description": "success",
                         "schema": {
-                            "$ref": "#/definitions/gin.H"
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Success"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/go_mau_fi_whatsmeow_types.NewsletterMetadata"
+                                        }
+                                    }
+                                }
+                            ]
                         }
                     },
                     "400": {
                         "description": "Error on validation",
                         "schema": {
-                            "$ref": "#/definitions/gin.H"
+                            "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error"
                         }
                     },
                     "500": {
                         "description": "Internal server error",
                         "schema": {
-                            "$ref": "#/definitions/gin.H"
+                            "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error"
                         }
                     }
                 }
@@ -2248,19 +2656,31 @@ const docTemplate = `{
                     "200": {
                         "description": "success",
                         "schema": {
-                            "$ref": "#/definitions/gin.H"
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Success"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/go_mau_fi_whatsmeow_types.NewsletterMetadata"
+                                        }
+                                    }
+                                }
+                            ]
                         }
                     },
                     "400": {
                         "description": "Error on validation",
                         "schema": {
-                            "$ref": "#/definitions/gin.H"
+                            "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error"
                         }
                     },
                     "500": {
                         "description": "Internal server error",
                         "schema": {
-                            "$ref": "#/definitions/gin.H"
+                            "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error"
                         }
                     }
                 }
@@ -2283,13 +2703,28 @@ const docTemplate = `{
                     "200": {
                         "description": "success",
                         "schema": {
-                            "$ref": "#/definitions/gin.H"
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Success"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/go_mau_fi_whatsmeow_types.NewsletterMetadata"
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
                         }
                     },
                     "500": {
                         "description": "Internal server error",
                         "schema": {
-                            "$ref": "#/definitions/gin.H"
+                            "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error"
                         }
                     }
                 }
@@ -2323,19 +2758,34 @@ const docTemplate = `{
                     "200": {
                         "description": "success",
                         "schema": {
-                            "$ref": "#/definitions/gin.H"
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Success"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/go_mau_fi_whatsmeow_types.NewsletterMessage"
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
                         }
                     },
                     "400": {
                         "description": "Error on validation",
                         "schema": {
-                            "$ref": "#/definitions/gin.H"
+                            "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error"
                         }
                     },
                     "500": {
                         "description": "Internal server error",
                         "schema": {
-                            "$ref": "#/definitions/gin.H"
+                            "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error"
                         }
                     }
                 }
@@ -2369,19 +2819,19 @@ const docTemplate = `{
                     "200": {
                         "description": "success",
                         "schema": {
-                            "$ref": "#/definitions/gin.H"
+                            "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Success"
                         }
                     },
                     "400": {
                         "description": "Error on validation",
                         "schema": {
-                            "$ref": "#/definitions/gin.H"
+                            "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error"
                         }
                     },
                     "500": {
                         "description": "Internal server error",
                         "schema": {
-                            "$ref": "#/definitions/gin.H"
+                            "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error"
                         }
                     }
                 }
@@ -2419,19 +2869,19 @@ const docTemplate = `{
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/gin.H"
+                            "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error"
                         }
                     },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/gin.H"
+                            "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/gin.H"
+                            "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error"
                         }
                     }
                 }
@@ -2465,19 +2915,31 @@ const docTemplate = `{
                     "200": {
                         "description": "success",
                         "schema": {
-                            "$ref": "#/definitions/gin.H"
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Success"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_sendMessage_service.MessageSendStruct"
+                                        }
+                                    }
+                                }
+                            ]
                         }
                     },
                     "400": {
                         "description": "Error on validation",
                         "schema": {
-                            "$ref": "#/definitions/gin.H"
+                            "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error"
                         }
                     },
                     "500": {
                         "description": "Internal server error",
                         "schema": {
-                            "$ref": "#/definitions/gin.H"
+                            "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error"
                         }
                     }
                 }
@@ -2511,19 +2973,31 @@ const docTemplate = `{
                     "200": {
                         "description": "success",
                         "schema": {
-                            "$ref": "#/definitions/gin.H"
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Success"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_sendMessage_service.MessageSendStruct"
+                                        }
+                                    }
+                                }
+                            ]
                         }
                     },
                     "400": {
                         "description": "Error on validation",
                         "schema": {
-                            "$ref": "#/definitions/gin.H"
+                            "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error"
                         }
                     },
                     "500": {
                         "description": "Internal server error",
                         "schema": {
-                            "$ref": "#/definitions/gin.H"
+                            "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error"
                         }
                     }
                 }
@@ -2557,19 +3031,31 @@ const docTemplate = `{
                     "200": {
                         "description": "success",
                         "schema": {
-                            "$ref": "#/definitions/gin.H"
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Success"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_sendMessage_service.MessageSendStruct"
+                                        }
+                                    }
+                                }
+                            ]
                         }
                     },
                     "400": {
                         "description": "Error on validation",
                         "schema": {
-                            "$ref": "#/definitions/gin.H"
+                            "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error"
                         }
                     },
                     "500": {
                         "description": "Internal server error",
                         "schema": {
-                            "$ref": "#/definitions/gin.H"
+                            "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error"
                         }
                     }
                 }
@@ -2603,19 +3089,31 @@ const docTemplate = `{
                     "200": {
                         "description": "success",
                         "schema": {
-                            "$ref": "#/definitions/gin.H"
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Success"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_sendMessage_service.MessageSendStruct"
+                                        }
+                                    }
+                                }
+                            ]
                         }
                     },
                     "400": {
                         "description": "Error on validation",
                         "schema": {
-                            "$ref": "#/definitions/gin.H"
+                            "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error"
                         }
                     },
                     "500": {
                         "description": "Internal server error",
                         "schema": {
-                            "$ref": "#/definitions/gin.H"
+                            "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error"
                         }
                     }
                 }
@@ -2649,19 +3147,31 @@ const docTemplate = `{
                     "200": {
                         "description": "success",
                         "schema": {
-                            "$ref": "#/definitions/gin.H"
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Success"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_sendMessage_service.MessageSendStruct"
+                                        }
+                                    }
+                                }
+                            ]
                         }
                     },
                     "400": {
                         "description": "Error on validation",
                         "schema": {
-                            "$ref": "#/definitions/gin.H"
+                            "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error"
                         }
                     },
                     "500": {
                         "description": "Internal server error",
                         "schema": {
-                            "$ref": "#/definitions/gin.H"
+                            "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error"
                         }
                     }
                 }
@@ -2695,19 +3205,31 @@ const docTemplate = `{
                     "200": {
                         "description": "success",
                         "schema": {
-                            "$ref": "#/definitions/gin.H"
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Success"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_sendMessage_service.MessageSendStruct"
+                                        }
+                                    }
+                                }
+                            ]
                         }
                     },
                     "400": {
                         "description": "Error on validation",
                         "schema": {
-                            "$ref": "#/definitions/gin.H"
+                            "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error"
                         }
                     },
                     "500": {
                         "description": "Internal server error",
                         "schema": {
-                            "$ref": "#/definitions/gin.H"
+                            "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error"
                         }
                     }
                 }
@@ -2741,19 +3263,31 @@ const docTemplate = `{
                     "200": {
                         "description": "success",
                         "schema": {
-                            "$ref": "#/definitions/gin.H"
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Success"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_sendMessage_service.MessageSendStruct"
+                                        }
+                                    }
+                                }
+                            ]
                         }
                     },
                     "400": {
                         "description": "Error on validation",
                         "schema": {
-                            "$ref": "#/definitions/gin.H"
+                            "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error"
                         }
                     },
                     "500": {
                         "description": "Internal server error",
                         "schema": {
-                            "$ref": "#/definitions/gin.H"
+                            "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error"
                         }
                     }
                 }
@@ -2787,19 +3321,31 @@ const docTemplate = `{
                     "200": {
                         "description": "success",
                         "schema": {
-                            "$ref": "#/definitions/gin.H"
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Success"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_sendMessage_service.MessageSendStruct"
+                                        }
+                                    }
+                                }
+                            ]
                         }
                     },
                     "400": {
                         "description": "Error on validation",
                         "schema": {
-                            "$ref": "#/definitions/gin.H"
+                            "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error"
                         }
                     },
                     "500": {
                         "description": "Internal server error",
                         "schema": {
-                            "$ref": "#/definitions/gin.H"
+                            "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error"
                         }
                     }
                 }
@@ -2833,19 +3379,31 @@ const docTemplate = `{
                     "200": {
                         "description": "success",
                         "schema": {
-                            "$ref": "#/definitions/gin.H"
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Success"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_sendMessage_service.MessageSendStruct"
+                                        }
+                                    }
+                                }
+                            ]
                         }
                     },
                     "400": {
                         "description": "Error on validation",
                         "schema": {
-                            "$ref": "#/definitions/gin.H"
+                            "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error"
                         }
                     },
                     "500": {
                         "description": "Internal server error",
                         "schema": {
-                            "$ref": "#/definitions/gin.H"
+                            "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error"
                         }
                     }
                 }
@@ -2879,19 +3437,19 @@ const docTemplate = `{
                     "200": {
                         "description": "success",
                         "schema": {
-                            "$ref": "#/definitions/gin.H"
+                            "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Success"
                         }
                     },
                     "400": {
                         "description": "Error on validation",
                         "schema": {
-                            "$ref": "#/definitions/gin.H"
+                            "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error"
                         }
                     },
                     "500": {
                         "description": "Internal server error",
                         "schema": {
-                            "$ref": "#/definitions/gin.H"
+                            "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error"
                         }
                     }
                 }
@@ -2925,19 +3483,19 @@ const docTemplate = `{
                     "200": {
                         "description": "success",
                         "schema": {
-                            "$ref": "#/definitions/gin.H"
+                            "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Success"
                         }
                     },
                     "400": {
                         "description": "Error on validation",
                         "schema": {
-                            "$ref": "#/definitions/gin.H"
+                            "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error"
                         }
                     },
                     "500": {
                         "description": "Internal server error",
                         "schema": {
-                            "$ref": "#/definitions/gin.H"
+                            "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error"
                         }
                     }
                 }
@@ -2971,19 +3529,31 @@ const docTemplate = `{
                     "200": {
                         "description": "success",
                         "schema": {
-                            "$ref": "#/definitions/gin.H"
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Success"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/go_mau_fi_whatsmeow_types.ProfilePictureInfo"
+                                        }
+                                    }
+                                }
+                            ]
                         }
                     },
                     "400": {
                         "description": "Error on validation",
                         "schema": {
-                            "$ref": "#/definitions/gin.H"
+                            "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error"
                         }
                     },
                     "500": {
                         "description": "Internal server error",
                         "schema": {
-                            "$ref": "#/definitions/gin.H"
+                            "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error"
                         }
                     }
                 }
@@ -3017,19 +3587,31 @@ const docTemplate = `{
                     "200": {
                         "description": "success",
                         "schema": {
-                            "$ref": "#/definitions/gin.H"
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Success"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/go_mau_fi_whatsmeow_types.Blocklist"
+                                        }
+                                    }
+                                }
+                            ]
                         }
                     },
                     "400": {
                         "description": "Error on validation",
                         "schema": {
-                            "$ref": "#/definitions/gin.H"
+                            "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error"
                         }
                     },
                     "500": {
                         "description": "Internal server error",
                         "schema": {
-                            "$ref": "#/definitions/gin.H"
+                            "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error"
                         }
                     }
                 }
@@ -3052,13 +3634,25 @@ const docTemplate = `{
                     "200": {
                         "description": "success",
                         "schema": {
-                            "$ref": "#/definitions/gin.H"
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Success"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/go_mau_fi_whatsmeow_types.Blocklist"
+                                        }
+                                    }
+                                }
+                            ]
                         }
                     },
                     "500": {
                         "description": "Internal server error",
                         "schema": {
-                            "$ref": "#/definitions/gin.H"
+                            "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error"
                         }
                     }
                 }
@@ -3092,19 +3686,31 @@ const docTemplate = `{
                     "200": {
                         "description": "success",
                         "schema": {
-                            "$ref": "#/definitions/gin.H"
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Success"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_user_service.CheckUserCollection"
+                                        }
+                                    }
+                                }
+                            ]
                         }
                     },
                     "400": {
                         "description": "Error on validation",
                         "schema": {
-                            "$ref": "#/definitions/gin.H"
+                            "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error"
                         }
                     },
                     "500": {
                         "description": "Internal server error",
                         "schema": {
-                            "$ref": "#/definitions/gin.H"
+                            "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error"
                         }
                     }
                 }
@@ -3127,13 +3733,28 @@ const docTemplate = `{
                     "200": {
                         "description": "success",
                         "schema": {
-                            "$ref": "#/definitions/gin.H"
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Success"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_user_service.ContactInfo"
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
                         }
                     },
                     "500": {
                         "description": "Internal server error",
                         "schema": {
-                            "$ref": "#/definitions/gin.H"
+                            "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error"
                         }
                     }
                 }
@@ -3167,19 +3788,31 @@ const docTemplate = `{
                     "200": {
                         "description": "success",
                         "schema": {
-                            "$ref": "#/definitions/gin.H"
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Success"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_user_service.UserCollection"
+                                        }
+                                    }
+                                }
+                            ]
                         }
                     },
                     "400": {
                         "description": "Error on validation",
                         "schema": {
-                            "$ref": "#/definitions/gin.H"
+                            "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error"
                         }
                     },
                     "500": {
                         "description": "Internal server error",
                         "schema": {
-                            "$ref": "#/definitions/gin.H"
+                            "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error"
                         }
                     }
                 }
@@ -3202,13 +3835,25 @@ const docTemplate = `{
                     "200": {
                         "description": "success",
                         "schema": {
-                            "$ref": "#/definitions/gin.H"
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Success"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/go_mau_fi_whatsmeow_types.PrivacySettings"
+                                        }
+                                    }
+                                }
+                            ]
                         }
                     },
                     "500": {
                         "description": "Internal server error",
                         "schema": {
-                            "$ref": "#/definitions/gin.H"
+                            "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error"
                         }
                     }
                 }
@@ -3240,13 +3885,25 @@ const docTemplate = `{
                     "200": {
                         "description": "success",
                         "schema": {
-                            "$ref": "#/definitions/gin.H"
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Success"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/go_mau_fi_whatsmeow_types.PrivacySettings"
+                                        }
+                                    }
+                                }
+                            ]
                         }
                     },
                     "500": {
                         "description": "Internal server error",
                         "schema": {
-                            "$ref": "#/definitions/gin.H"
+                            "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error"
                         }
                     }
                 }
@@ -3280,19 +3937,31 @@ const docTemplate = `{
                     "200": {
                         "description": "success",
                         "schema": {
-                            "$ref": "#/definitions/gin.H"
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Success"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_user_service.SetProfileNameResponse"
+                                        }
+                                    }
+                                }
+                            ]
                         }
                     },
                     "400": {
                         "description": "Error on validation",
                         "schema": {
-                            "$ref": "#/definitions/gin.H"
+                            "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error"
                         }
                     },
                     "500": {
                         "description": "Internal server error",
                         "schema": {
-                            "$ref": "#/definitions/gin.H"
+                            "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error"
                         }
                     }
                 }
@@ -3326,19 +3995,31 @@ const docTemplate = `{
                     "200": {
                         "description": "success",
                         "schema": {
-                            "$ref": "#/definitions/gin.H"
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Success"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_user_service.SetProfilePictureResponse"
+                                        }
+                                    }
+                                }
+                            ]
                         }
                     },
                     "400": {
                         "description": "Error on validation",
                         "schema": {
-                            "$ref": "#/definitions/gin.H"
+                            "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error"
                         }
                     },
                     "500": {
                         "description": "Internal server error",
                         "schema": {
-                            "$ref": "#/definitions/gin.H"
+                            "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error"
                         }
                     }
                 }
@@ -3372,19 +4053,31 @@ const docTemplate = `{
                     "200": {
                         "description": "success",
                         "schema": {
-                            "$ref": "#/definitions/gin.H"
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Success"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_user_service.SetProfileStatusResponse"
+                                        }
+                                    }
+                                }
+                            ]
                         }
                     },
                     "400": {
                         "description": "Error on validation",
                         "schema": {
-                            "$ref": "#/definitions/gin.H"
+                            "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error"
                         }
                     },
                     "500": {
                         "description": "Internal server error",
                         "schema": {
-                            "$ref": "#/definitions/gin.H"
+                            "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error"
                         }
                     }
                 }
@@ -3418,19 +4111,31 @@ const docTemplate = `{
                     "200": {
                         "description": "success",
                         "schema": {
-                            "$ref": "#/definitions/gin.H"
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Success"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/go_mau_fi_whatsmeow_types.Blocklist"
+                                        }
+                                    }
+                                }
+                            ]
                         }
                     },
                     "400": {
                         "description": "Error on validation",
                         "schema": {
-                            "$ref": "#/definitions/gin.H"
+                            "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error"
                         }
                     },
                     "500": {
                         "description": "Internal server error",
                         "schema": {
-                            "$ref": "#/definitions/gin.H"
+                            "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error"
                         }
                     }
                 }
@@ -3438,10 +4143,6 @@ const docTemplate = `{
         }
     },
     "definitions": {
-        "gin.H": {
-            "type": "object",
-            "additionalProperties": {}
-        },
         "github_com_EvolutionAPI_evolution-go_pkg_call_service.RejectCallStruct": {
             "type": "object",
             "properties": {
@@ -3472,6 +4173,35 @@ const docTemplate = `{
                 }
             }
         },
+        "github_com_EvolutionAPI_evolution-go_pkg_chat_service.TimestampResponse": {
+            "type": "object",
+            "properties": {
+                "timestamp": {
+                    "type": "string"
+                }
+            }
+        },
+        "github_com_EvolutionAPI_evolution-go_pkg_common_response.Error": {
+            "type": "object",
+            "properties": {
+                "error": {
+                    "type": "string",
+                    "example": "error message"
+                }
+            }
+        },
+        "github_com_EvolutionAPI_evolution-go_pkg_common_response.Success": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "type": "object"
+                },
+                "message": {
+                    "type": "string",
+                    "example": "success"
+                }
+            }
+        },
         "github_com_EvolutionAPI_evolution-go_pkg_community_service.AddParticipantStruct": {
             "type": "object",
             "properties": {
@@ -3479,6 +4209,23 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "groupJid": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                }
+            }
+        },
+        "github_com_EvolutionAPI_evolution-go_pkg_community_service.CommunityParticipantResponse": {
+            "type": "object",
+            "properties": {
+                "failed": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "success": {
                     "type": "array",
                     "items": {
                         "type": "string"
@@ -3508,6 +4255,32 @@ const docTemplate = `{
                     "items": {
                         "type": "string"
                     }
+                }
+            }
+        },
+        "github_com_EvolutionAPI_evolution-go_pkg_group_service.CreateGroupResponse": {
+            "type": "object",
+            "properties": {
+                "added": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/go_mau_fi_whatsmeow_types.JID"
+                    }
+                },
+                "failed": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/go_mau_fi_whatsmeow_types.JID"
+                    }
+                },
+                "jid": {
+                    "$ref": "#/definitions/go_mau_fi_whatsmeow_types.JID"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "owner": {
+                    "$ref": "#/definitions/go_mau_fi_whatsmeow_types.JID"
                 }
             }
         },
@@ -3616,6 +4389,95 @@ const docTemplate = `{
                 }
             }
         },
+        "github_com_EvolutionAPI_evolution-go_pkg_instance_model.Instance": {
+            "type": "object",
+            "properties": {
+                "alwaysOnline": {
+                    "description": "Advanced Settings",
+                    "type": "boolean"
+                },
+                "client_name": {
+                    "type": "string"
+                },
+                "connected": {
+                    "type": "boolean"
+                },
+                "createdAt": {
+                    "type": "string"
+                },
+                "disconnect_reason": {
+                    "type": "string"
+                },
+                "events": {
+                    "type": "string"
+                },
+                "expiration": {
+                    "type": "integer"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "ignoreGroups": {
+                    "type": "boolean"
+                },
+                "ignoreStatus": {
+                    "type": "boolean"
+                },
+                "jid": {
+                    "type": "string"
+                },
+                "msgRejectCall": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "natsEnable": {
+                    "type": "string"
+                },
+                "os_name": {
+                    "type": "string"
+                },
+                "proxy": {
+                    "type": "string"
+                },
+                "qrcode": {
+                    "type": "string"
+                },
+                "rabbitmqEnable": {
+                    "type": "string"
+                },
+                "readMessages": {
+                    "type": "boolean"
+                },
+                "rejectCall": {
+                    "type": "boolean"
+                },
+                "token": {
+                    "type": "string"
+                },
+                "webhook": {
+                    "type": "string"
+                },
+                "websocketEnable": {
+                    "type": "string"
+                }
+            }
+        },
+        "github_com_EvolutionAPI_evolution-go_pkg_instance_service.ConnectResponse": {
+            "type": "object",
+            "properties": {
+                "eventString": {
+                    "type": "string"
+                },
+                "jid": {
+                    "type": "string"
+                },
+                "webhookUrl": {
+                    "type": "string"
+                }
+            }
+        },
         "github_com_EvolutionAPI_evolution-go_pkg_instance_service.ConnectStruct": {
             "type": "object",
             "properties": {
@@ -3673,6 +4535,14 @@ const docTemplate = `{
                 }
             }
         },
+        "github_com_EvolutionAPI_evolution-go_pkg_instance_service.PairReturnStruct": {
+            "type": "object",
+            "properties": {
+                "pairingCode": {
+                    "type": "string"
+                }
+            }
+        },
         "github_com_EvolutionAPI_evolution-go_pkg_instance_service.PairStruct": {
             "type": "object",
             "properties": {
@@ -3704,6 +4574,31 @@ const docTemplate = `{
                 }
             }
         },
+        "github_com_EvolutionAPI_evolution-go_pkg_instance_service.QrcodeStruct": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "type": "string"
+                },
+                "qrcode": {
+                    "type": "string"
+                }
+            }
+        },
+        "github_com_EvolutionAPI_evolution-go_pkg_instance_service.SetProxyResponse": {
+            "type": "object",
+            "properties": {
+                "hasAuth": {
+                    "type": "boolean"
+                },
+                "host": {
+                    "type": "string"
+                },
+                "port": {
+                    "type": "string"
+                }
+            }
+        },
         "github_com_EvolutionAPI_evolution-go_pkg_instance_service.SetProxyStruct": {
             "type": "object",
             "required": [
@@ -3721,6 +4616,54 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "username": {
+                    "type": "string"
+                }
+            }
+        },
+        "github_com_EvolutionAPI_evolution-go_pkg_instance_service.StatusStruct": {
+            "type": "object",
+            "properties": {
+                "connected": {
+                    "type": "boolean"
+                },
+                "loggedIn": {
+                    "type": "boolean"
+                },
+                "name": {
+                    "type": "string"
+                }
+            }
+        },
+        "github_com_EvolutionAPI_evolution-go_pkg_instance_service.UpdateAdvancedSettingsResponse": {
+            "type": "object",
+            "properties": {
+                "message": {
+                    "type": "string"
+                },
+                "settings": {
+                    "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_instance_model.AdvancedSettings"
+                }
+            }
+        },
+        "github_com_EvolutionAPI_evolution-go_pkg_label_model.Label": {
+            "type": "object",
+            "properties": {
+                "id": {
+                    "type": "string"
+                },
+                "instance_id": {
+                    "type": "string"
+                },
+                "label_color": {
+                    "type": "string"
+                },
+                "label_id": {
+                    "type": "string"
+                },
+                "label_name": {
+                    "type": "string"
+                },
+                "predefined_id": {
                     "type": "string"
                 }
             }
@@ -3767,6 +4710,26 @@ const docTemplate = `{
                 }
             }
         },
+        "github_com_EvolutionAPI_evolution-go_pkg_message_model.Message": {
+            "type": "object",
+            "properties": {
+                "id": {
+                    "type": "string"
+                },
+                "message_id": {
+                    "type": "string"
+                },
+                "source": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "timestamp": {
+                    "type": "string"
+                }
+            }
+        },
         "github_com_EvolutionAPI_evolution-go_pkg_message_service.ChatPresenceStruct": {
             "type": "object",
             "properties": {
@@ -3777,6 +4740,17 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "state": {
+                    "type": "string"
+                }
+            }
+        },
+        "github_com_EvolutionAPI_evolution-go_pkg_message_service.DownloadMediaResponse": {
+            "type": "object",
+            "properties": {
+                "base64": {
+                    "type": "string"
+                },
+                "timestamp": {
                     "type": "string"
                 }
             }
@@ -3817,6 +4791,42 @@ const docTemplate = `{
                 }
             }
         },
+        "github_com_EvolutionAPI_evolution-go_pkg_message_service.MessageIDResponse": {
+            "type": "object",
+            "properties": {
+                "messageId": {
+                    "type": "string"
+                },
+                "timestamp": {
+                    "type": "string"
+                }
+            }
+        },
+        "github_com_EvolutionAPI_evolution-go_pkg_message_service.MessageSendStruct": {
+            "type": "object",
+            "properties": {
+                "info": {
+                    "$ref": "#/definitions/go_mau_fi_whatsmeow_types.MessageInfo"
+                },
+                "message": {
+                    "$ref": "#/definitions/go_mau_fi_whatsmeow_proto_waE2E.Message"
+                },
+                "messageContextInfo": {
+                    "$ref": "#/definitions/go_mau_fi_whatsmeow_proto_waE2E.ContextInfo"
+                }
+            }
+        },
+        "github_com_EvolutionAPI_evolution-go_pkg_message_service.MessageStatusResponse": {
+            "type": "object",
+            "properties": {
+                "result": {
+                    "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_message_model.Message"
+                },
+                "timestamp": {
+                    "type": "string"
+                }
+            }
+        },
         "github_com_EvolutionAPI_evolution-go_pkg_message_service.MessageStatusStruct": {
             "type": "object",
             "properties": {
@@ -3852,6 +4862,14 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "reaction": {
+                    "type": "string"
+                }
+            }
+        },
+        "github_com_EvolutionAPI_evolution-go_pkg_message_service.TimestampResponse": {
+            "type": "object",
+            "properties": {
+                "timestamp": {
                     "type": "string"
                 }
             }
@@ -4156,6 +5174,20 @@ const docTemplate = `{
                 }
             }
         },
+        "github_com_EvolutionAPI_evolution-go_pkg_sendMessage_service.MessageSendStruct": {
+            "type": "object",
+            "properties": {
+                "info": {
+                    "$ref": "#/definitions/go_mau_fi_whatsmeow_types.MessageInfo"
+                },
+                "message": {
+                    "$ref": "#/definitions/go_mau_fi_whatsmeow_proto_waE2E.Message"
+                },
+                "messageContextInfo": {
+                    "$ref": "#/definitions/go_mau_fi_whatsmeow_proto_waE2E.ContextInfo"
+                }
+            }
+        },
         "github_com_EvolutionAPI_evolution-go_pkg_sendMessage_service.PollStruct": {
             "type": "object",
             "properties": {
@@ -4280,6 +5312,17 @@ const docTemplate = `{
                 }
             }
         },
+        "github_com_EvolutionAPI_evolution-go_pkg_user_service.CheckUserCollection": {
+            "type": "object",
+            "properties": {
+                "users": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_user_service.User"
+                    }
+                }
+            }
+        },
         "github_com_EvolutionAPI_evolution-go_pkg_user_service.CheckUserStruct": {
             "type": "object",
             "properties": {
@@ -4291,6 +5334,29 @@ const docTemplate = `{
                     "items": {
                         "type": "string"
                     }
+                }
+            }
+        },
+        "github_com_EvolutionAPI_evolution-go_pkg_user_service.ContactInfo": {
+            "type": "object",
+            "properties": {
+                "BusinessName": {
+                    "type": "string"
+                },
+                "FirstName": {
+                    "type": "string"
+                },
+                "Found": {
+                    "type": "boolean"
+                },
+                "FullName": {
+                    "type": "string"
+                },
+                "Jid": {
+                    "type": "string"
+                },
+                "PushName": {
+                    "type": "string"
                 }
             }
         },
@@ -4331,11 +5397,93 @@ const docTemplate = `{
                 }
             }
         },
+        "github_com_EvolutionAPI_evolution-go_pkg_user_service.SetProfileNameResponse": {
+            "type": "object",
+            "properties": {
+                "name": {
+                    "type": "string"
+                }
+            }
+        },
+        "github_com_EvolutionAPI_evolution-go_pkg_user_service.SetProfilePictureResponse": {
+            "type": "object",
+            "properties": {
+                "image": {
+                    "type": "string"
+                }
+            }
+        },
         "github_com_EvolutionAPI_evolution-go_pkg_user_service.SetProfilePictureStruct": {
             "type": "object",
             "properties": {
                 "image": {
                     "type": "string"
+                }
+            }
+        },
+        "github_com_EvolutionAPI_evolution-go_pkg_user_service.SetProfileStatusResponse": {
+            "type": "object",
+            "properties": {
+                "status": {
+                    "type": "string"
+                }
+            }
+        },
+        "github_com_EvolutionAPI_evolution-go_pkg_user_service.User": {
+            "type": "object",
+            "properties": {
+                "isInWhatsapp": {
+                    "type": "boolean"
+                },
+                "jid": {
+                    "type": "string"
+                },
+                "lid": {
+                    "type": "string"
+                },
+                "query": {
+                    "type": "string"
+                },
+                "remoteJID": {
+                    "type": "string"
+                },
+                "verifiedName": {
+                    "type": "string"
+                }
+            }
+        },
+        "github_com_EvolutionAPI_evolution-go_pkg_user_service.UserCollection": {
+            "type": "object",
+            "properties": {
+                "users": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_user_service.UserInfo"
+                    }
+                }
+            }
+        },
+        "github_com_EvolutionAPI_evolution-go_pkg_user_service.UserInfo": {
+            "type": "object",
+            "properties": {
+                "devices": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/go_mau_fi_whatsmeow_types.JID"
+                    }
+                },
+                "lid": {
+                    "description": "The local ID (if available)",
+                    "type": "string"
+                },
+                "pictureID": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "verifiedName": {
+                    "$ref": "#/definitions/go_mau_fi_whatsmeow_types.VerifiedName"
                 }
             }
         },
@@ -4353,6 +5501,41 @@ const docTemplate = `{
                 }
             }
         },
+        "go_mau_fi_whatsmeow.MessageDebugTimings": {
+            "type": "object",
+            "properties": {
+                "getDevices": {
+                    "$ref": "#/definitions/time.Duration"
+                },
+                "getParticipants": {
+                    "$ref": "#/definitions/time.Duration"
+                },
+                "groupEncrypt": {
+                    "$ref": "#/definitions/time.Duration"
+                },
+                "lidfetch": {
+                    "$ref": "#/definitions/time.Duration"
+                },
+                "marshal": {
+                    "$ref": "#/definitions/time.Duration"
+                },
+                "peerEncrypt": {
+                    "$ref": "#/definitions/time.Duration"
+                },
+                "queue": {
+                    "$ref": "#/definitions/time.Duration"
+                },
+                "resp": {
+                    "$ref": "#/definitions/time.Duration"
+                },
+                "retry": {
+                    "$ref": "#/definitions/time.Duration"
+                },
+                "send": {
+                    "$ref": "#/definitions/time.Duration"
+                }
+            }
+        },
         "go_mau_fi_whatsmeow.ParticipantChange": {
             "type": "string",
             "enum": [
@@ -4367,6 +5550,39 @@ const docTemplate = `{
                 "ParticipantChangePromote",
                 "ParticipantChangeDemote"
             ]
+        },
+        "go_mau_fi_whatsmeow.SendResponse": {
+            "type": "object",
+            "properties": {
+                "debugTimings": {
+                    "description": "Message handling duration, used for debugging",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/go_mau_fi_whatsmeow.MessageDebugTimings"
+                        }
+                    ]
+                },
+                "id": {
+                    "description": "The ID of the sent message",
+                    "type": "string"
+                },
+                "sender": {
+                    "description": "The identity the message was sent with (LID or PN)\nThis is currently not reliable in all cases.",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/go_mau_fi_whatsmeow_types.JID"
+                        }
+                    ]
+                },
+                "serverID": {
+                    "description": "The server-specified ID of the sent message. Only present for newsletter messages.",
+                    "type": "integer"
+                },
+                "timestamp": {
+                    "description": "The message timestamp returned by the server",
+                    "type": "string"
+                }
+            }
         },
         "go_mau_fi_whatsmeow_proto_waAICommon.AIMediaCollectionMessage": {
             "type": "object",
@@ -4439,7 +5655,6 @@ const docTemplate = `{
         },
         "go_mau_fi_whatsmeow_proto_waAICommon.AIThreadInfo_AIThreadClientInfo_AIThreadType": {
             "type": "integer",
-            "format": "int32",
             "enum": [
                 0,
                 1,
@@ -4477,7 +5692,6 @@ const docTemplate = `{
         },
         "go_mau_fi_whatsmeow_proto_waAICommon.BotAgeCollectionMetadata_AgeCollectionType": {
             "type": "integer",
-            "format": "int32",
             "enum": [
                 0,
                 1
@@ -4516,7 +5730,6 @@ const docTemplate = `{
         },
         "go_mau_fi_whatsmeow_proto_waAICommon.BotCapabilityMetadata_BotCapabilityType": {
             "type": "integer",
-            "format": "int32",
             "enum": [
                 0,
                 1,
@@ -4656,7 +5869,6 @@ const docTemplate = `{
         },
         "go_mau_fi_whatsmeow_proto_waAICommon.BotDocumentMessageMetadata_DocumentPluginType": {
             "type": "integer",
-            "format": "int32",
             "enum": [
                 0,
                 1
@@ -4694,7 +5906,6 @@ const docTemplate = `{
         },
         "go_mau_fi_whatsmeow_proto_waAICommon.BotFeedbackMessage_BotFeedbackKind": {
             "type": "integer",
-            "format": "int32",
             "enum": [
                 0,
                 1,
@@ -4732,7 +5943,6 @@ const docTemplate = `{
         },
         "go_mau_fi_whatsmeow_proto_waAICommon.BotFeedbackMessage_ReportKind": {
             "type": "integer",
-            "format": "int32",
             "enum": [
                 0,
                 1
@@ -4893,7 +6103,6 @@ const docTemplate = `{
         },
         "go_mau_fi_whatsmeow_proto_waAICommon.BotImagineMetadata_ImagineType": {
             "type": "integer",
-            "format": "int32",
             "enum": [
                 0,
                 1,
@@ -4928,7 +6137,6 @@ const docTemplate = `{
         },
         "go_mau_fi_whatsmeow_proto_waAICommon.BotInfrastructureDiagnostics_BotBackend": {
             "type": "integer",
-            "format": "int32",
             "enum": [
                 0,
                 1
@@ -4948,7 +6156,6 @@ const docTemplate = `{
         },
         "go_mau_fi_whatsmeow_proto_waAICommon.BotLinkedAccount_BotLinkedAccountType": {
             "type": "integer",
-            "format": "int32",
             "enum": [
                 0
             ],
@@ -5004,7 +6211,6 @@ const docTemplate = `{
         },
         "go_mau_fi_whatsmeow_proto_waAICommon.BotMediaMetadata_OrientationType": {
             "type": "integer",
-            "format": "int32",
             "enum": [
                 1,
                 2,
@@ -5079,7 +6285,6 @@ const docTemplate = `{
         },
         "go_mau_fi_whatsmeow_proto_waAICommon.BotMessageOrigin_BotMessageOriginType": {
             "type": "integer",
-            "format": "int32",
             "enum": [
                 0
             ],
@@ -5225,7 +6430,6 @@ const docTemplate = `{
         },
         "go_mau_fi_whatsmeow_proto_waAICommon.BotMetricsEntryPoint": {
             "type": "integer",
-            "format": "int32",
             "enum": [
                 0,
                 1,
@@ -5341,7 +6545,6 @@ const docTemplate = `{
         },
         "go_mau_fi_whatsmeow_proto_waAICommon.BotMetricsThreadEntryPoint": {
             "type": "integer",
-            "format": "int32",
             "enum": [
                 1,
                 2,
@@ -5376,7 +6579,6 @@ const docTemplate = `{
         },
         "go_mau_fi_whatsmeow_proto_waAICommon.BotModeSelectionMetadata_BotUserSelectionMode": {
             "type": "integer",
-            "format": "int32",
             "enum": [
                 0,
                 1
@@ -5402,7 +6604,6 @@ const docTemplate = `{
         },
         "go_mau_fi_whatsmeow_proto_waAICommon.BotModelMetadata_ModelType": {
             "type": "integer",
-            "format": "int32",
             "enum": [
                 0,
                 1,
@@ -5416,7 +6617,6 @@ const docTemplate = `{
         },
         "go_mau_fi_whatsmeow_proto_waAICommon.BotModelMetadata_PremiumModelStatus": {
             "type": "integer",
-            "format": "int32",
             "enum": [
                 0,
                 1,
@@ -5471,7 +6671,6 @@ const docTemplate = `{
         },
         "go_mau_fi_whatsmeow_proto_waAICommon.BotPluginMetadata_PluginType": {
             "type": "integer",
-            "format": "int32",
             "enum": [
                 0,
                 1,
@@ -5485,7 +6684,6 @@ const docTemplate = `{
         },
         "go_mau_fi_whatsmeow_proto_waAICommon.BotPluginMetadata_SearchProvider": {
             "type": "integer",
-            "format": "int32",
             "enum": [
                 0,
                 1,
@@ -5581,7 +6779,6 @@ const docTemplate = `{
         },
         "go_mau_fi_whatsmeow_proto_waAICommon.BotProgressIndicatorMetadata_BotPlanningStepMetadata_BotPlanningSearchSourcesMetadata_BotPlanningSearchSourceProvider": {
             "type": "integer",
-            "format": "int32",
             "enum": [
                 0,
                 1,
@@ -5614,7 +6811,6 @@ const docTemplate = `{
         },
         "go_mau_fi_whatsmeow_proto_waAICommon.BotProgressIndicatorMetadata_BotPlanningStepMetadata_BotSearchSourceProvider": {
             "type": "integer",
-            "format": "int32",
             "enum": [
                 0,
                 1,
@@ -5630,7 +6826,6 @@ const docTemplate = `{
         },
         "go_mau_fi_whatsmeow_proto_waAICommon.BotProgressIndicatorMetadata_BotPlanningStepMetadata_PlanningStepStatus": {
             "type": "integer",
-            "format": "int32",
             "enum": [
                 0,
                 1,
@@ -5657,7 +6852,6 @@ const docTemplate = `{
         },
         "go_mau_fi_whatsmeow_proto_waAICommon.BotPromotionMessageMetadata_BotPromotionType": {
             "type": "integer",
-            "format": "int32",
             "enum": [
                 0,
                 1,
@@ -5718,7 +6912,6 @@ const docTemplate = `{
         },
         "go_mau_fi_whatsmeow_proto_waAICommon.BotQuotaMetadata_BotFeatureQuotaMetadata_BotFeatureType": {
             "type": "integer",
-            "format": "int32",
             "enum": [
                 0,
                 1
@@ -5750,7 +6943,6 @@ const docTemplate = `{
         },
         "go_mau_fi_whatsmeow_proto_waAICommon.BotReminderMetadata_ReminderAction": {
             "type": "integer",
-            "format": "int32",
             "enum": [
                 1,
                 2,
@@ -5766,7 +6958,6 @@ const docTemplate = `{
         },
         "go_mau_fi_whatsmeow_proto_waAICommon.BotReminderMetadata_ReminderFrequency": {
             "type": "integer",
-            "format": "int32",
             "enum": [
                 1,
                 2,
@@ -5831,7 +7022,6 @@ const docTemplate = `{
         },
         "go_mau_fi_whatsmeow_proto_waAICommon.BotSessionSource": {
             "type": "integer",
-            "format": "int32",
             "enum": [
                 0,
                 1,
@@ -5872,8 +7062,7 @@ const docTemplate = `{
                     "items": {
                         "type": "array",
                         "items": {
-                            "type": "integer",
-                            "format": "int32"
+                            "type": "integer"
                         }
                     }
                 },
@@ -5893,7 +7082,6 @@ const docTemplate = `{
         },
         "go_mau_fi_whatsmeow_proto_waAICommon.BotSignatureVerificationUseCaseProof_BotSignatureUseCase": {
             "type": "integer",
-            "format": "int32",
             "enum": [
                 0,
                 1,
@@ -5944,7 +7132,6 @@ const docTemplate = `{
         },
         "go_mau_fi_whatsmeow_proto_waAICommon.BotSourcesMetadata_BotSourceItem_SourceProvider": {
             "type": "integer",
-            "format": "int32",
             "enum": [
                 0,
                 1,
@@ -6156,7 +7343,6 @@ const docTemplate = `{
         },
         "go_mau_fi_whatsmeow_proto_waAICommon.SessionTransparencyType": {
             "type": "integer",
-            "format": "int32",
             "enum": [
                 0,
                 1
@@ -6193,7 +7379,6 @@ const docTemplate = `{
         },
         "go_mau_fi_whatsmeow_proto_waAICommonDeprecated.AIRichResponseCodeMetadata_AIRichResponseCodeHighlightType": {
             "type": "integer",
-            "format": "int32",
             "enum": [
                 0,
                 1,
@@ -6235,7 +7420,6 @@ const docTemplate = `{
         },
         "go_mau_fi_whatsmeow_proto_waAICommonDeprecated.AIRichResponseContentItemsMetadata_ContentType": {
             "type": "integer",
-            "format": "int32",
             "enum": [
                 0,
                 1
@@ -6264,7 +7448,6 @@ const docTemplate = `{
         },
         "go_mau_fi_whatsmeow_proto_waAICommonDeprecated.AIRichResponseDynamicMetadata_AIRichResponseDynamicMetadataType": {
             "type": "integer",
-            "format": "int32",
             "enum": [
                 0,
                 1,
@@ -6323,7 +7506,6 @@ const docTemplate = `{
         },
         "go_mau_fi_whatsmeow_proto_waAICommonDeprecated.AIRichResponseInlineImageMetadata_AIRichResponseImageAlignment": {
             "type": "integer",
-            "format": "int32",
             "enum": [
                 0,
                 1,
@@ -6429,7 +7611,6 @@ const docTemplate = `{
         },
         "go_mau_fi_whatsmeow_proto_waAICommonDeprecated.AIRichResponseMessageType": {
             "type": "integer",
-            "format": "int32",
             "enum": [
                 0,
                 1
@@ -6476,7 +7657,6 @@ const docTemplate = `{
         },
         "go_mau_fi_whatsmeow_proto_waAICommonDeprecated.AIRichResponseSubMessageType": {
             "type": "integer",
-            "format": "int32",
             "enum": [
                 0,
                 1,
@@ -6532,7 +7712,6 @@ const docTemplate = `{
         },
         "go_mau_fi_whatsmeow_proto_waAdv.ADVEncryptionType": {
             "type": "integer",
-            "format": "int32",
             "enum": [
                 0,
                 1
@@ -6854,7 +8033,6 @@ const docTemplate = `{
         },
         "go_mau_fi_whatsmeow_proto_waE2E.BCallMessage_MediaType": {
             "type": "integer",
-            "format": "int32",
             "enum": [
                 0,
                 1,
@@ -6930,7 +8108,6 @@ const docTemplate = `{
         },
         "go_mau_fi_whatsmeow_proto_waE2E.ButtonsMessage_Button_Type": {
             "type": "integer",
-            "format": "int32",
             "enum": [
                 0,
                 1,
@@ -6944,7 +8121,6 @@ const docTemplate = `{
         },
         "go_mau_fi_whatsmeow_proto_waE2E.ButtonsMessage_HeaderType": {
             "type": "integer",
-            "format": "int32",
             "enum": [
                 0,
                 1,
@@ -6983,7 +8159,6 @@ const docTemplate = `{
         },
         "go_mau_fi_whatsmeow_proto_waE2E.ButtonsResponseMessage_Type": {
             "type": "integer",
-            "format": "int32",
             "enum": [
                 0,
                 1
@@ -7065,7 +8240,6 @@ const docTemplate = `{
         },
         "go_mau_fi_whatsmeow_proto_waE2E.CallLogMessage_CallOutcome": {
             "type": "integer",
-            "format": "int32",
             "enum": [
                 0,
                 1,
@@ -7100,7 +8274,6 @@ const docTemplate = `{
         },
         "go_mau_fi_whatsmeow_proto_waE2E.CallLogMessage_CallType": {
             "type": "integer",
-            "format": "int32",
             "enum": [
                 0,
                 1,
@@ -7156,7 +8329,6 @@ const docTemplate = `{
         },
         "go_mau_fi_whatsmeow_proto_waE2E.CloudAPIThreadControlNotification_CloudAPIThreadControl": {
             "type": "integer",
-            "format": "int32",
             "enum": [
                 0,
                 1,
@@ -7215,7 +8387,6 @@ const docTemplate = `{
         },
         "go_mau_fi_whatsmeow_proto_waE2E.ConditionalRevealMessage_ConditionalRevealMessageType": {
             "type": "integer",
-            "format": "int32",
             "enum": [
                 0,
                 1
@@ -7481,7 +8652,6 @@ const docTemplate = `{
         },
         "go_mau_fi_whatsmeow_proto_waE2E.ContextInfo_AdReplyInfo_MediaType": {
             "type": "integer",
-            "format": "int32",
             "enum": [
                 0,
                 1,
@@ -7635,7 +8805,6 @@ const docTemplate = `{
         },
         "go_mau_fi_whatsmeow_proto_waE2E.ContextInfo_ExternalAdReplyInfo_AdType": {
             "type": "integer",
-            "format": "int32",
             "enum": [
                 0,
                 1
@@ -7647,7 +8816,6 @@ const docTemplate = `{
         },
         "go_mau_fi_whatsmeow_proto_waE2E.ContextInfo_ExternalAdReplyInfo_MediaType": {
             "type": "integer",
-            "format": "int32",
             "enum": [
                 0,
                 1,
@@ -7681,7 +8849,6 @@ const docTemplate = `{
         },
         "go_mau_fi_whatsmeow_proto_waE2E.ContextInfo_ForwardOrigin": {
             "type": "integer",
-            "format": "int32",
             "enum": [
                 0,
                 1,
@@ -7724,7 +8891,6 @@ const docTemplate = `{
         },
         "go_mau_fi_whatsmeow_proto_waE2E.ContextInfo_ForwardedNewsletterMessageInfo_ContentType": {
             "type": "integer",
-            "format": "int32",
             "enum": [
                 1,
                 2,
@@ -7738,7 +8904,6 @@ const docTemplate = `{
         },
         "go_mau_fi_whatsmeow_proto_waE2E.ContextInfo_PairedMediaType": {
             "type": "integer",
-            "format": "int32",
             "enum": [
                 0,
                 1,
@@ -7786,7 +8951,6 @@ const docTemplate = `{
         },
         "go_mau_fi_whatsmeow_proto_waE2E.ContextInfo_QuotedType": {
             "type": "integer",
-            "format": "int32",
             "enum": [
                 0,
                 1
@@ -7798,7 +8962,6 @@ const docTemplate = `{
         },
         "go_mau_fi_whatsmeow_proto_waE2E.ContextInfo_StatusAttributionType": {
             "type": "integer",
-            "format": "int32",
             "enum": [
                 0,
                 1,
@@ -7830,7 +8993,6 @@ const docTemplate = `{
         },
         "go_mau_fi_whatsmeow_proto_waE2E.ContextInfo_StatusAudienceMetadata_AudienceType": {
             "type": "integer",
-            "format": "int32",
             "enum": [
                 0,
                 1
@@ -7842,7 +9004,6 @@ const docTemplate = `{
         },
         "go_mau_fi_whatsmeow_proto_waE2E.ContextInfo_StatusSourceType": {
             "type": "integer",
-            "format": "int32",
             "enum": [
                 0,
                 1,
@@ -7953,7 +9114,6 @@ const docTemplate = `{
         },
         "go_mau_fi_whatsmeow_proto_waE2E.DisappearingMode_Initiator": {
             "type": "integer",
-            "format": "int32",
             "enum": [
                 0,
                 1,
@@ -7969,7 +9129,6 @@ const docTemplate = `{
         },
         "go_mau_fi_whatsmeow_proto_waE2E.DisappearingMode_Trigger": {
             "type": "integer",
-            "format": "int32",
             "enum": [
                 0,
                 1,
@@ -8391,7 +9550,6 @@ const docTemplate = `{
         },
         "go_mau_fi_whatsmeow_proto_waE2E.ExtendedTextMessage_FontType": {
             "type": "integer",
-            "format": "int32",
             "enum": [
                 0,
                 1,
@@ -8415,7 +9573,6 @@ const docTemplate = `{
         },
         "go_mau_fi_whatsmeow_proto_waE2E.ExtendedTextMessage_InviteLinkGroupType": {
             "type": "integer",
-            "format": "int32",
             "enum": [
                 0,
                 1,
@@ -8431,7 +9588,6 @@ const docTemplate = `{
         },
         "go_mau_fi_whatsmeow_proto_waE2E.ExtendedTextMessage_PreviewType": {
             "type": "integer",
-            "format": "int32",
             "enum": [
                 0,
                 1,
@@ -8519,7 +9675,6 @@ const docTemplate = `{
         },
         "go_mau_fi_whatsmeow_proto_waE2E.GroupInviteMessage_GroupType": {
             "type": "integer",
-            "format": "int32",
             "enum": [
                 0,
                 1
@@ -8661,7 +9816,6 @@ const docTemplate = `{
         },
         "go_mau_fi_whatsmeow_proto_waE2E.HistorySyncType": {
             "type": "integer",
-            "format": "int32",
             "enum": [
                 0,
                 1,
@@ -8832,7 +9986,6 @@ const docTemplate = `{
         },
         "go_mau_fi_whatsmeow_proto_waE2E.ImageMessage_ImageSourceType": {
             "type": "integer",
-            "format": "int32",
             "enum": [
                 0,
                 1,
@@ -8856,7 +10009,6 @@ const docTemplate = `{
         },
         "go_mau_fi_whatsmeow_proto_waE2E.InsightDeliveryState": {
             "type": "integer",
-            "format": "int32",
             "enum": [
                 0,
                 1,
@@ -8897,7 +10049,6 @@ const docTemplate = `{
         },
         "go_mau_fi_whatsmeow_proto_waE2E.InteractiveAnnotation_StatusLinkType": {
             "type": "integer",
-            "format": "int32",
             "enum": [
                 1,
                 2,
@@ -9018,7 +10169,6 @@ const docTemplate = `{
         },
         "go_mau_fi_whatsmeow_proto_waE2E.InteractiveResponseMessage_Body_Format": {
             "type": "integer",
-            "format": "int32",
             "enum": [
                 0,
                 1
@@ -9077,7 +10227,6 @@ const docTemplate = `{
         },
         "go_mau_fi_whatsmeow_proto_waE2E.InvoiceMessage_AttachmentType": {
             "type": "integer",
-            "format": "int32",
             "enum": [
                 0,
                 1
@@ -9103,7 +10252,6 @@ const docTemplate = `{
         },
         "go_mau_fi_whatsmeow_proto_waE2E.KeepType": {
             "type": "integer",
-            "format": "int32",
             "enum": [
                 0,
                 1,
@@ -9160,7 +10308,6 @@ const docTemplate = `{
         },
         "go_mau_fi_whatsmeow_proto_waE2E.LinkPreviewMetadata_SocialMediaPostType": {
             "type": "integer",
-            "format": "int32",
             "enum": [
                 0,
                 1,
@@ -9212,7 +10359,6 @@ const docTemplate = `{
         },
         "go_mau_fi_whatsmeow_proto_waE2E.ListMessage_ListType": {
             "type": "integer",
-            "format": "int32",
             "enum": [
                 0,
                 1,
@@ -9327,7 +10473,6 @@ const docTemplate = `{
         },
         "go_mau_fi_whatsmeow_proto_waE2E.ListResponseMessage_ListType": {
             "type": "integer",
-            "format": "int32",
             "enum": [
                 0,
                 1
@@ -9478,7 +10623,6 @@ const docTemplate = `{
         },
         "go_mau_fi_whatsmeow_proto_waE2E.MediaKeyDomain": {
             "type": "integer",
-            "format": "int32",
             "enum": [
                 0,
                 1,
@@ -9845,7 +10989,6 @@ const docTemplate = `{
         },
         "go_mau_fi_whatsmeow_proto_waE2E.MessageAssociation_AssociationType": {
             "type": "integer",
-            "format": "int32",
             "enum": [
                 0,
                 1,
@@ -9960,7 +11103,6 @@ const docTemplate = `{
         },
         "go_mau_fi_whatsmeow_proto_waE2E.MessageContextInfo_MessageAddonExpiryType": {
             "type": "integer",
-            "format": "int32",
             "enum": [
                 1,
                 2
@@ -10163,7 +11305,6 @@ const docTemplate = `{
         },
         "go_mau_fi_whatsmeow_proto_waE2E.OrderMessage_OrderStatus": {
             "type": "integer",
-            "format": "int32",
             "enum": [
                 1,
                 2,
@@ -10177,7 +11318,6 @@ const docTemplate = `{
         },
         "go_mau_fi_whatsmeow_proto_waE2E.OrderMessage_OrderSurface": {
             "type": "integer",
-            "format": "int32",
             "enum": [
                 1
             ],
@@ -10251,7 +11391,6 @@ const docTemplate = `{
         },
         "go_mau_fi_whatsmeow_proto_waE2E.PaymentBackground_Type": {
             "type": "integer",
-            "format": "int32",
             "enum": [
                 0,
                 1
@@ -10294,7 +11433,6 @@ const docTemplate = `{
         },
         "go_mau_fi_whatsmeow_proto_waE2E.PaymentInviteMessage_InviteType": {
             "type": "integer",
-            "format": "int32",
             "enum": [
                 0,
                 1
@@ -10306,7 +11444,6 @@ const docTemplate = `{
         },
         "go_mau_fi_whatsmeow_proto_waE2E.PaymentInviteMessage_ServiceType": {
             "type": "integer",
-            "format": "int32",
             "enum": [
                 0,
                 1,
@@ -10352,7 +11489,6 @@ const docTemplate = `{
         },
         "go_mau_fi_whatsmeow_proto_waE2E.PaymentLinkMetadata_PaymentLinkHeader_PaymentLinkHeaderType": {
             "type": "integer",
-            "format": "int32",
             "enum": [
                 0,
                 1
@@ -10480,7 +11616,6 @@ const docTemplate = `{
         },
         "go_mau_fi_whatsmeow_proto_waE2E.PeerDataOperationRequestMessage_GalaxyFlowAction_GalaxyFlowActionType": {
             "type": "integer",
-            "format": "int32",
             "enum": [
                 1,
                 2
@@ -10733,7 +11868,6 @@ const docTemplate = `{
         },
         "go_mau_fi_whatsmeow_proto_waE2E.PeerDataOperationRequestResponseMessage_PeerDataOperationResult_FullHistorySyncOnDemandResponseCode": {
             "type": "integer",
-            "format": "int32",
             "enum": [
                 0,
                 1,
@@ -10775,7 +11909,6 @@ const docTemplate = `{
         },
         "go_mau_fi_whatsmeow_proto_waE2E.PeerDataOperationRequestResponseMessage_PeerDataOperationResult_HistorySyncChunkRetryResponseCode": {
             "type": "integer",
-            "format": "int32",
             "enum": [
                 1,
                 2,
@@ -10912,7 +12045,6 @@ const docTemplate = `{
         },
         "go_mau_fi_whatsmeow_proto_waE2E.PeerDataOperationRequestType": {
             "type": "integer",
-            "format": "int32",
             "enum": [
                 0,
                 1,
@@ -10962,7 +12094,6 @@ const docTemplate = `{
         },
         "go_mau_fi_whatsmeow_proto_waE2E.PinInChatMessage_Type": {
             "type": "integer",
-            "format": "int32",
             "enum": [
                 0,
                 1,
@@ -10984,7 +12115,6 @@ const docTemplate = `{
         },
         "go_mau_fi_whatsmeow_proto_waE2E.PlaceholderMessage_PlaceholderType": {
             "type": "integer",
-            "format": "int32",
             "enum": [
                 0
             ],
@@ -11022,7 +12152,6 @@ const docTemplate = `{
         },
         "go_mau_fi_whatsmeow_proto_waE2E.PollContentType": {
             "type": "integer",
-            "format": "int32",
             "enum": [
                 0,
                 1,
@@ -11139,7 +12268,6 @@ const docTemplate = `{
         },
         "go_mau_fi_whatsmeow_proto_waE2E.PollType": {
             "type": "integer",
-            "format": "int32",
             "enum": [
                 0,
                 1
@@ -11206,7 +12334,6 @@ const docTemplate = `{
         },
         "go_mau_fi_whatsmeow_proto_waE2E.ProcessedVideo_VideoQuality": {
             "type": "integer",
-            "format": "int32",
             "enum": [
                 0,
                 1,
@@ -11386,7 +12513,6 @@ const docTemplate = `{
         },
         "go_mau_fi_whatsmeow_proto_waE2E.ProtocolMessage_Type": {
             "type": "integer",
-            "format": "int32",
             "enum": [
                 0,
                 3,
@@ -11528,7 +12654,6 @@ const docTemplate = `{
         },
         "go_mau_fi_whatsmeow_proto_waE2E.RequestWelcomeMessageMetadata_LocalChatState": {
             "type": "integer",
-            "format": "int32",
             "enum": [
                 0,
                 1
@@ -11540,7 +12665,6 @@ const docTemplate = `{
         },
         "go_mau_fi_whatsmeow_proto_waE2E.RequestWelcomeMessageMetadata_WelcomeTrigger": {
             "type": "integer",
-            "format": "int32",
             "enum": [
                 0,
                 1
@@ -11566,7 +12690,6 @@ const docTemplate = `{
         },
         "go_mau_fi_whatsmeow_proto_waE2E.ScheduledCallCreationMessage_CallType": {
             "type": "integer",
-            "format": "int32",
             "enum": [
                 0,
                 1,
@@ -11591,7 +12714,6 @@ const docTemplate = `{
         },
         "go_mau_fi_whatsmeow_proto_waE2E.ScheduledCallEditMessage_EditType": {
             "type": "integer",
-            "format": "int32",
             "enum": [
                 0,
                 1
@@ -11629,7 +12751,6 @@ const docTemplate = `{
         },
         "go_mau_fi_whatsmeow_proto_waE2E.SecretEncryptedMessage_SecretEncType": {
             "type": "integer",
-            "format": "int32",
             "enum": [
                 0,
                 1,
@@ -11694,7 +12815,6 @@ const docTemplate = `{
         },
         "go_mau_fi_whatsmeow_proto_waE2E.StatusNotificationMessage_StatusNotificationType": {
             "type": "integer",
-            "format": "int32",
             "enum": [
                 0,
                 1,
@@ -11741,7 +12861,6 @@ const docTemplate = `{
         },
         "go_mau_fi_whatsmeow_proto_waE2E.StatusQuotedMessage_StatusQuotedMessageType": {
             "type": "integer",
-            "format": "int32",
             "enum": [
                 1
             ],
@@ -11765,7 +12884,6 @@ const docTemplate = `{
         },
         "go_mau_fi_whatsmeow_proto_waE2E.StatusStickerInteractionMessage_StatusStickerType": {
             "type": "integer",
-            "format": "int32",
             "enum": [
                 0,
                 1
@@ -11978,7 +13096,6 @@ const docTemplate = `{
         },
         "go_mau_fi_whatsmeow_proto_waE2E.StickerPackMessage_StickerPackOrigin": {
             "type": "integer",
-            "format": "int32",
             "enum": [
                 0,
                 1,
@@ -12083,7 +13200,6 @@ const docTemplate = `{
         },
         "go_mau_fi_whatsmeow_proto_waE2E.ThreadID_ThreadType": {
             "type": "integer",
-            "format": "int32",
             "enum": [
                 0,
                 1,
@@ -12275,7 +13391,6 @@ const docTemplate = `{
         },
         "go_mau_fi_whatsmeow_proto_waE2E.VideoMessage_Attribution": {
             "type": "integer",
-            "format": "int32",
             "enum": [
                 0,
                 1,
@@ -12291,7 +13406,6 @@ const docTemplate = `{
         },
         "go_mau_fi_whatsmeow_proto_waE2E.VideoMessage_VideoSourceType": {
             "type": "integer",
-            "format": "int32",
             "enum": [
                 0,
                 1
@@ -12303,7 +13417,6 @@ const docTemplate = `{
         },
         "go_mau_fi_whatsmeow_proto_waE2E.WebLinkRenderConfig": {
             "type": "integer",
-            "format": "int32",
             "enum": [
                 0,
                 1
@@ -12315,7 +13428,6 @@ const docTemplate = `{
         },
         "go_mau_fi_whatsmeow_proto_waMmsRetry.MediaRetryNotification_ResultType": {
             "type": "integer",
-            "format": "int32",
             "enum": [
                 0,
                 1,
@@ -12345,7 +13457,6 @@ const docTemplate = `{
         },
         "go_mau_fi_whatsmeow_proto_waStatusAttributions.StatusAttribution_Type": {
             "type": "integer",
-            "format": "int32",
             "enum": [
                 0,
                 1,
@@ -12444,6 +13555,21 @@ const docTemplate = `{
                 "AddressingModeLID"
             ]
         },
+        "go_mau_fi_whatsmeow_types.Blocklist": {
+            "type": "object",
+            "properties": {
+                "dhash": {
+                    "description": "TODO is this just a timestamp?",
+                    "type": "string"
+                },
+                "jids": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/go_mau_fi_whatsmeow_types.JID"
+                    }
+                }
+            }
+        },
         "go_mau_fi_whatsmeow_types.BotEditType": {
             "type": "string",
             "enum": [
@@ -12493,14 +13619,6 @@ const docTemplate = `{
             "x-enum-comments": {
                 "EditAttributeAdminEdit": "only used in newsletters"
             },
-            "x-enum-descriptions": [
-                "",
-                "",
-                "",
-                "only used in newsletters",
-                "",
-                ""
-            ],
             "x-enum-varnames": [
                 "EditAttributeEmpty",
                 "EditAttributeMessageEdit",
@@ -12510,20 +13628,181 @@ const docTemplate = `{
                 "EditAttributeAdminRevoke"
             ]
         },
+        "go_mau_fi_whatsmeow_types.GroupInfo": {
+            "type": "object",
+            "properties": {
+                "addressingMode": {
+                    "$ref": "#/definitions/go_mau_fi_whatsmeow_types.AddressingMode"
+                },
+                "announceVersionID": {
+                    "type": "string"
+                },
+                "creatorCountryCode": {
+                    "type": "string"
+                },
+                "defaultMembershipApprovalMode": {
+                    "description": "request_required",
+                    "type": "string"
+                },
+                "disappearingTimer": {
+                    "type": "integer"
+                },
+                "groupCreated": {
+                    "type": "string"
+                },
+                "isAnnounce": {
+                    "type": "boolean"
+                },
+                "isDefaultSubGroup": {
+                    "type": "boolean"
+                },
+                "isEphemeral": {
+                    "type": "boolean"
+                },
+                "isIncognito": {
+                    "type": "boolean"
+                },
+                "isJoinApprovalRequired": {
+                    "type": "boolean"
+                },
+                "isLocked": {
+                    "type": "boolean"
+                },
+                "isParent": {
+                    "type": "boolean"
+                },
+                "jid": {
+                    "$ref": "#/definitions/go_mau_fi_whatsmeow_types.JID"
+                },
+                "linkedParentJID": {
+                    "$ref": "#/definitions/go_mau_fi_whatsmeow_types.JID"
+                },
+                "memberAddMode": {
+                    "$ref": "#/definitions/go_mau_fi_whatsmeow_types.GroupMemberAddMode"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "nameSetAt": {
+                    "type": "string"
+                },
+                "nameSetBy": {
+                    "$ref": "#/definitions/go_mau_fi_whatsmeow_types.JID"
+                },
+                "nameSetByPN": {
+                    "$ref": "#/definitions/go_mau_fi_whatsmeow_types.JID"
+                },
+                "ownerJID": {
+                    "$ref": "#/definitions/go_mau_fi_whatsmeow_types.JID"
+                },
+                "ownerPN": {
+                    "$ref": "#/definitions/go_mau_fi_whatsmeow_types.JID"
+                },
+                "participantCount": {
+                    "type": "integer"
+                },
+                "participantVersionID": {
+                    "type": "string"
+                },
+                "participants": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/go_mau_fi_whatsmeow_types.GroupParticipant"
+                    }
+                },
+                "suspended": {
+                    "description": "Suspended indicates whether the group is currently paused/suspended.",
+                    "type": "boolean"
+                },
+                "topic": {
+                    "type": "string"
+                },
+                "topicDeleted": {
+                    "type": "boolean"
+                },
+                "topicID": {
+                    "type": "string"
+                },
+                "topicSetAt": {
+                    "type": "string"
+                },
+                "topicSetBy": {
+                    "$ref": "#/definitions/go_mau_fi_whatsmeow_types.JID"
+                },
+                "topicSetByPN": {
+                    "$ref": "#/definitions/go_mau_fi_whatsmeow_types.JID"
+                }
+            }
+        },
+        "go_mau_fi_whatsmeow_types.GroupMemberAddMode": {
+            "type": "string",
+            "enum": [
+                "admin_add",
+                "all_member_add"
+            ],
+            "x-enum-varnames": [
+                "GroupMemberAddModeAdmin",
+                "GroupMemberAddModeAllMember"
+            ]
+        },
+        "go_mau_fi_whatsmeow_types.GroupParticipant": {
+            "type": "object",
+            "properties": {
+                "addRequest": {
+                    "$ref": "#/definitions/go_mau_fi_whatsmeow_types.GroupParticipantAddRequest"
+                },
+                "displayName": {
+                    "description": "This is only present for anonymous users in announcement groups, it's an obfuscated phone number",
+                    "type": "string"
+                },
+                "error": {
+                    "description": "When creating groups, adding some participants may fail.\nIn such cases, the error code will be here.",
+                    "type": "integer"
+                },
+                "isAdmin": {
+                    "type": "boolean"
+                },
+                "isSuperAdmin": {
+                    "type": "boolean"
+                },
+                "jid": {
+                    "description": "The primary JID that should be used to send messages to this participant.\nAlways equals either the LID or phone number.",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/go_mau_fi_whatsmeow_types.JID"
+                        }
+                    ]
+                },
+                "lid": {
+                    "$ref": "#/definitions/go_mau_fi_whatsmeow_types.JID"
+                },
+                "phoneNumber": {
+                    "$ref": "#/definitions/go_mau_fi_whatsmeow_types.JID"
+                }
+            }
+        },
+        "go_mau_fi_whatsmeow_types.GroupParticipantAddRequest": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "type": "string"
+                },
+                "expiration": {
+                    "type": "string"
+                }
+            }
+        },
         "go_mau_fi_whatsmeow_types.JID": {
             "type": "object",
             "properties": {
                 "device": {
-                    "type": "integer",
-                    "format": "int32"
+                    "type": "integer"
                 },
                 "integrator": {
-                    "type": "integer",
-                    "format": "int32"
+                    "type": "integer"
                 },
                 "rawAgent": {
-                    "type": "integer",
-                    "format": "int32"
+                    "type": "integer"
                 },
                 "server": {
                     "type": "string"
@@ -12682,6 +13961,196 @@ const docTemplate = `{
                 }
             }
         },
+        "go_mau_fi_whatsmeow_types.NewsletterMessage": {
+            "type": "object",
+            "properties": {
+                "message": {
+                    "description": "This is only present when fetching messages, not in live updates",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/go_mau_fi_whatsmeow_proto_waE2E.Message"
+                        }
+                    ]
+                },
+                "messageID": {
+                    "type": "string"
+                },
+                "messageServerID": {
+                    "type": "integer"
+                },
+                "reactionCounts": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "integer"
+                    }
+                },
+                "timestamp": {
+                    "type": "string"
+                },
+                "type": {
+                    "type": "string"
+                },
+                "viewsCount": {
+                    "type": "integer"
+                }
+            }
+        },
+        "go_mau_fi_whatsmeow_types.NewsletterMetadata": {
+            "type": "object",
+            "properties": {
+                "id": {
+                    "$ref": "#/definitions/go_mau_fi_whatsmeow_types.JID"
+                },
+                "state": {
+                    "$ref": "#/definitions/go_mau_fi_whatsmeow_types.WrappedNewsletterState"
+                },
+                "thread_metadata": {
+                    "$ref": "#/definitions/go_mau_fi_whatsmeow_types.NewsletterThreadMetadata"
+                },
+                "viewer_metadata": {
+                    "$ref": "#/definitions/go_mau_fi_whatsmeow_types.NewsletterViewerMetadata"
+                }
+            }
+        },
+        "go_mau_fi_whatsmeow_types.NewsletterMuteState": {
+            "type": "string",
+            "enum": [
+                "on",
+                "off"
+            ],
+            "x-enum-varnames": [
+                "NewsletterMuteOn",
+                "NewsletterMuteOff"
+            ]
+        },
+        "go_mau_fi_whatsmeow_types.NewsletterReactionSettings": {
+            "type": "object",
+            "properties": {
+                "value": {
+                    "$ref": "#/definitions/go_mau_fi_whatsmeow_types.NewsletterReactionsMode"
+                }
+            }
+        },
+        "go_mau_fi_whatsmeow_types.NewsletterReactionsMode": {
+            "type": "string",
+            "enum": [
+                "all",
+                "basic",
+                "none",
+                "blocklist"
+            ],
+            "x-enum-varnames": [
+                "NewsletterReactionsModeAll",
+                "NewsletterReactionsModeBasic",
+                "NewsletterReactionsModeNone",
+                "NewsletterReactionsModeBlocklist"
+            ]
+        },
+        "go_mau_fi_whatsmeow_types.NewsletterRole": {
+            "type": "string",
+            "enum": [
+                "subscriber",
+                "guest",
+                "admin",
+                "owner"
+            ],
+            "x-enum-varnames": [
+                "NewsletterRoleSubscriber",
+                "NewsletterRoleGuest",
+                "NewsletterRoleAdmin",
+                "NewsletterRoleOwner"
+            ]
+        },
+        "go_mau_fi_whatsmeow_types.NewsletterSettings": {
+            "type": "object",
+            "properties": {
+                "reaction_codes": {
+                    "$ref": "#/definitions/go_mau_fi_whatsmeow_types.NewsletterReactionSettings"
+                }
+            }
+        },
+        "go_mau_fi_whatsmeow_types.NewsletterState": {
+            "type": "string",
+            "enum": [
+                "active",
+                "suspended",
+                "geosuspended"
+            ],
+            "x-enum-varnames": [
+                "NewsletterStateActive",
+                "NewsletterStateSuspended",
+                "NewsletterStateGeoSuspended"
+            ]
+        },
+        "go_mau_fi_whatsmeow_types.NewsletterText": {
+            "type": "object",
+            "properties": {
+                "id": {
+                    "type": "string"
+                },
+                "text": {
+                    "type": "string"
+                },
+                "update_time": {
+                    "$ref": "#/definitions/jsontime.UnixMicroString"
+                }
+            }
+        },
+        "go_mau_fi_whatsmeow_types.NewsletterThreadMetadata": {
+            "type": "object",
+            "properties": {
+                "creation_time": {
+                    "$ref": "#/definitions/jsontime.UnixString"
+                },
+                "description": {
+                    "$ref": "#/definitions/go_mau_fi_whatsmeow_types.NewsletterText"
+                },
+                "invite": {
+                    "type": "string"
+                },
+                "name": {
+                    "$ref": "#/definitions/go_mau_fi_whatsmeow_types.NewsletterText"
+                },
+                "picture": {
+                    "$ref": "#/definitions/go_mau_fi_whatsmeow_types.ProfilePictureInfo"
+                },
+                "preview": {
+                    "$ref": "#/definitions/go_mau_fi_whatsmeow_types.ProfilePictureInfo"
+                },
+                "settings": {
+                    "$ref": "#/definitions/go_mau_fi_whatsmeow_types.NewsletterSettings"
+                },
+                "subscribers_count": {
+                    "type": "string",
+                    "example": "0"
+                },
+                "verification": {
+                    "$ref": "#/definitions/go_mau_fi_whatsmeow_types.NewsletterVerificationState"
+                }
+            }
+        },
+        "go_mau_fi_whatsmeow_types.NewsletterVerificationState": {
+            "type": "string",
+            "enum": [
+                "verified",
+                "unverified"
+            ],
+            "x-enum-varnames": [
+                "NewsletterVerificationStateVerified",
+                "NewsletterVerificationStateUnverified"
+            ]
+        },
+        "go_mau_fi_whatsmeow_types.NewsletterViewerMetadata": {
+            "type": "object",
+            "properties": {
+                "mute": {
+                    "$ref": "#/definitions/go_mau_fi_whatsmeow_types.NewsletterMuteState"
+                },
+                "role": {
+                    "$ref": "#/definitions/go_mau_fi_whatsmeow_types.NewsletterRole"
+                }
+            }
+        },
         "go_mau_fi_whatsmeow_types.PrivacySetting": {
             "type": "string",
             "enum": [
@@ -12709,6 +14178,119 @@ const docTemplate = `{
                 "PrivacySettingOff"
             ]
         },
+        "go_mau_fi_whatsmeow_types.PrivacySettings": {
+            "type": "object",
+            "properties": {
+                "callAdd": {
+                    "description": "Valid values: PrivacySettingAll, PrivacySettingKnown",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/go_mau_fi_whatsmeow_types.PrivacySetting"
+                        }
+                    ]
+                },
+                "defense": {
+                    "description": "Valid values: PrivacySettingOnStandard, PrivacySettingOff",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/go_mau_fi_whatsmeow_types.PrivacySetting"
+                        }
+                    ]
+                },
+                "groupAdd": {
+                    "description": "Valid values: PrivacySettingAll, PrivacySettingContacts, PrivacySettingContactBlacklist, PrivacySettingNone",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/go_mau_fi_whatsmeow_types.PrivacySetting"
+                        }
+                    ]
+                },
+                "lastSeen": {
+                    "description": "Valid values: PrivacySettingAll, PrivacySettingContacts, PrivacySettingContactBlacklist, PrivacySettingNone",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/go_mau_fi_whatsmeow_types.PrivacySetting"
+                        }
+                    ]
+                },
+                "messages": {
+                    "description": "Valid values: PrivacySettingAll, PrivacySettingContacts",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/go_mau_fi_whatsmeow_types.PrivacySetting"
+                        }
+                    ]
+                },
+                "online": {
+                    "description": "Valid values: PrivacySettingAll, PrivacySettingMatchLastSeen",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/go_mau_fi_whatsmeow_types.PrivacySetting"
+                        }
+                    ]
+                },
+                "profile": {
+                    "description": "Valid values: PrivacySettingAll, PrivacySettingContacts, PrivacySettingContactBlacklist, PrivacySettingNone",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/go_mau_fi_whatsmeow_types.PrivacySetting"
+                        }
+                    ]
+                },
+                "readReceipts": {
+                    "description": "Valid values: PrivacySettingAll, PrivacySettingNone",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/go_mau_fi_whatsmeow_types.PrivacySetting"
+                        }
+                    ]
+                },
+                "status": {
+                    "description": "Valid values: PrivacySettingAll, PrivacySettingContacts, PrivacySettingContactBlacklist, PrivacySettingNone",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/go_mau_fi_whatsmeow_types.PrivacySetting"
+                        }
+                    ]
+                },
+                "stickers": {
+                    "description": "Valid values: PrivacySettingContacts, PrivacySettingContactAllowlist, PrivacySettingNone",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/go_mau_fi_whatsmeow_types.PrivacySetting"
+                        }
+                    ]
+                }
+            }
+        },
+        "go_mau_fi_whatsmeow_types.ProfilePictureInfo": {
+            "type": "object",
+            "properties": {
+                "direct_path": {
+                    "description": "The path to the image, probably not very useful",
+                    "type": "string"
+                },
+                "hash": {
+                    "description": "Some kind of hash (format is unknown)",
+                    "type": "array",
+                    "items": {
+                        "type": "integer"
+                    }
+                },
+                "id": {
+                    "description": "The ID of the image. This is the same as UserInfo.PictureID.",
+                    "type": "string"
+                },
+                "type": {
+                    "description": "The type of image. Known types include \"image\" (full res) and \"preview\" (thumbnail).",
+                    "type": "string"
+                },
+                "url": {
+                    "description": "The full URL for the image, can be downloaded with a simple HTTP request.",
+                    "type": "string"
+                }
+            }
+        },
         "go_mau_fi_whatsmeow_types.VerifiedName": {
             "type": "object",
             "properties": {
@@ -12719,6 +14301,101 @@ const docTemplate = `{
                     "$ref": "#/definitions/go_mau_fi_whatsmeow_proto_waVnameCert.VerifiedNameCertificate_Details"
                 }
             }
+        },
+        "go_mau_fi_whatsmeow_types.WrappedNewsletterState": {
+            "type": "object",
+            "properties": {
+                "type": {
+                    "$ref": "#/definitions/go_mau_fi_whatsmeow_types.NewsletterState"
+                }
+            }
+        },
+        "jsontime.UnixMicroString": {
+            "type": "object",
+            "properties": {
+                "time.Time": {
+                    "type": "string"
+                }
+            }
+        },
+        "jsontime.UnixString": {
+            "type": "object",
+            "properties": {
+                "time.Time": {
+                    "type": "string"
+                }
+            }
+        },
+        "time.Duration": {
+            "type": "integer",
+            "enum": [
+                -9223372036854775808,
+                9223372036854775807,
+                1,
+                1000,
+                1000000,
+                1000000000,
+                60000000000,
+                3600000000000,
+                -9223372036854775808,
+                9223372036854775807,
+                1,
+                1000,
+                1000000,
+                1000000000,
+                60000000000,
+                3600000000000,
+                -9223372036854775808,
+                9223372036854775807,
+                1,
+                1000,
+                1000000,
+                1000000000,
+                60000000000,
+                3600000000000,
+                -9223372036854775808,
+                9223372036854775807,
+                1,
+                1000,
+                1000000,
+                1000000000,
+                60000000000,
+                3600000000000
+            ],
+            "x-enum-varnames": [
+                "minDuration",
+                "maxDuration",
+                "Nanosecond",
+                "Microsecond",
+                "Millisecond",
+                "Second",
+                "Minute",
+                "Hour",
+                "minDuration",
+                "maxDuration",
+                "Nanosecond",
+                "Microsecond",
+                "Millisecond",
+                "Second",
+                "Minute",
+                "Hour",
+                "minDuration",
+                "maxDuration",
+                "Nanosecond",
+                "Microsecond",
+                "Millisecond",
+                "Second",
+                "Minute",
+                "Hour",
+                "minDuration",
+                "maxDuration",
+                "Nanosecond",
+                "Microsecond",
+                "Millisecond",
+                "Second",
+                "Minute",
+                "Hour"
+            ]
         },
         "waCommon.LimitSharing": {
             "type": "object",

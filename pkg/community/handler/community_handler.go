@@ -3,9 +3,11 @@ package community_handler
 import (
 	"net/http"
 
+	_ "github.com/EvolutionAPI/evolution-go/pkg/common/response"
 	community_service "github.com/EvolutionAPI/evolution-go/pkg/community/service"
 	instance_model "github.com/EvolutionAPI/evolution-go/pkg/instance/model"
 	"github.com/gin-gonic/gin"
+	_ "go.mau.fi/whatsmeow/types"
 )
 
 type CommunityHandler interface {
@@ -25,9 +27,9 @@ type communityHandler struct {
 // @Accept json
 // @Produce json
 // @Param message body community_service.CreateCommunityStruct true "Community data"
-// @Success 200 {object} gin.H "success"
-// @Failure 400 {object} gin.H "Error on validation"
-// @Failure 500 {object} gin.H "Internal server error"
+// @Success 200 {object} response.Success{data=types.GroupInfo} "success"
+// @Failure 400 {object} response.Error "Error on validation"
+// @Failure 500 {object} response.Error "Internal server error"
 // @Router /community/create [post]
 func (c *communityHandler) CreateCommunity(ctx *gin.Context) {
 	getInstance := ctx.MustGet("instance")
@@ -66,9 +68,9 @@ func (c *communityHandler) CreateCommunity(ctx *gin.Context) {
 // @Accept json
 // @Produce json
 // @Param message body community_service.AddParticipantStruct true "Participant data"
-// @Success 200 {object} gin.H "success"
-// @Failure 400 {object} gin.H "Error on validation"
-// @Failure 500 {object} gin.H "Internal server error"
+// @Success 200 {object} response.Success{data=community_service.CommunityParticipantResponse} "success"
+// @Failure 400 {object} response.Error "Error on validation"
+// @Failure 500 {object} response.Error "Internal server error"
 // @Router /community/add [post]
 func (c *communityHandler) CommunityAdd(ctx *gin.Context) {
 	getInstance := ctx.MustGet("instance")
@@ -112,9 +114,9 @@ func (c *communityHandler) CommunityAdd(ctx *gin.Context) {
 // @Accept json
 // @Produce json
 // @Param message body community_service.AddParticipantStruct true "Participant data"
-// @Success 200 {object} gin.H "success"
-// @Failure 400 {object} gin.H "Error on validation"
-// @Failure 500 {object} gin.H "Internal server error"
+// @Success 200 {object} response.Success{data=community_service.CommunityParticipantResponse} "success"
+// @Failure 400 {object} response.Error "Error on validation"
+// @Failure 500 {object} response.Error "Internal server error"
 // @Router /community/remove [post]
 func (c *communityHandler) CommunityRemove(ctx *gin.Context) {
 	getInstance := ctx.MustGet("instance")

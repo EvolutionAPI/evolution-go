@@ -4,6 +4,7 @@ import (
 	"net/http"
 
 	call_service "github.com/EvolutionAPI/evolution-go/pkg/call/service"
+	_ "github.com/EvolutionAPI/evolution-go/pkg/common/response"
 	instance_model "github.com/EvolutionAPI/evolution-go/pkg/instance/model"
 	"github.com/gin-gonic/gin"
 )
@@ -23,8 +24,8 @@ type callHandler struct {
 // @Accept json
 // @Produce json
 // @Param message body call_service.RejectCallStruct true "Call data"
-// @Success 200 {object} gin.H "success"
-// @Failure 500 {object} gin.H "Internal server error"
+// @Success 200 {object} response.Success "success"
+// @Failure 500 {object} response.Error "Internal server error"
 // @Router /call/reject [post]
 func (g *callHandler) RejectCall(ctx *gin.Context) {
 	getInstance := ctx.MustGet("instance")

@@ -123,7 +123,7 @@ deps-reset: ## Limpa cache e reinstala dependências (força uso do código loca
 swagger: ## Gera documentação Swagger
 	@echo "$(GREEN)📚 Gerando documentação Swagger...$(NC)"
 	@if command -v swag > /dev/null; then \
-		swag init -g $(MAIN_PATH) -o ./docs; \
+		swag init --parseDependency -g $(MAIN_PATH) -o ./docs; \
 		echo "$(GREEN)✅ Swagger gerado com sucesso$(NC)"; \
 	else \
 		echo "$(RED)❌ Swag não instalado. Instale com: go install github.com/swaggo/swag/cmd/swag@latest$(NC)"; \

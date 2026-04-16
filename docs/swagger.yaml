@@ -1,7 +1,4 @@
 definitions:
-  gin.H:
-    additionalProperties: {}
-    type: object
   github_com_EvolutionAPI_evolution-go_pkg_call_service.RejectCallStruct:
     properties:
       callCreator:
@@ -21,11 +18,41 @@ definitions:
       messageInfo:
         $ref: '#/definitions/go_mau_fi_whatsmeow_types.MessageInfo'
     type: object
+  github_com_EvolutionAPI_evolution-go_pkg_chat_service.TimestampResponse:
+    properties:
+      timestamp:
+        type: string
+    type: object
+  github_com_EvolutionAPI_evolution-go_pkg_common_response.Error:
+    properties:
+      error:
+        example: error message
+        type: string
+    type: object
+  github_com_EvolutionAPI_evolution-go_pkg_common_response.Success:
+    properties:
+      data:
+        type: object
+      message:
+        example: success
+        type: string
+    type: object
   github_com_EvolutionAPI_evolution-go_pkg_community_service.AddParticipantStruct:
     properties:
       communityJid:
         type: string
       groupJid:
+        items:
+          type: string
+        type: array
+    type: object
+  github_com_EvolutionAPI_evolution-go_pkg_community_service.CommunityParticipantResponse:
+    properties:
+      failed:
+        items:
+          type: string
+        type: array
+      success:
         items:
           type: string
         type: array
@@ -45,6 +72,23 @@ definitions:
         items:
           type: string
         type: array
+    type: object
+  github_com_EvolutionAPI_evolution-go_pkg_group_service.CreateGroupResponse:
+    properties:
+      added:
+        items:
+          $ref: '#/definitions/go_mau_fi_whatsmeow_types.JID'
+        type: array
+      failed:
+        items:
+          $ref: '#/definitions/go_mau_fi_whatsmeow_types.JID'
+        type: array
+      jid:
+        $ref: '#/definitions/go_mau_fi_whatsmeow_types.JID'
+      name:
+        type: string
+      owner:
+        $ref: '#/definitions/go_mau_fi_whatsmeow_types.JID'
     type: object
   github_com_EvolutionAPI_evolution-go_pkg_group_service.CreateGroupStruct:
     properties:
@@ -113,6 +157,65 @@ definitions:
       rejectCall:
         type: boolean
     type: object
+  github_com_EvolutionAPI_evolution-go_pkg_instance_model.Instance:
+    properties:
+      alwaysOnline:
+        description: Advanced Settings
+        type: boolean
+      client_name:
+        type: string
+      connected:
+        type: boolean
+      createdAt:
+        type: string
+      disconnect_reason:
+        type: string
+      events:
+        type: string
+      expiration:
+        type: integer
+      id:
+        type: string
+      ignoreGroups:
+        type: boolean
+      ignoreStatus:
+        type: boolean
+      jid:
+        type: string
+      msgRejectCall:
+        type: string
+      name:
+        type: string
+      natsEnable:
+        type: string
+      os_name:
+        type: string
+      proxy:
+        type: string
+      qrcode:
+        type: string
+      rabbitmqEnable:
+        type: string
+      readMessages:
+        type: boolean
+      rejectCall:
+        type: boolean
+      token:
+        type: string
+      webhook:
+        type: string
+      websocketEnable:
+        type: string
+    type: object
+  github_com_EvolutionAPI_evolution-go_pkg_instance_service.ConnectResponse:
+    properties:
+      eventString:
+        type: string
+      jid:
+        type: string
+      webhookUrl:
+        type: string
+    type: object
   github_com_EvolutionAPI_evolution-go_pkg_instance_service.ConnectStruct:
     properties:
       immediate:
@@ -150,6 +253,11 @@ definitions:
       number:
         type: string
     type: object
+  github_com_EvolutionAPI_evolution-go_pkg_instance_service.PairReturnStruct:
+    properties:
+      pairingCode:
+        type: string
+    type: object
   github_com_EvolutionAPI_evolution-go_pkg_instance_service.PairStruct:
     properties:
       phone:
@@ -170,6 +278,22 @@ definitions:
       username:
         type: string
     type: object
+  github_com_EvolutionAPI_evolution-go_pkg_instance_service.QrcodeStruct:
+    properties:
+      code:
+        type: string
+      qrcode:
+        type: string
+    type: object
+  github_com_EvolutionAPI_evolution-go_pkg_instance_service.SetProxyResponse:
+    properties:
+      hasAuth:
+        type: boolean
+      host:
+        type: string
+      port:
+        type: string
+    type: object
   github_com_EvolutionAPI_evolution-go_pkg_instance_service.SetProxyStruct:
     properties:
       host:
@@ -183,6 +307,37 @@ definitions:
     required:
     - host
     - port
+    type: object
+  github_com_EvolutionAPI_evolution-go_pkg_instance_service.StatusStruct:
+    properties:
+      connected:
+        type: boolean
+      loggedIn:
+        type: boolean
+      name:
+        type: string
+    type: object
+  github_com_EvolutionAPI_evolution-go_pkg_instance_service.UpdateAdvancedSettingsResponse:
+    properties:
+      message:
+        type: string
+      settings:
+        $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_instance_model.AdvancedSettings'
+    type: object
+  github_com_EvolutionAPI_evolution-go_pkg_label_model.Label:
+    properties:
+      id:
+        type: string
+      instance_id:
+        type: string
+      label_color:
+        type: string
+      label_id:
+        type: string
+      label_name:
+        type: string
+      predefined_id:
+        type: string
     type: object
   github_com_EvolutionAPI_evolution-go_pkg_label_service.ChatLabelStruct:
     properties:
@@ -211,6 +366,19 @@ definitions:
       messageId:
         type: string
     type: object
+  github_com_EvolutionAPI_evolution-go_pkg_message_model.Message:
+    properties:
+      id:
+        type: string
+      message_id:
+        type: string
+      source:
+        type: string
+      status:
+        type: string
+      timestamp:
+        type: string
+    type: object
   github_com_EvolutionAPI_evolution-go_pkg_message_service.ChatPresenceStruct:
     properties:
       isAudio:
@@ -218,6 +386,13 @@ definitions:
       number:
         type: string
       state:
+        type: string
+    type: object
+  github_com_EvolutionAPI_evolution-go_pkg_message_service.DownloadMediaResponse:
+    properties:
+      base64:
+        type: string
+      timestamp:
         type: string
     type: object
   github_com_EvolutionAPI_evolution-go_pkg_message_service.DownloadMediaStruct:
@@ -243,6 +418,29 @@ definitions:
       number:
         type: string
     type: object
+  github_com_EvolutionAPI_evolution-go_pkg_message_service.MessageIDResponse:
+    properties:
+      messageId:
+        type: string
+      timestamp:
+        type: string
+    type: object
+  github_com_EvolutionAPI_evolution-go_pkg_message_service.MessageSendStruct:
+    properties:
+      info:
+        $ref: '#/definitions/go_mau_fi_whatsmeow_types.MessageInfo'
+      message:
+        $ref: '#/definitions/go_mau_fi_whatsmeow_proto_waE2E.Message'
+      messageContextInfo:
+        $ref: '#/definitions/go_mau_fi_whatsmeow_proto_waE2E.ContextInfo'
+    type: object
+  github_com_EvolutionAPI_evolution-go_pkg_message_service.MessageStatusResponse:
+    properties:
+      result:
+        $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_message_model.Message'
+      timestamp:
+        type: string
+    type: object
   github_com_EvolutionAPI_evolution-go_pkg_message_service.MessageStatusStruct:
     properties:
       id:
@@ -266,6 +464,11 @@ definitions:
       participant:
         type: string
       reaction:
+        type: string
+    type: object
+  github_com_EvolutionAPI_evolution-go_pkg_message_service.TimestampResponse:
+    properties:
+      timestamp:
         type: string
     type: object
   github_com_EvolutionAPI_evolution-go_pkg_newsletter_service.CreateNewsletterStruct:
@@ -465,6 +668,15 @@ definitions:
       url:
         type: string
     type: object
+  github_com_EvolutionAPI_evolution-go_pkg_sendMessage_service.MessageSendStruct:
+    properties:
+      info:
+        $ref: '#/definitions/go_mau_fi_whatsmeow_types.MessageInfo'
+      message:
+        $ref: '#/definitions/go_mau_fi_whatsmeow_proto_waE2E.Message'
+      messageContextInfo:
+        $ref: '#/definitions/go_mau_fi_whatsmeow_proto_waE2E.ContextInfo'
+    type: object
   github_com_EvolutionAPI_evolution-go_pkg_sendMessage_service.PollStruct:
     properties:
       delay:
@@ -546,6 +758,13 @@ definitions:
       number:
         type: string
     type: object
+  github_com_EvolutionAPI_evolution-go_pkg_user_service.CheckUserCollection:
+    properties:
+      users:
+        items:
+          $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_user_service.User'
+        type: array
+    type: object
   github_com_EvolutionAPI_evolution-go_pkg_user_service.CheckUserStruct:
     properties:
       formatJid:
@@ -554,6 +773,21 @@ definitions:
         items:
           type: string
         type: array
+    type: object
+  github_com_EvolutionAPI_evolution-go_pkg_user_service.ContactInfo:
+    properties:
+      BusinessName:
+        type: string
+      FirstName:
+        type: string
+      Found:
+        type: boolean
+      FullName:
+        type: string
+      Jid:
+        type: string
+      PushName:
+        type: string
     type: object
   github_com_EvolutionAPI_evolution-go_pkg_user_service.GetAvatarStruct:
     properties:
@@ -579,10 +813,63 @@ definitions:
       status:
         $ref: '#/definitions/go_mau_fi_whatsmeow_types.PrivacySetting'
     type: object
+  github_com_EvolutionAPI_evolution-go_pkg_user_service.SetProfileNameResponse:
+    properties:
+      name:
+        type: string
+    type: object
+  github_com_EvolutionAPI_evolution-go_pkg_user_service.SetProfilePictureResponse:
+    properties:
+      image:
+        type: string
+    type: object
   github_com_EvolutionAPI_evolution-go_pkg_user_service.SetProfilePictureStruct:
     properties:
       image:
         type: string
+    type: object
+  github_com_EvolutionAPI_evolution-go_pkg_user_service.SetProfileStatusResponse:
+    properties:
+      status:
+        type: string
+    type: object
+  github_com_EvolutionAPI_evolution-go_pkg_user_service.User:
+    properties:
+      isInWhatsapp:
+        type: boolean
+      jid:
+        type: string
+      lid:
+        type: string
+      query:
+        type: string
+      remoteJID:
+        type: string
+      verifiedName:
+        type: string
+    type: object
+  github_com_EvolutionAPI_evolution-go_pkg_user_service.UserCollection:
+    properties:
+      users:
+        additionalProperties:
+          $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_user_service.UserInfo'
+        type: object
+    type: object
+  github_com_EvolutionAPI_evolution-go_pkg_user_service.UserInfo:
+    properties:
+      devices:
+        items:
+          $ref: '#/definitions/go_mau_fi_whatsmeow_types.JID'
+        type: array
+      lid:
+        description: The local ID (if available)
+        type: string
+      pictureID:
+        type: string
+      status:
+        type: string
+      verifiedName:
+        $ref: '#/definitions/go_mau_fi_whatsmeow_types.VerifiedName'
     type: object
   github_com_EvolutionAPI_evolution-go_pkg_utils.VCardStruct:
     properties:
@@ -592,6 +879,29 @@ definitions:
         type: string
       phone:
         type: string
+    type: object
+  go_mau_fi_whatsmeow.MessageDebugTimings:
+    properties:
+      getDevices:
+        $ref: '#/definitions/time.Duration'
+      getParticipants:
+        $ref: '#/definitions/time.Duration'
+      groupEncrypt:
+        $ref: '#/definitions/time.Duration'
+      lidfetch:
+        $ref: '#/definitions/time.Duration'
+      marshal:
+        $ref: '#/definitions/time.Duration'
+      peerEncrypt:
+        $ref: '#/definitions/time.Duration'
+      queue:
+        $ref: '#/definitions/time.Duration'
+      resp:
+        $ref: '#/definitions/time.Duration'
+      retry:
+        $ref: '#/definitions/time.Duration'
+      send:
+        $ref: '#/definitions/time.Duration'
     type: object
   go_mau_fi_whatsmeow.ParticipantChange:
     enum:
@@ -605,6 +915,29 @@ definitions:
     - ParticipantChangeRemove
     - ParticipantChangePromote
     - ParticipantChangeDemote
+  go_mau_fi_whatsmeow.SendResponse:
+    properties:
+      debugTimings:
+        allOf:
+        - $ref: '#/definitions/go_mau_fi_whatsmeow.MessageDebugTimings'
+        description: Message handling duration, used for debugging
+      id:
+        description: The ID of the sent message
+        type: string
+      sender:
+        allOf:
+        - $ref: '#/definitions/go_mau_fi_whatsmeow_types.JID'
+        description: |-
+          The identity the message was sent with (LID or PN)
+          This is currently not reliable in all cases.
+      serverID:
+        description: The server-specified ID of the sent message. Only present for
+          newsletter messages.
+        type: integer
+      timestamp:
+        description: The message timestamp returned by the server
+        type: string
+    type: object
   go_mau_fi_whatsmeow_proto_waAICommon.AIMediaCollectionMessage:
     properties:
       collectionID:
@@ -655,7 +988,6 @@ definitions:
     - 1
     - 2
     - 3
-    format: int32
     type: integer
     x-enum-varnames:
     - AIThreadInfo_AIThreadClientInfo_UNKNOWN
@@ -680,7 +1012,6 @@ definitions:
     enum:
     - 0
     - 1
-    format: int32
     type: integer
     x-enum-varnames:
     - BotAgeCollectionMetadata_O18_BINARY
@@ -766,7 +1097,6 @@ definitions:
     - 59
     - 60
     - 61
-    format: int32
     type: integer
     x-enum-varnames:
     - BotCapabilityMetadata_UNKNOWN
@@ -840,7 +1170,6 @@ definitions:
     enum:
     - 0
     - 1
-    format: int32
     type: integer
     x-enum-varnames:
     - BotDocumentMessageMetadata_TEXT_EXTRACTION
@@ -879,7 +1208,6 @@ definitions:
     - 12
     - 13
     - 14
-    format: int32
     type: integer
     x-enum-varnames:
     - BotFeedbackMessage_BOT_FEEDBACK_POSITIVE
@@ -901,7 +1229,6 @@ definitions:
     enum:
     - 0
     - 1
-    format: int32
     type: integer
     x-enum-varnames:
     - BotFeedbackMessage_NONE
@@ -1009,7 +1336,6 @@ definitions:
     - 2
     - 3
     - 4
-    format: int32
     type: integer
     x-enum-varnames:
     - BotImagineMetadata_UNKNOWN
@@ -1032,7 +1358,6 @@ definitions:
     enum:
     - 0
     - 1
-    format: int32
     type: integer
     x-enum-varnames:
     - BotInfrastructureDiagnostics_AAPI
@@ -1045,7 +1370,6 @@ definitions:
   go_mau_fi_whatsmeow_proto_waAICommon.BotLinkedAccount_BotLinkedAccountType:
     enum:
     - 0
-    format: int32
     type: integer
     x-enum-varnames:
     - BotLinkedAccount_BOT_LINKED_ACCOUNT_TYPE_1P
@@ -1084,7 +1408,6 @@ definitions:
     - 1
     - 2
     - 3
-    format: int32
     type: integer
     x-enum-varnames:
     - BotMediaMetadata_CENTER
@@ -1125,7 +1448,6 @@ definitions:
   go_mau_fi_whatsmeow_proto_waAICommon.BotMessageOrigin_BotMessageOriginType:
     enum:
     - 0
-    format: int32
     type: integer
     x-enum-varnames:
     - BotMessageOrigin_BOT_MESSAGE_ORIGIN_TYPE_AI_INITIATED
@@ -1275,7 +1597,6 @@ definitions:
     - 47
     - 54
     - 55
-    format: int32
     type: integer
     x-enum-varnames:
     - BotMetricsEntryPoint_UNDEFINED_ENTRY_POINT
@@ -1341,7 +1662,6 @@ definitions:
     - 3
     - 4
     - 5
-    format: int32
     type: integer
     x-enum-varnames:
     - BotMetricsThreadEntryPoint_AI_TAB_THREAD
@@ -1364,7 +1684,6 @@ definitions:
     enum:
     - 0
     - 1
-    format: int32
     type: integer
     x-enum-varnames:
     - BotModeSelectionMetadata_DEFAULT_MODE
@@ -1383,7 +1702,6 @@ definitions:
     - 0
     - 1
     - 2
-    format: int32
     type: integer
     x-enum-varnames:
     - BotModelMetadata_UNKNOWN_TYPE
@@ -1394,7 +1712,6 @@ definitions:
     - 0
     - 1
     - 2
-    format: int32
     type: integer
     x-enum-varnames:
     - BotModelMetadata_UNKNOWN_STATUS
@@ -1432,7 +1749,6 @@ definitions:
     - 0
     - 1
     - 2
-    format: int32
     type: integer
     x-enum-varnames:
     - BotPluginMetadata_UNKNOWN_PLUGIN
@@ -1444,7 +1760,6 @@ definitions:
     - 1
     - 2
     - 3
-    format: int32
     type: integer
     x-enum-varnames:
     - BotPluginMetadata_UNKNOWN
@@ -1509,7 +1824,6 @@ definitions:
     - 1
     - 2
     - 3
-    format: int32
     type: integer
     x-enum-varnames:
     - BotProgressIndicatorMetadata_BotPlanningStepMetadata_BotPlanningSearchSourcesMetadata_UNKNOWN
@@ -1533,7 +1847,6 @@ definitions:
     - 1
     - 2
     - 3
-    format: int32
     type: integer
     x-enum-varnames:
     - BotProgressIndicatorMetadata_BotPlanningStepMetadata_UNKNOWN_PROVIDER
@@ -1546,7 +1859,6 @@ definitions:
     - 1
     - 2
     - 3
-    format: int32
     type: integer
     x-enum-varnames:
     - BotProgressIndicatorMetadata_BotPlanningStepMetadata_UNKNOWN
@@ -1565,7 +1877,6 @@ definitions:
     - 0
     - 1
     - 2
-    format: int32
     type: integer
     x-enum-varnames:
     - BotPromotionMessageMetadata_UNKNOWN_TYPE
@@ -1605,7 +1916,6 @@ definitions:
     enum:
     - 0
     - 1
-    format: int32
     type: integer
     x-enum-varnames:
     - BotQuotaMetadata_BotFeatureQuotaMetadata_UNKNOWN_FEATURE
@@ -1629,7 +1939,6 @@ definitions:
     - 2
     - 3
     - 4
-    format: int32
     type: integer
     x-enum-varnames:
     - BotReminderMetadata_NOTIFY
@@ -1643,7 +1952,6 @@ definitions:
     - 3
     - 4
     - 5
-    format: int32
     type: integer
     x-enum-varnames:
     - BotReminderMetadata_ONCE
@@ -1691,7 +1999,6 @@ definitions:
     - 5
     - 6
     - 7
-    format: int32
     type: integer
     x-enum-varnames:
     - BotSessionSource_NONE
@@ -1714,7 +2021,6 @@ definitions:
       certificateChain:
         items:
           items:
-            format: int32
             type: integer
           type: array
         type: array
@@ -1732,7 +2038,6 @@ definitions:
     - 0
     - 1
     - 2
-    format: int32
     type: integer
     x-enum-varnames:
     - BotSignatureVerificationUseCaseProof_UNSPECIFIED
@@ -1769,7 +2074,6 @@ definitions:
     - 2
     - 3
     - 4
-    format: int32
     type: integer
     x-enum-varnames:
     - BotSourcesMetadata_BotSourceItem_UNKNOWN
@@ -1907,7 +2211,6 @@ definitions:
     enum:
     - 0
     - 1
-    format: int32
     type: integer
     x-enum-varnames:
     - SessionTransparencyType_UNKNOWN_TYPE
@@ -1936,7 +2239,6 @@ definitions:
     - 3
     - 4
     - 5
-    format: int32
     type: integer
     x-enum-varnames:
     - AIRichResponseCodeMetadata_AI_RICH_RESPONSE_CODE_HIGHLIGHT_DEFAULT
@@ -1963,7 +2265,6 @@ definitions:
     enum:
     - 0
     - 1
-    format: int32
     type: integer
     x-enum-varnames:
     - AIRichResponseContentItemsMetadata_DEFAULT
@@ -1984,7 +2285,6 @@ definitions:
     - 0
     - 1
     - 2
-    format: int32
     type: integer
     x-enum-varnames:
     - AIRichResponseDynamicMetadata_AI_RICH_RESPONSE_DYNAMIC_METADATA_TYPE_UNKNOWN
@@ -2024,7 +2324,6 @@ definitions:
     - 0
     - 1
     - 2
-    format: int32
     type: integer
     x-enum-varnames:
     - AIRichResponseInlineImageMetadata_AI_RICH_RESPONSE_IMAGE_LAYOUT_LEADING_ALIGNED
@@ -2094,7 +2393,6 @@ definitions:
     enum:
     - 0
     - 1
-    format: int32
     type: integer
     x-enum-varnames:
     - AIRichResponseMessageType_AI_RICH_RESPONSE_TYPE_UNKNOWN
@@ -2134,7 +2432,6 @@ definitions:
     - 7
     - 8
     - 9
-    format: int32
     type: integer
     x-enum-varnames:
     - AIRichResponseSubMessageType_AI_RICH_RESPONSE_UNKNOWN
@@ -2169,7 +2466,6 @@ definitions:
     enum:
     - 0
     - 1
-    format: int32
     type: integer
     x-enum-varnames:
     - ADVEncryptionType_E2EE
@@ -2381,7 +2677,6 @@ definitions:
     - 0
     - 1
     - 2
-    format: int32
     type: integer
     x-enum-varnames:
     - BCallMessage_UNKNOWN
@@ -2432,7 +2727,6 @@ definitions:
     - 0
     - 1
     - 2
-    format: int32
     type: integer
     x-enum-varnames:
     - ButtonsMessage_Button_UNKNOWN
@@ -2447,7 +2741,6 @@ definitions:
     - 4
     - 5
     - 6
-    format: int32
     type: integer
     x-enum-varnames:
     - ButtonsMessage_UNKNOWN
@@ -2472,7 +2765,6 @@ definitions:
     enum:
     - 0
     - 1
-    format: int32
     type: integer
     x-enum-varnames:
     - ButtonsResponseMessage_UNKNOWN
@@ -2533,7 +2825,6 @@ definitions:
     - 5
     - 6
     - 7
-    format: int32
     type: integer
     x-enum-varnames:
     - CallLogMessage_CONNECTED
@@ -2556,7 +2847,6 @@ definitions:
     - 0
     - 1
     - 2
-    format: int32
     type: integer
     x-enum-varnames:
     - CallLogMessage_REGULAR
@@ -2594,7 +2884,6 @@ definitions:
     - 0
     - 1
     - 2
-    format: int32
     type: integer
     x-enum-varnames:
     - CloudAPIThreadControlNotification_UNKNOWN
@@ -2633,7 +2922,6 @@ definitions:
     enum:
     - 0
     - 1
-    format: int32
     type: integer
     x-enum-varnames:
     - ConditionalRevealMessage_UNKNOWN
@@ -2811,7 +3099,6 @@ definitions:
     - 0
     - 1
     - 2
-    format: int32
     type: integer
     x-enum-varnames:
     - ContextInfo_AdReplyInfo_NONE
@@ -2913,7 +3200,6 @@ definitions:
     enum:
     - 0
     - 1
-    format: int32
     type: integer
     x-enum-varnames:
     - ContextInfo_ExternalAdReplyInfo_CTWA
@@ -2923,7 +3209,6 @@ definitions:
     - 0
     - 1
     - 2
-    format: int32
     type: integer
     x-enum-varnames:
     - ContextInfo_ExternalAdReplyInfo_NONE
@@ -2950,7 +3235,6 @@ definitions:
     - 3
     - 4
     - 5
-    format: int32
     type: integer
     x-enum-varnames:
     - ContextInfo_UNKNOWN
@@ -2979,7 +3263,6 @@ definitions:
     - 1
     - 2
     - 3
-    format: int32
     type: integer
     x-enum-varnames:
     - ContextInfo_ForwardedNewsletterMessageInfo_UPDATE
@@ -2996,7 +3279,6 @@ definitions:
     - 6
     - 7
     - 8
-    format: int32
     type: integer
     x-enum-varnames:
     - ContextInfo_NOT_PAIRED_MEDIA
@@ -3026,7 +3308,6 @@ definitions:
     enum:
     - 0
     - 1
-    format: int32
     type: integer
     x-enum-varnames:
     - ContextInfo_EXPLICIT
@@ -3038,7 +3319,6 @@ definitions:
     - 2
     - 3
     - 4
-    format: int32
     type: integer
     x-enum-varnames:
     - ContextInfo_NONE
@@ -3059,7 +3339,6 @@ definitions:
     enum:
     - 0
     - 1
-    format: int32
     type: integer
     x-enum-varnames:
     - ContextInfo_StatusAudienceMetadata_UNKNOWN
@@ -3072,7 +3351,6 @@ definitions:
     - 3
     - 4
     - 5
-    format: int32
     type: integer
     x-enum-varnames:
     - ContextInfo_IMAGE
@@ -3146,7 +3424,6 @@ definitions:
     - 1
     - 2
     - 3
-    format: int32
     type: integer
     x-enum-varnames:
     - DisappearingMode_CHANGED_IN_CHAT
@@ -3161,7 +3438,6 @@ definitions:
     - 3
     - 4
     - 5
-    format: int32
     type: integer
     x-enum-varnames:
     - DisappearingMode_UNKNOWN
@@ -3445,7 +3721,6 @@ definitions:
     - 8
     - 9
     - 10
-    format: int32
     type: integer
     x-enum-varnames:
     - ExtendedTextMessage_SYSTEM
@@ -3462,7 +3737,6 @@ definitions:
     - 1
     - 2
     - 3
-    format: int32
     type: integer
     x-enum-varnames:
     - ExtendedTextMessage_DEFAULT
@@ -3477,7 +3751,6 @@ definitions:
     - 5
     - 6
     - 7
-    format: int32
     type: integer
     x-enum-varnames:
     - ExtendedTextMessage_NONE
@@ -3534,7 +3807,6 @@ definitions:
     enum:
     - 0
     - 1
-    format: int32
     type: integer
     x-enum-varnames:
     - GroupInviteMessage_DEFAULT
@@ -3635,7 +3907,6 @@ definitions:
     - 6
     - 7
     - 8
-    format: int32
     type: integer
     x-enum-varnames:
     - HistorySyncType_INITIAL_BOOTSTRAP
@@ -3749,7 +4020,6 @@ definitions:
     - 1
     - 2
     - 3
-    format: int32
     type: integer
     x-enum-varnames:
     - ImageMessage_USER_IMAGE
@@ -3768,7 +4038,6 @@ definitions:
     - 2
     - 3
     - 4
-    format: int32
     type: integer
     x-enum-varnames:
     - InsightDeliveryState_SENT
@@ -3796,7 +4065,6 @@ definitions:
     - 1
     - 2
     - 3
-    format: int32
     type: integer
     x-enum-varnames:
     - InteractiveAnnotation_RASTERIZED_LINK_PREVIEW
@@ -3875,7 +4143,6 @@ definitions:
     enum:
     - 0
     - 1
-    format: int32
     type: integer
     x-enum-varnames:
     - InteractiveResponseMessage_Body_DEFAULT
@@ -3915,7 +4182,6 @@ definitions:
     enum:
     - 0
     - 1
-    format: int32
     type: integer
     x-enum-varnames:
     - InvoiceMessage_IMAGE
@@ -3934,7 +4200,6 @@ definitions:
     - 0
     - 1
     - 2
-    format: int32
     type: integer
     x-enum-varnames:
     - KeepType_UNKNOWN_KEEP_TYPE
@@ -3976,7 +4241,6 @@ definitions:
     - 3
     - 4
     - 5
-    format: int32
     type: integer
     x-enum-varnames:
     - LinkPreviewMetadata_NONE
@@ -4011,7 +4275,6 @@ definitions:
     - 0
     - 1
     - 2
-    format: int32
     type: integer
     x-enum-varnames:
     - ListMessage_UNKNOWN
@@ -4086,7 +4349,6 @@ definitions:
     enum:
     - 0
     - 1
-    format: int32
     type: integer
     x-enum-varnames:
     - ListResponseMessage_UNKNOWN
@@ -4187,7 +4449,6 @@ definitions:
     - 0
     - 1
     - 2
-    format: int32
     type: integer
     x-enum-varnames:
     - MediaKeyDomain_MEDIA_KEY_DOMAIN_UNKNOWN
@@ -4450,7 +4711,6 @@ definitions:
     - 18
     - 19
     - 20
-    format: int32
     type: integer
     x-enum-varnames:
     - MessageAssociation_UNKNOWN
@@ -4521,7 +4781,6 @@ definitions:
     enum:
     - 1
     - 2
-    format: int32
     type: integer
     x-enum-varnames:
     - MessageContextInfo_STATIC
@@ -4656,7 +4915,6 @@ definitions:
     - 1
     - 2
     - 3
-    format: int32
     type: integer
     x-enum-varnames:
     - OrderMessage_INQUIRY
@@ -4665,7 +4923,6 @@ definitions:
   go_mau_fi_whatsmeow_proto_waE2E.OrderMessage_OrderSurface:
     enum:
     - 1
-    format: int32
     type: integer
     x-enum-varnames:
     - OrderMessage_CATALOG
@@ -4715,7 +4972,6 @@ definitions:
     enum:
     - 0
     - 1
-    format: int32
     type: integer
     x-enum-varnames:
     - PaymentBackground_UNKNOWN
@@ -4744,7 +5000,6 @@ definitions:
     enum:
     - 0
     - 1
-    format: int32
     type: integer
     x-enum-varnames:
     - PaymentInviteMessage_DEFAULT
@@ -4755,7 +5010,6 @@ definitions:
     - 1
     - 2
     - 3
-    format: int32
     type: integer
     x-enum-varnames:
     - PaymentInviteMessage_UNKNOWN
@@ -4785,7 +5039,6 @@ definitions:
     enum:
     - 0
     - 1
-    format: int32
     type: integer
     x-enum-varnames:
     - PaymentLinkMetadata_PaymentLinkHeader_LINK_PREVIEW
@@ -4869,7 +5122,6 @@ definitions:
     enum:
     - 1
     - 2
-    format: int32
     type: integer
     x-enum-varnames:
     - PeerDataOperationRequestMessage_GalaxyFlowAction_NOTIFY_LAUNCH
@@ -5039,7 +5291,6 @@ definitions:
     - 4
     - 5
     - 6
-    format: int32
     type: integer
     x-enum-varnames:
     - PeerDataOperationRequestResponseMessage_PeerDataOperationResult_REQUEST_SUCCESS
@@ -5070,7 +5321,6 @@ definitions:
     - 4
     - 5
     - 6
-    format: int32
     type: integer
     x-enum-varnames:
     - PeerDataOperationRequestResponseMessage_PeerDataOperationResult_GENERATION_ERROR
@@ -5171,7 +5421,6 @@ definitions:
     - 11
     - 12
     - 13
-    format: int32
     type: integer
     x-enum-varnames:
     - PeerDataOperationRequestType_UPLOAD_STICKER
@@ -5202,7 +5451,6 @@ definitions:
     - 0
     - 1
     - 2
-    format: int32
     type: integer
     x-enum-varnames:
     - PinInChatMessage_UNKNOWN_TYPE
@@ -5216,7 +5464,6 @@ definitions:
   go_mau_fi_whatsmeow_proto_waE2E.PlaceholderMessage_PlaceholderType:
     enum:
     - 0
-    format: int32
     type: integer
     x-enum-varnames:
     - PlaceholderMessage_MASK_LINKED_DEVICES
@@ -5243,7 +5490,6 @@ definitions:
     - 0
     - 1
     - 2
-    format: int32
     type: integer
     x-enum-varnames:
     - PollContentType_UNKNOWN_POLL_CONTENT_TYPE
@@ -5320,7 +5566,6 @@ definitions:
     enum:
     - 0
     - 1
-    format: int32
     type: integer
     x-enum-varnames:
     - PollType_POLL
@@ -5367,7 +5612,6 @@ definitions:
     - 1
     - 2
     - 3
-    format: int32
     type: integer
     x-enum-varnames:
     - ProcessedVideo_UNDEFINED
@@ -5513,7 +5757,6 @@ definitions:
     - 31
     - 32
     - 33
-    format: int32
     type: integer
     x-enum-varnames:
     - ProtocolMessage_REVOKE
@@ -5598,7 +5841,6 @@ definitions:
     enum:
     - 0
     - 1
-    format: int32
     type: integer
     x-enum-varnames:
     - RequestWelcomeMessageMetadata_EMPTY
@@ -5607,7 +5849,6 @@ definitions:
     enum:
     - 0
     - 1
-    format: int32
     type: integer
     x-enum-varnames:
     - RequestWelcomeMessageMetadata_CHAT_OPEN
@@ -5626,7 +5867,6 @@ definitions:
     - 0
     - 1
     - 2
-    format: int32
     type: integer
     x-enum-varnames:
     - ScheduledCallCreationMessage_UNKNOWN
@@ -5643,7 +5883,6 @@ definitions:
     enum:
     - 0
     - 1
-    format: int32
     type: integer
     x-enum-varnames:
     - ScheduledCallEditMessage_UNKNOWN
@@ -5673,7 +5912,6 @@ definitions:
     - 3
     - 4
     - 5
-    format: int32
     type: integer
     x-enum-varnames:
     - SecretEncryptedMessage_UNKNOWN
@@ -5717,7 +5955,6 @@ definitions:
     - 1
     - 2
     - 3
-    format: int32
     type: integer
     x-enum-varnames:
     - StatusNotificationMessage_UNKNOWN
@@ -5747,7 +5984,6 @@ definitions:
   go_mau_fi_whatsmeow_proto_waE2E.StatusQuotedMessage_StatusQuotedMessageType:
     enum:
     - 1
-    format: int32
     type: integer
     x-enum-varnames:
     - StatusQuotedMessage_QUESTION_ANSWER
@@ -5764,7 +6000,6 @@ definitions:
     enum:
     - 0
     - 1
-    format: int32
     type: integer
     x-enum-varnames:
     - StatusStickerInteractionMessage_UNKNOWN
@@ -5907,7 +6142,6 @@ definitions:
     - 0
     - 1
     - 2
-    format: int32
     type: integer
     x-enum-varnames:
     - StickerPackMessage_FIRST_PARTY
@@ -5977,7 +6211,6 @@ definitions:
     - 0
     - 1
     - 2
-    format: int32
     type: integer
     x-enum-varnames:
     - ThreadID_UNKNOWN
@@ -6106,7 +6339,6 @@ definitions:
     - 1
     - 2
     - 3
-    format: int32
     type: integer
     x-enum-varnames:
     - VideoMessage_NONE
@@ -6117,7 +6349,6 @@ definitions:
     enum:
     - 0
     - 1
-    format: int32
     type: integer
     x-enum-varnames:
     - VideoMessage_USER_VIDEO
@@ -6126,7 +6357,6 @@ definitions:
     enum:
     - 0
     - 1
-    format: int32
     type: integer
     x-enum-varnames:
     - WebLinkRenderConfig_WEBVIEW
@@ -6137,7 +6367,6 @@ definitions:
     - 1
     - 2
     - 3
-    format: int32
     type: integer
     x-enum-varnames:
     - MediaRetryNotification_GENERAL_ERROR
@@ -6166,7 +6395,6 @@ definitions:
     - 8
     - 9
     - 10
-    format: int32
     type: integer
     x-enum-varnames:
     - StatusAttribution_UNKNOWN
@@ -6227,6 +6455,16 @@ definitions:
     x-enum-varnames:
     - AddressingModePN
     - AddressingModeLID
+  go_mau_fi_whatsmeow_types.Blocklist:
+    properties:
+      dhash:
+        description: TODO is this just a timestamp?
+        type: string
+      jids:
+        items:
+          $ref: '#/definitions/go_mau_fi_whatsmeow_types.JID'
+        type: array
+    type: object
   go_mau_fi_whatsmeow_types.BotEditType:
     enum:
     - first
@@ -6264,13 +6502,6 @@ definitions:
     type: string
     x-enum-comments:
       EditAttributeAdminEdit: only used in newsletters
-    x-enum-descriptions:
-    - ""
-    - ""
-    - ""
-    - only used in newsletters
-    - ""
-    - ""
     x-enum-varnames:
     - EditAttributeEmpty
     - EditAttributeMessageEdit
@@ -6278,16 +6509,127 @@ definitions:
     - EditAttributeAdminEdit
     - EditAttributeSenderRevoke
     - EditAttributeAdminRevoke
+  go_mau_fi_whatsmeow_types.GroupInfo:
+    properties:
+      addressingMode:
+        $ref: '#/definitions/go_mau_fi_whatsmeow_types.AddressingMode'
+      announceVersionID:
+        type: string
+      creatorCountryCode:
+        type: string
+      defaultMembershipApprovalMode:
+        description: request_required
+        type: string
+      disappearingTimer:
+        type: integer
+      groupCreated:
+        type: string
+      isAnnounce:
+        type: boolean
+      isDefaultSubGroup:
+        type: boolean
+      isEphemeral:
+        type: boolean
+      isIncognito:
+        type: boolean
+      isJoinApprovalRequired:
+        type: boolean
+      isLocked:
+        type: boolean
+      isParent:
+        type: boolean
+      jid:
+        $ref: '#/definitions/go_mau_fi_whatsmeow_types.JID'
+      linkedParentJID:
+        $ref: '#/definitions/go_mau_fi_whatsmeow_types.JID'
+      memberAddMode:
+        $ref: '#/definitions/go_mau_fi_whatsmeow_types.GroupMemberAddMode'
+      name:
+        type: string
+      nameSetAt:
+        type: string
+      nameSetBy:
+        $ref: '#/definitions/go_mau_fi_whatsmeow_types.JID'
+      nameSetByPN:
+        $ref: '#/definitions/go_mau_fi_whatsmeow_types.JID'
+      ownerJID:
+        $ref: '#/definitions/go_mau_fi_whatsmeow_types.JID'
+      ownerPN:
+        $ref: '#/definitions/go_mau_fi_whatsmeow_types.JID'
+      participantCount:
+        type: integer
+      participantVersionID:
+        type: string
+      participants:
+        items:
+          $ref: '#/definitions/go_mau_fi_whatsmeow_types.GroupParticipant'
+        type: array
+      suspended:
+        description: Suspended indicates whether the group is currently paused/suspended.
+        type: boolean
+      topic:
+        type: string
+      topicDeleted:
+        type: boolean
+      topicID:
+        type: string
+      topicSetAt:
+        type: string
+      topicSetBy:
+        $ref: '#/definitions/go_mau_fi_whatsmeow_types.JID'
+      topicSetByPN:
+        $ref: '#/definitions/go_mau_fi_whatsmeow_types.JID'
+    type: object
+  go_mau_fi_whatsmeow_types.GroupMemberAddMode:
+    enum:
+    - admin_add
+    - all_member_add
+    type: string
+    x-enum-varnames:
+    - GroupMemberAddModeAdmin
+    - GroupMemberAddModeAllMember
+  go_mau_fi_whatsmeow_types.GroupParticipant:
+    properties:
+      addRequest:
+        $ref: '#/definitions/go_mau_fi_whatsmeow_types.GroupParticipantAddRequest'
+      displayName:
+        description: This is only present for anonymous users in announcement groups,
+          it's an obfuscated phone number
+        type: string
+      error:
+        description: |-
+          When creating groups, adding some participants may fail.
+          In such cases, the error code will be here.
+        type: integer
+      isAdmin:
+        type: boolean
+      isSuperAdmin:
+        type: boolean
+      jid:
+        allOf:
+        - $ref: '#/definitions/go_mau_fi_whatsmeow_types.JID'
+        description: |-
+          The primary JID that should be used to send messages to this participant.
+          Always equals either the LID or phone number.
+      lid:
+        $ref: '#/definitions/go_mau_fi_whatsmeow_types.JID'
+      phoneNumber:
+        $ref: '#/definitions/go_mau_fi_whatsmeow_types.JID'
+    type: object
+  go_mau_fi_whatsmeow_types.GroupParticipantAddRequest:
+    properties:
+      code:
+        type: string
+      expiration:
+        type: string
+    type: object
   go_mau_fi_whatsmeow_types.JID:
     properties:
       device:
-        format: int32
         type: integer
       integrator:
-        format: int32
         type: integer
       rawAgent:
-        format: int32
         type: integer
       server:
         type: string
@@ -6388,6 +6730,136 @@ definitions:
       threadMessageSenderJID:
         $ref: '#/definitions/go_mau_fi_whatsmeow_types.JID'
     type: object
+  go_mau_fi_whatsmeow_types.NewsletterMessage:
+    properties:
+      message:
+        allOf:
+        - $ref: '#/definitions/go_mau_fi_whatsmeow_proto_waE2E.Message'
+        description: This is only present when fetching messages, not in live updates
+      messageID:
+        type: string
+      messageServerID:
+        type: integer
+      reactionCounts:
+        additionalProperties:
+          type: integer
+        type: object
+      timestamp:
+        type: string
+      type:
+        type: string
+      viewsCount:
+        type: integer
+    type: object
+  go_mau_fi_whatsmeow_types.NewsletterMetadata:
+    properties:
+      id:
+        $ref: '#/definitions/go_mau_fi_whatsmeow_types.JID'
+      state:
+        $ref: '#/definitions/go_mau_fi_whatsmeow_types.WrappedNewsletterState'
+      thread_metadata:
+        $ref: '#/definitions/go_mau_fi_whatsmeow_types.NewsletterThreadMetadata'
+      viewer_metadata:
+        $ref: '#/definitions/go_mau_fi_whatsmeow_types.NewsletterViewerMetadata'
+    type: object
+  go_mau_fi_whatsmeow_types.NewsletterMuteState:
+    enum:
+    - "on"
+    - "off"
+    type: string
+    x-enum-varnames:
+    - NewsletterMuteOn
+    - NewsletterMuteOff
+  go_mau_fi_whatsmeow_types.NewsletterReactionSettings:
+    properties:
+      value:
+        $ref: '#/definitions/go_mau_fi_whatsmeow_types.NewsletterReactionsMode'
+    type: object
+  go_mau_fi_whatsmeow_types.NewsletterReactionsMode:
+    enum:
+    - all
+    - basic
+    - none
+    - blocklist
+    type: string
+    x-enum-varnames:
+    - NewsletterReactionsModeAll
+    - NewsletterReactionsModeBasic
+    - NewsletterReactionsModeNone
+    - NewsletterReactionsModeBlocklist
+  go_mau_fi_whatsmeow_types.NewsletterRole:
+    enum:
+    - subscriber
+    - guest
+    - admin
+    - owner
+    type: string
+    x-enum-varnames:
+    - NewsletterRoleSubscriber
+    - NewsletterRoleGuest
+    - NewsletterRoleAdmin
+    - NewsletterRoleOwner
+  go_mau_fi_whatsmeow_types.NewsletterSettings:
+    properties:
+      reaction_codes:
+        $ref: '#/definitions/go_mau_fi_whatsmeow_types.NewsletterReactionSettings'
+    type: object
+  go_mau_fi_whatsmeow_types.NewsletterState:
+    enum:
+    - active
+    - suspended
+    - geosuspended
+    type: string
+    x-enum-varnames:
+    - NewsletterStateActive
+    - NewsletterStateSuspended
+    - NewsletterStateGeoSuspended
+  go_mau_fi_whatsmeow_types.NewsletterText:
+    properties:
+      id:
+        type: string
+      text:
+        type: string
+      update_time:
+        $ref: '#/definitions/jsontime.UnixMicroString'
+    type: object
+  go_mau_fi_whatsmeow_types.NewsletterThreadMetadata:
+    properties:
+      creation_time:
+        $ref: '#/definitions/jsontime.UnixString'
+      description:
+        $ref: '#/definitions/go_mau_fi_whatsmeow_types.NewsletterText'
+      invite:
+        type: string
+      name:
+        $ref: '#/definitions/go_mau_fi_whatsmeow_types.NewsletterText'
+      picture:
+        $ref: '#/definitions/go_mau_fi_whatsmeow_types.ProfilePictureInfo'
+      preview:
+        $ref: '#/definitions/go_mau_fi_whatsmeow_types.ProfilePictureInfo'
+      settings:
+        $ref: '#/definitions/go_mau_fi_whatsmeow_types.NewsletterSettings'
+      subscribers_count:
+        example: "0"
+        type: string
+      verification:
+        $ref: '#/definitions/go_mau_fi_whatsmeow_types.NewsletterVerificationState'
+    type: object
+  go_mau_fi_whatsmeow_types.NewsletterVerificationState:
+    enum:
+    - verified
+    - unverified
+    type: string
+    x-enum-varnames:
+    - NewsletterVerificationStateVerified
+    - NewsletterVerificationStateUnverified
+  go_mau_fi_whatsmeow_types.NewsletterViewerMetadata:
+    properties:
+      mute:
+        $ref: '#/definitions/go_mau_fi_whatsmeow_types.NewsletterMuteState'
+      role:
+        $ref: '#/definitions/go_mau_fi_whatsmeow_types.NewsletterRole'
+    type: object
   go_mau_fi_whatsmeow_types.PrivacySetting:
     enum:
     - ""
@@ -6412,6 +6884,76 @@ definitions:
     - PrivacySettingNone
     - PrivacySettingOnStandard
     - PrivacySettingOff
+  go_mau_fi_whatsmeow_types.PrivacySettings:
+    properties:
+      callAdd:
+        allOf:
+        - $ref: '#/definitions/go_mau_fi_whatsmeow_types.PrivacySetting'
+        description: 'Valid values: PrivacySettingAll, PrivacySettingKnown'
+      defense:
+        allOf:
+        - $ref: '#/definitions/go_mau_fi_whatsmeow_types.PrivacySetting'
+        description: 'Valid values: PrivacySettingOnStandard, PrivacySettingOff'
+      groupAdd:
+        allOf:
+        - $ref: '#/definitions/go_mau_fi_whatsmeow_types.PrivacySetting'
+        description: 'Valid values: PrivacySettingAll, PrivacySettingContacts, PrivacySettingContactBlacklist,
+          PrivacySettingNone'
+      lastSeen:
+        allOf:
+        - $ref: '#/definitions/go_mau_fi_whatsmeow_types.PrivacySetting'
+        description: 'Valid values: PrivacySettingAll, PrivacySettingContacts, PrivacySettingContactBlacklist,
+          PrivacySettingNone'
+      messages:
+        allOf:
+        - $ref: '#/definitions/go_mau_fi_whatsmeow_types.PrivacySetting'
+        description: 'Valid values: PrivacySettingAll, PrivacySettingContacts'
+      online:
+        allOf:
+        - $ref: '#/definitions/go_mau_fi_whatsmeow_types.PrivacySetting'
+        description: 'Valid values: PrivacySettingAll, PrivacySettingMatchLastSeen'
+      profile:
+        allOf:
+        - $ref: '#/definitions/go_mau_fi_whatsmeow_types.PrivacySetting'
+        description: 'Valid values: PrivacySettingAll, PrivacySettingContacts, PrivacySettingContactBlacklist,
+          PrivacySettingNone'
+      readReceipts:
+        allOf:
+        - $ref: '#/definitions/go_mau_fi_whatsmeow_types.PrivacySetting'
+        description: 'Valid values: PrivacySettingAll, PrivacySettingNone'
+      status:
+        allOf:
+        - $ref: '#/definitions/go_mau_fi_whatsmeow_types.PrivacySetting'
+        description: 'Valid values: PrivacySettingAll, PrivacySettingContacts, PrivacySettingContactBlacklist,
+          PrivacySettingNone'
+      stickers:
+        allOf:
+        - $ref: '#/definitions/go_mau_fi_whatsmeow_types.PrivacySetting'
+        description: 'Valid values: PrivacySettingContacts, PrivacySettingContactAllowlist,
+          PrivacySettingNone'
+    type: object
+  go_mau_fi_whatsmeow_types.ProfilePictureInfo:
+    properties:
+      direct_path:
+        description: The path to the image, probably not very useful
+        type: string
+      hash:
+        description: Some kind of hash (format is unknown)
+        items:
+          type: integer
+        type: array
+      id:
+        description: The ID of the image. This is the same as UserInfo.PictureID.
+        type: string
+      type:
+        description: The type of image. Known types include "image" (full res) and
+          "preview" (thumbnail).
+        type: string
+      url:
+        description: The full URL for the image, can be downloaded with a simple HTTP
+          request.
+        type: string
+    type: object
   go_mau_fi_whatsmeow_types.VerifiedName:
     properties:
       certificate:
@@ -6419,6 +6961,89 @@ definitions:
       details:
         $ref: '#/definitions/go_mau_fi_whatsmeow_proto_waVnameCert.VerifiedNameCertificate_Details'
     type: object
+  go_mau_fi_whatsmeow_types.WrappedNewsletterState:
+    properties:
+      type:
+        $ref: '#/definitions/go_mau_fi_whatsmeow_types.NewsletterState'
+    type: object
+  jsontime.UnixMicroString:
+    properties:
+      time.Time:
+        type: string
+    type: object
+  jsontime.UnixString:
+    properties:
+      time.Time:
+        type: string
+    type: object
+  time.Duration:
+    enum:
+    - -9223372036854775808
+    - 9223372036854775807
+    - 1
+    - 1000
+    - 1000000
+    - 1000000000
+    - 60000000000
+    - 3600000000000
+    - -9223372036854775808
+    - 9223372036854775807
+    - 1
+    - 1000
+    - 1000000
+    - 1000000000
+    - 60000000000
+    - 3600000000000
+    - -9223372036854775808
+    - 9223372036854775807
+    - 1
+    - 1000
+    - 1000000
+    - 1000000000
+    - 60000000000
+    - 3600000000000
+    - -9223372036854775808
+    - 9223372036854775807
+    - 1
+    - 1000
+    - 1000000
+    - 1000000000
+    - 60000000000
+    - 3600000000000
+    type: integer
+    x-enum-varnames:
+    - minDuration
+    - maxDuration
+    - Nanosecond
+    - Microsecond
+    - Millisecond
+    - Second
+    - Minute
+    - Hour
+    - minDuration
+    - maxDuration
+    - Nanosecond
+    - Microsecond
+    - Millisecond
+    - Second
+    - Minute
+    - Hour
+    - minDuration
+    - maxDuration
+    - Nanosecond
+    - Microsecond
+    - Millisecond
+    - Second
+    - Minute
+    - Hour
+    - minDuration
+    - maxDuration
+    - Nanosecond
+    - Microsecond
+    - Millisecond
+    - Second
+    - Minute
+    - Hour
   waCommon.LimitSharing:
     properties:
       initiatedByMe:
@@ -6465,11 +7090,11 @@ paths:
         "200":
           description: success
           schema:
-            $ref: '#/definitions/gin.H'
+            $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Success'
         "500":
           description: Internal server error
           schema:
-            $ref: '#/definitions/gin.H'
+            $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error'
       summary: Reject call
       tags:
       - Call
@@ -6491,15 +7116,20 @@ paths:
         "200":
           description: success
           schema:
-            $ref: '#/definitions/gin.H'
+            allOf:
+            - $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Success'
+            - properties:
+                data:
+                  $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_chat_service.TimestampResponse'
+              type: object
         "400":
           description: Error on validation
           schema:
-            $ref: '#/definitions/gin.H'
+            $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error'
         "500":
           description: Internal server error
           schema:
-            $ref: '#/definitions/gin.H'
+            $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error'
       summary: Archive a chat
       tags:
       - Chat
@@ -6521,15 +7151,20 @@ paths:
         "200":
           description: success
           schema:
-            $ref: '#/definitions/gin.H'
+            allOf:
+            - $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Success'
+            - properties:
+                data:
+                  $ref: '#/definitions/go_mau_fi_whatsmeow.SendResponse'
+              type: object
         "400":
           description: Error on validation
           schema:
-            $ref: '#/definitions/gin.H'
+            $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error'
         "500":
           description: Internal server error
           schema:
-            $ref: '#/definitions/gin.H'
+            $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error'
       summary: HistorySyncRequest a chat
       tags:
       - Chat
@@ -6551,15 +7186,20 @@ paths:
         "200":
           description: success
           schema:
-            $ref: '#/definitions/gin.H'
+            allOf:
+            - $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Success'
+            - properties:
+                data:
+                  $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_chat_service.TimestampResponse'
+              type: object
         "400":
           description: Error on validation
           schema:
-            $ref: '#/definitions/gin.H'
+            $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error'
         "500":
           description: Internal server error
           schema:
-            $ref: '#/definitions/gin.H'
+            $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error'
       summary: Mute a chat
       tags:
       - Chat
@@ -6581,15 +7221,20 @@ paths:
         "200":
           description: success
           schema:
-            $ref: '#/definitions/gin.H'
+            allOf:
+            - $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Success'
+            - properties:
+                data:
+                  $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_chat_service.TimestampResponse'
+              type: object
         "400":
           description: Error on validation
           schema:
-            $ref: '#/definitions/gin.H'
+            $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error'
         "500":
           description: Internal server error
           schema:
-            $ref: '#/definitions/gin.H'
+            $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error'
       summary: Pin a chat
       tags:
       - Chat
@@ -6611,15 +7256,20 @@ paths:
         "200":
           description: success
           schema:
-            $ref: '#/definitions/gin.H'
+            allOf:
+            - $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Success'
+            - properties:
+                data:
+                  $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_chat_service.TimestampResponse'
+              type: object
         "400":
           description: Error on validation
           schema:
-            $ref: '#/definitions/gin.H'
+            $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error'
         "500":
           description: Internal server error
           schema:
-            $ref: '#/definitions/gin.H'
+            $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error'
       summary: Unarchive a chat
       tags:
       - Chat
@@ -6641,15 +7291,20 @@ paths:
         "200":
           description: success
           schema:
-            $ref: '#/definitions/gin.H'
+            allOf:
+            - $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Success'
+            - properties:
+                data:
+                  $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_chat_service.TimestampResponse'
+              type: object
         "400":
           description: Error on validation
           schema:
-            $ref: '#/definitions/gin.H'
+            $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error'
         "500":
           description: Internal server error
           schema:
-            $ref: '#/definitions/gin.H'
+            $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error'
       summary: Unmute a chat
       tags:
       - Chat
@@ -6671,15 +7326,20 @@ paths:
         "200":
           description: success
           schema:
-            $ref: '#/definitions/gin.H'
+            allOf:
+            - $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Success'
+            - properties:
+                data:
+                  $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_chat_service.TimestampResponse'
+              type: object
         "400":
           description: Error on validation
           schema:
-            $ref: '#/definitions/gin.H'
+            $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error'
         "500":
           description: Internal server error
           schema:
-            $ref: '#/definitions/gin.H'
+            $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error'
       summary: Unpin a chat
       tags:
       - Chat
@@ -6701,15 +7361,20 @@ paths:
         "200":
           description: success
           schema:
-            $ref: '#/definitions/gin.H'
+            allOf:
+            - $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Success'
+            - properties:
+                data:
+                  $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_community_service.CommunityParticipantResponse'
+              type: object
         "400":
           description: Error on validation
           schema:
-            $ref: '#/definitions/gin.H'
+            $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error'
         "500":
           description: Internal server error
           schema:
-            $ref: '#/definitions/gin.H'
+            $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error'
       summary: Add participant to community
       tags:
       - Community
@@ -6731,15 +7396,20 @@ paths:
         "200":
           description: success
           schema:
-            $ref: '#/definitions/gin.H'
+            allOf:
+            - $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Success'
+            - properties:
+                data:
+                  $ref: '#/definitions/go_mau_fi_whatsmeow_types.GroupInfo'
+              type: object
         "400":
           description: Error on validation
           schema:
-            $ref: '#/definitions/gin.H'
+            $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error'
         "500":
           description: Internal server error
           schema:
-            $ref: '#/definitions/gin.H'
+            $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error'
       summary: Create community
       tags:
       - Community
@@ -6761,15 +7431,20 @@ paths:
         "200":
           description: success
           schema:
-            $ref: '#/definitions/gin.H'
+            allOf:
+            - $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Success'
+            - properties:
+                data:
+                  $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_community_service.CommunityParticipantResponse'
+              type: object
         "400":
           description: Error on validation
           schema:
-            $ref: '#/definitions/gin.H'
+            $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error'
         "500":
           description: Internal server error
           schema:
-            $ref: '#/definitions/gin.H'
+            $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error'
       summary: Remove participant from community
       tags:
       - Community
@@ -6791,15 +7466,20 @@ paths:
         "200":
           description: success
           schema:
-            $ref: '#/definitions/gin.H'
+            allOf:
+            - $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Success'
+            - properties:
+                data:
+                  $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_group_service.CreateGroupResponse'
+              type: object
         "400":
           description: Error on validation
           schema:
-            $ref: '#/definitions/gin.H'
+            $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error'
         "500":
           description: Internal server error
           schema:
-            $ref: '#/definitions/gin.H'
+            $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error'
       summary: Create group
       tags:
       - Group
@@ -6821,15 +7501,15 @@ paths:
         "200":
           description: success
           schema:
-            $ref: '#/definitions/gin.H'
+            $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Success'
         "400":
           description: Error on validation
           schema:
-            $ref: '#/definitions/gin.H'
+            $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error'
         "500":
           description: Internal server error
           schema:
-            $ref: '#/definitions/gin.H'
+            $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error'
       summary: Set group description
       tags:
       - Group
@@ -6851,15 +7531,20 @@ paths:
         "200":
           description: success
           schema:
-            $ref: '#/definitions/gin.H'
+            allOf:
+            - $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Success'
+            - properties:
+                data:
+                  $ref: '#/definitions/go_mau_fi_whatsmeow_types.GroupInfo'
+              type: object
         "400":
           description: Error on validation
           schema:
-            $ref: '#/definitions/gin.H'
+            $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error'
         "500":
           description: Internal server error
           schema:
-            $ref: '#/definitions/gin.H'
+            $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error'
       summary: Get group info
       tags:
       - Group
@@ -6881,15 +7566,20 @@ paths:
         "200":
           description: success
           schema:
-            $ref: '#/definitions/gin.H'
+            allOf:
+            - $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Success'
+            - properties:
+                data:
+                  type: string
+              type: object
         "400":
           description: Error on validation
           schema:
-            $ref: '#/definitions/gin.H'
+            $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error'
         "500":
           description: Internal server error
           schema:
-            $ref: '#/definitions/gin.H'
+            $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error'
       summary: Get group invite link
       tags:
       - Group
@@ -6911,15 +7601,15 @@ paths:
         "200":
           description: success
           schema:
-            $ref: '#/definitions/gin.H'
+            $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Success'
         "400":
           description: Error on validation
           schema:
-            $ref: '#/definitions/gin.H'
+            $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error'
         "500":
           description: Internal server error
           schema:
-            $ref: '#/definitions/gin.H'
+            $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error'
       summary: Join group link
       tags:
       - Group
@@ -6941,15 +7631,15 @@ paths:
         "200":
           description: success
           schema:
-            $ref: '#/definitions/gin.H'
+            $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Success'
         "400":
           description: Error on validation
           schema:
-            $ref: '#/definitions/gin.H'
+            $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error'
         "500":
           description: Internal server error
           schema:
-            $ref: '#/definitions/gin.H'
+            $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error'
       summary: Leave group
       tags:
       - Group
@@ -6964,11 +7654,18 @@ paths:
         "200":
           description: success
           schema:
-            $ref: '#/definitions/gin.H'
+            allOf:
+            - $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Success'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/go_mau_fi_whatsmeow_types.GroupInfo'
+                  type: array
+              type: object
         "500":
           description: Internal server error
           schema:
-            $ref: '#/definitions/gin.H'
+            $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error'
       summary: List groups
       tags:
       - Group
@@ -6983,11 +7680,18 @@ paths:
         "200":
           description: success
           schema:
-            $ref: '#/definitions/gin.H'
+            allOf:
+            - $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Success'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/go_mau_fi_whatsmeow_types.GroupInfo'
+                  type: array
+              type: object
         "500":
           description: Internal server error
           schema:
-            $ref: '#/definitions/gin.H'
+            $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error'
       summary: Get my groups
       tags:
       - Group
@@ -7009,15 +7713,15 @@ paths:
         "200":
           description: success
           schema:
-            $ref: '#/definitions/gin.H'
+            $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Success'
         "400":
           description: Error on validation
           schema:
-            $ref: '#/definitions/gin.H'
+            $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error'
         "500":
           description: Internal server error
           schema:
-            $ref: '#/definitions/gin.H'
+            $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error'
       summary: Set group name
       tags:
       - Group
@@ -7039,15 +7743,15 @@ paths:
         "200":
           description: success
           schema:
-            $ref: '#/definitions/gin.H'
+            $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Success'
         "400":
           description: Error on validation
           schema:
-            $ref: '#/definitions/gin.H'
+            $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error'
         "500":
           description: Internal server error
           schema:
-            $ref: '#/definitions/gin.H'
+            $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error'
       summary: Update participant
       tags:
       - Group
@@ -7069,15 +7773,20 @@ paths:
         "200":
           description: success
           schema:
-            $ref: '#/definitions/gin.H'
+            allOf:
+            - $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Success'
+            - properties:
+                data:
+                  type: string
+              type: object
         "400":
           description: Error on validation
           schema:
-            $ref: '#/definitions/gin.H'
+            $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error'
         "500":
           description: Internal server error
           schema:
-            $ref: '#/definitions/gin.H'
+            $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error'
       summary: Set group photo
       tags:
       - Group
@@ -7100,15 +7809,15 @@ paths:
         "400":
           description: Invalid instance ID
           schema:
-            $ref: '#/definitions/gin.H'
+            $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error'
         "404":
           description: Instance not found
           schema:
-            $ref: '#/definitions/gin.H'
+            $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error'
         "500":
           description: Internal server error
           schema:
-            $ref: '#/definitions/gin.H'
+            $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error'
       summary: Get advanced settings
       tags:
       - Instance
@@ -7134,19 +7843,19 @@ paths:
         "200":
           description: Advanced settings updated successfully
           schema:
-            $ref: '#/definitions/gin.H'
+            $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_instance_service.UpdateAdvancedSettingsResponse'
         "400":
           description: Invalid request data
           schema:
-            $ref: '#/definitions/gin.H'
+            $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error'
         "404":
           description: Instance not found
           schema:
-            $ref: '#/definitions/gin.H'
+            $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error'
         "500":
           description: Internal server error
           schema:
-            $ref: '#/definitions/gin.H'
+            $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error'
       summary: Update advanced settings
       tags:
       - Instance
@@ -7161,11 +7870,18 @@ paths:
         "200":
           description: All instances
           schema:
-            $ref: '#/definitions/gin.H'
+            allOf:
+            - $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Success'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_instance_model.Instance'
+                  type: array
+              type: object
         "500":
           description: Internal server error
           schema:
-            $ref: '#/definitions/gin.H'
+            $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error'
       summary: Get all instances
       tags:
       - Instance
@@ -7187,15 +7903,20 @@ paths:
         "200":
           description: Instance connected successfully
           schema:
-            $ref: '#/definitions/gin.H'
+            allOf:
+            - $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Success'
+            - properties:
+                data:
+                  $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_instance_service.ConnectResponse'
+              type: object
         "400":
           description: Error on validation
           schema:
-            $ref: '#/definitions/gin.H'
+            $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error'
         "500":
           description: Internal server error
           schema:
-            $ref: '#/definitions/gin.H'
+            $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error'
       summary: Connect to instance
       tags:
       - Instance
@@ -7218,15 +7939,20 @@ paths:
         "200":
           description: Instance created successfully
           schema:
-            $ref: '#/definitions/gin.H'
+            allOf:
+            - $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Success'
+            - properties:
+                data:
+                  $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_instance_model.Instance'
+              type: object
         "400":
           description: Error on validation
           schema:
-            $ref: '#/definitions/gin.H'
+            $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error'
         "500":
           description: Internal server error
           schema:
-            $ref: '#/definitions/gin.H'
+            $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error'
       summary: Create a new instance
       tags:
       - Instance
@@ -7247,15 +7973,15 @@ paths:
         "200":
           description: Instance deleted successfully
           schema:
-            $ref: '#/definitions/gin.H'
+            $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Success'
         "400":
           description: Error on validation
           schema:
-            $ref: '#/definitions/gin.H'
+            $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error'
         "500":
           description: Internal server error
           schema:
-            $ref: '#/definitions/gin.H'
+            $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error'
       summary: Delete instance
       tags:
       - Instance
@@ -7270,11 +7996,11 @@ paths:
         "200":
           description: Instance disconnected successfully
           schema:
-            $ref: '#/definitions/gin.H'
+            $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Success'
         "500":
           description: Internal server error
           schema:
-            $ref: '#/definitions/gin.H'
+            $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error'
       summary: Disconnect from instance
       tags:
       - Instance
@@ -7301,15 +8027,15 @@ paths:
         "200":
           description: Instance force reconnected successfully
           schema:
-            $ref: '#/definitions/gin.H'
+            $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Success'
         "400":
           description: Error on validation
           schema:
-            $ref: '#/definitions/gin.H'
+            $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error'
         "500":
           description: Internal server error
           schema:
-            $ref: '#/definitions/gin.H'
+            $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error'
       summary: Force reconnect
       tags:
       - Instance
@@ -7330,15 +8056,20 @@ paths:
         "200":
           description: Instance
           schema:
-            $ref: '#/definitions/gin.H'
+            allOf:
+            - $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Success'
+            - properties:
+                data:
+                  $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_instance_model.Instance'
+              type: object
         "400":
           description: Error on validation
           schema:
-            $ref: '#/definitions/gin.H'
+            $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error'
         "500":
           description: Internal server error
           schema:
-            $ref: '#/definitions/gin.H'
+            $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error'
       summary: Get instance
       tags:
       - Instance
@@ -7353,11 +8084,11 @@ paths:
         "200":
           description: Instance logged out successfully
           schema:
-            $ref: '#/definitions/gin.H'
+            $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Success'
         "500":
           description: Internal server error
           schema:
-            $ref: '#/definitions/gin.H'
+            $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error'
       summary: Logout from instance
       tags:
       - Instance
@@ -7379,15 +8110,20 @@ paths:
         "200":
           description: Pairing code
           schema:
-            $ref: '#/definitions/gin.H'
+            allOf:
+            - $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Success'
+            - properties:
+                data:
+                  $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_instance_service.PairReturnStruct'
+              type: object
         "400":
           description: Error on validation
           schema:
-            $ref: '#/definitions/gin.H'
+            $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error'
         "500":
           description: Internal server error
           schema:
-            $ref: '#/definitions/gin.H'
+            $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error'
       summary: Request pairing code
       tags:
       - Instance
@@ -7408,15 +8144,15 @@ paths:
         "200":
           description: Proxy deleted successfully
           schema:
-            $ref: '#/definitions/gin.H'
+            $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Success'
         "400":
           description: Error on validation
           schema:
-            $ref: '#/definitions/gin.H'
+            $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error'
         "500":
           description: Internal server error
           schema:
-            $ref: '#/definitions/gin.H'
+            $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error'
       summary: Delete proxy
       tags:
       - Instance
@@ -7442,15 +8178,20 @@ paths:
         "200":
           description: Proxy set successfully
           schema:
-            $ref: '#/definitions/gin.H'
+            allOf:
+            - $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Success'
+            - properties:
+                data:
+                  $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_instance_service.SetProxyResponse'
+              type: object
         "400":
           description: Error on validation
           schema:
-            $ref: '#/definitions/gin.H'
+            $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error'
         "500":
           description: Internal server error
           schema:
-            $ref: '#/definitions/gin.H'
+            $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error'
       summary: Set proxy configuration
       tags:
       - Instance
@@ -7465,11 +8206,16 @@ paths:
         "200":
           description: Instance QR code
           schema:
-            $ref: '#/definitions/gin.H'
+            allOf:
+            - $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Success'
+            - properties:
+                data:
+                  $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_instance_service.QrcodeStruct'
+              type: object
         "500":
           description: Internal server error
           schema:
-            $ref: '#/definitions/gin.H'
+            $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error'
       summary: Get instance QR code
       tags:
       - Instance
@@ -7484,11 +8230,11 @@ paths:
         "200":
           description: Instance reconnected successfully
           schema:
-            $ref: '#/definitions/gin.H'
+            $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Success'
         "500":
           description: Internal server error
           schema:
-            $ref: '#/definitions/gin.H'
+            $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error'
       summary: Reconnect to instance
       tags:
       - Instance
@@ -7503,11 +8249,16 @@ paths:
         "200":
           description: Instance status
           schema:
-            $ref: '#/definitions/gin.H'
+            allOf:
+            - $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Success'
+            - properties:
+                data:
+                  $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_instance_service.StatusStruct'
+              type: object
         "500":
           description: Internal server error
           schema:
-            $ref: '#/definitions/gin.H'
+            $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error'
       summary: Get instance status
       tags:
       - Instance
@@ -7522,11 +8273,13 @@ paths:
         "200":
           description: success
           schema:
-            $ref: '#/definitions/gin.H'
+            items:
+              $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_label_model.Label'
+            type: array
         "500":
           description: Internal server error
           schema:
-            $ref: '#/definitions/gin.H'
+            $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error'
       summary: Get all labels
       tags:
       - Label
@@ -7548,15 +8301,15 @@ paths:
         "200":
           description: success
           schema:
-            $ref: '#/definitions/gin.H'
+            $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Success'
         "400":
           description: Error on validation
           schema:
-            $ref: '#/definitions/gin.H'
+            $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error'
         "500":
           description: Internal server error
           schema:
-            $ref: '#/definitions/gin.H'
+            $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error'
       summary: Add label to chat
       tags:
       - Label
@@ -7578,15 +8331,15 @@ paths:
         "200":
           description: success
           schema:
-            $ref: '#/definitions/gin.H'
+            $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Success'
         "400":
           description: Error on validation
           schema:
-            $ref: '#/definitions/gin.H'
+            $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error'
         "500":
           description: Internal server error
           schema:
-            $ref: '#/definitions/gin.H'
+            $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error'
       summary: Edit label
       tags:
       - Label
@@ -7608,15 +8361,15 @@ paths:
         "200":
           description: success
           schema:
-            $ref: '#/definitions/gin.H'
+            $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Success'
         "400":
           description: Error on validation
           schema:
-            $ref: '#/definitions/gin.H'
+            $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error'
         "500":
           description: Internal server error
           schema:
-            $ref: '#/definitions/gin.H'
+            $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error'
       summary: Add label to message
       tags:
       - Label
@@ -7638,15 +8391,20 @@ paths:
         "200":
           description: success
           schema:
-            $ref: '#/definitions/gin.H'
+            allOf:
+            - $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Success'
+            - properties:
+                data:
+                  $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_message_service.MessageIDResponse'
+              type: object
         "400":
           description: Error on validation
           schema:
-            $ref: '#/definitions/gin.H'
+            $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error'
         "500":
           description: Internal server error
           schema:
-            $ref: '#/definitions/gin.H'
+            $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error'
       summary: Delete a message for everyone
       tags:
       - Message
@@ -7668,15 +8426,20 @@ paths:
         "200":
           description: success
           schema:
-            $ref: '#/definitions/gin.H'
+            allOf:
+            - $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Success'
+            - properties:
+                data:
+                  $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_message_service.DownloadMediaResponse'
+              type: object
         "400":
           description: Error on validation
           schema:
-            $ref: '#/definitions/gin.H'
+            $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error'
         "500":
           description: Internal server error
           schema:
-            $ref: '#/definitions/gin.H'
+            $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error'
       summary: Download media
       tags:
       - Message
@@ -7698,15 +8461,20 @@ paths:
         "200":
           description: success
           schema:
-            $ref: '#/definitions/gin.H'
+            allOf:
+            - $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Success'
+            - properties:
+                data:
+                  $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_message_service.MessageIDResponse'
+              type: object
         "400":
           description: Error on validation
           schema:
-            $ref: '#/definitions/gin.H'
+            $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error'
         "500":
           description: Internal server error
           schema:
-            $ref: '#/definitions/gin.H'
+            $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error'
       summary: Edit a message
       tags:
       - Message
@@ -7728,15 +8496,20 @@ paths:
         "200":
           description: success
           schema:
-            $ref: '#/definitions/gin.H'
+            allOf:
+            - $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Success'
+            - properties:
+                data:
+                  $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_message_service.TimestampResponse'
+              type: object
         "400":
           description: Error on validation
           schema:
-            $ref: '#/definitions/gin.H'
+            $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error'
         "500":
           description: Internal server error
           schema:
-            $ref: '#/definitions/gin.H'
+            $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error'
       summary: Mark a message as read
       tags:
       - Message
@@ -7758,15 +8531,20 @@ paths:
         "200":
           description: success
           schema:
-            $ref: '#/definitions/gin.H'
+            allOf:
+            - $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Success'
+            - properties:
+                data:
+                  $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_message_service.TimestampResponse'
+              type: object
         "400":
           description: Error on validation
           schema:
-            $ref: '#/definitions/gin.H'
+            $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error'
         "500":
           description: Internal server error
           schema:
-            $ref: '#/definitions/gin.H'
+            $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error'
       summary: Set chat presence
       tags:
       - Message
@@ -7789,15 +8567,20 @@ paths:
         "200":
           description: success
           schema:
-            $ref: '#/definitions/gin.H'
+            allOf:
+            - $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Success'
+            - properties:
+                data:
+                  $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_message_service.MessageSendStruct'
+              type: object
         "400":
           description: Error on validation
           schema:
-            $ref: '#/definitions/gin.H'
+            $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error'
         "500":
           description: Internal server error
           schema:
-            $ref: '#/definitions/gin.H'
+            $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error'
       summary: React a message
       tags:
       - Message
@@ -7819,15 +8602,20 @@ paths:
         "200":
           description: success
           schema:
-            $ref: '#/definitions/gin.H'
+            allOf:
+            - $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Success'
+            - properties:
+                data:
+                  $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_message_service.MessageStatusResponse'
+              type: object
         "400":
           description: Error on validation
           schema:
-            $ref: '#/definitions/gin.H'
+            $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error'
         "500":
           description: Internal server error
           schema:
-            $ref: '#/definitions/gin.H'
+            $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error'
       summary: Get message status
       tags:
       - Message
@@ -7849,15 +8637,20 @@ paths:
         "200":
           description: success
           schema:
-            $ref: '#/definitions/gin.H'
+            allOf:
+            - $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Success'
+            - properties:
+                data:
+                  $ref: '#/definitions/go_mau_fi_whatsmeow_types.NewsletterMetadata'
+              type: object
         "400":
           description: Error on validation
           schema:
-            $ref: '#/definitions/gin.H'
+            $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error'
         "500":
           description: Internal server error
           schema:
-            $ref: '#/definitions/gin.H'
+            $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error'
       summary: Create newsletter
       tags:
       - Newsletter
@@ -7879,15 +8672,20 @@ paths:
         "200":
           description: success
           schema:
-            $ref: '#/definitions/gin.H'
+            allOf:
+            - $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Success'
+            - properties:
+                data:
+                  $ref: '#/definitions/go_mau_fi_whatsmeow_types.NewsletterMetadata'
+              type: object
         "400":
           description: Error on validation
           schema:
-            $ref: '#/definitions/gin.H'
+            $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error'
         "500":
           description: Internal server error
           schema:
-            $ref: '#/definitions/gin.H'
+            $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error'
       summary: Get newsletter
       tags:
       - Newsletter
@@ -7909,15 +8707,20 @@ paths:
         "200":
           description: success
           schema:
-            $ref: '#/definitions/gin.H'
+            allOf:
+            - $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Success'
+            - properties:
+                data:
+                  $ref: '#/definitions/go_mau_fi_whatsmeow_types.NewsletterMetadata'
+              type: object
         "400":
           description: Error on validation
           schema:
-            $ref: '#/definitions/gin.H'
+            $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error'
         "500":
           description: Internal server error
           schema:
-            $ref: '#/definitions/gin.H'
+            $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error'
       summary: Get newsletter invite
       tags:
       - Newsletter
@@ -7932,11 +8735,18 @@ paths:
         "200":
           description: success
           schema:
-            $ref: '#/definitions/gin.H'
+            allOf:
+            - $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Success'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/go_mau_fi_whatsmeow_types.NewsletterMetadata'
+                  type: array
+              type: object
         "500":
           description: Internal server error
           schema:
-            $ref: '#/definitions/gin.H'
+            $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error'
       summary: List newsletters
       tags:
       - Newsletter
@@ -7958,15 +8768,22 @@ paths:
         "200":
           description: success
           schema:
-            $ref: '#/definitions/gin.H'
+            allOf:
+            - $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Success'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/go_mau_fi_whatsmeow_types.NewsletterMessage'
+                  type: array
+              type: object
         "400":
           description: Error on validation
           schema:
-            $ref: '#/definitions/gin.H'
+            $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error'
         "500":
           description: Internal server error
           schema:
-            $ref: '#/definitions/gin.H'
+            $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error'
       summary: Get newsletter messages
       tags:
       - Newsletter
@@ -7988,15 +8805,15 @@ paths:
         "200":
           description: success
           schema:
-            $ref: '#/definitions/gin.H'
+            $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Success'
         "400":
           description: Error on validation
           schema:
-            $ref: '#/definitions/gin.H'
+            $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error'
         "500":
           description: Internal server error
           schema:
-            $ref: '#/definitions/gin.H'
+            $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error'
       summary: Subscribe newsletter
       tags:
       - Newsletter
@@ -8021,15 +8838,15 @@ paths:
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/gin.H'
+            $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error'
         "404":
           description: Not Found
           schema:
-            $ref: '#/definitions/gin.H'
+            $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/gin.H'
+            $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error'
       summary: Get poll results
       tags:
       - Polls
@@ -8051,15 +8868,20 @@ paths:
         "200":
           description: success
           schema:
-            $ref: '#/definitions/gin.H'
+            allOf:
+            - $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Success'
+            - properties:
+                data:
+                  $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_sendMessage_service.MessageSendStruct'
+              type: object
         "400":
           description: Error on validation
           schema:
-            $ref: '#/definitions/gin.H'
+            $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error'
         "500":
           description: Internal server error
           schema:
-            $ref: '#/definitions/gin.H'
+            $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error'
       summary: Send a button message
       tags:
       - Send Message
@@ -8081,15 +8903,20 @@ paths:
         "200":
           description: success
           schema:
-            $ref: '#/definitions/gin.H'
+            allOf:
+            - $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Success'
+            - properties:
+                data:
+                  $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_sendMessage_service.MessageSendStruct'
+              type: object
         "400":
           description: Error on validation
           schema:
-            $ref: '#/definitions/gin.H'
+            $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error'
         "500":
           description: Internal server error
           schema:
-            $ref: '#/definitions/gin.H'
+            $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error'
       summary: Send a contact message
       tags:
       - Send Message
@@ -8111,15 +8938,20 @@ paths:
         "200":
           description: success
           schema:
-            $ref: '#/definitions/gin.H'
+            allOf:
+            - $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Success'
+            - properties:
+                data:
+                  $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_sendMessage_service.MessageSendStruct'
+              type: object
         "400":
           description: Error on validation
           schema:
-            $ref: '#/definitions/gin.H'
+            $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error'
         "500":
           description: Internal server error
           schema:
-            $ref: '#/definitions/gin.H'
+            $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error'
       summary: Send a link message
       tags:
       - Send Message
@@ -8141,15 +8973,20 @@ paths:
         "200":
           description: success
           schema:
-            $ref: '#/definitions/gin.H'
+            allOf:
+            - $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Success'
+            - properties:
+                data:
+                  $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_sendMessage_service.MessageSendStruct'
+              type: object
         "400":
           description: Error on validation
           schema:
-            $ref: '#/definitions/gin.H'
+            $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error'
         "500":
           description: Internal server error
           schema:
-            $ref: '#/definitions/gin.H'
+            $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error'
       summary: Send a list message
       tags:
       - Send Message
@@ -8171,15 +9008,20 @@ paths:
         "200":
           description: success
           schema:
-            $ref: '#/definitions/gin.H'
+            allOf:
+            - $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Success'
+            - properties:
+                data:
+                  $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_sendMessage_service.MessageSendStruct'
+              type: object
         "400":
           description: Error on validation
           schema:
-            $ref: '#/definitions/gin.H'
+            $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error'
         "500":
           description: Internal server error
           schema:
-            $ref: '#/definitions/gin.H'
+            $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error'
       summary: Send a location message
       tags:
       - Send Message
@@ -8201,15 +9043,20 @@ paths:
         "200":
           description: success
           schema:
-            $ref: '#/definitions/gin.H'
+            allOf:
+            - $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Success'
+            - properties:
+                data:
+                  $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_sendMessage_service.MessageSendStruct'
+              type: object
         "400":
           description: Error on validation
           schema:
-            $ref: '#/definitions/gin.H'
+            $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error'
         "500":
           description: Internal server error
           schema:
-            $ref: '#/definitions/gin.H'
+            $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error'
       summary: Send a media message
       tags:
       - Send Message
@@ -8231,15 +9078,20 @@ paths:
         "200":
           description: success
           schema:
-            $ref: '#/definitions/gin.H'
+            allOf:
+            - $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Success'
+            - properties:
+                data:
+                  $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_sendMessage_service.MessageSendStruct'
+              type: object
         "400":
           description: Error on validation
           schema:
-            $ref: '#/definitions/gin.H'
+            $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error'
         "500":
           description: Internal server error
           schema:
-            $ref: '#/definitions/gin.H'
+            $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error'
       summary: Send a poll message
       tags:
       - Send Message
@@ -8261,15 +9113,20 @@ paths:
         "200":
           description: success
           schema:
-            $ref: '#/definitions/gin.H'
+            allOf:
+            - $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Success'
+            - properties:
+                data:
+                  $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_sendMessage_service.MessageSendStruct'
+              type: object
         "400":
           description: Error on validation
           schema:
-            $ref: '#/definitions/gin.H'
+            $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error'
         "500":
           description: Internal server error
           schema:
-            $ref: '#/definitions/gin.H'
+            $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error'
       summary: Send a sticker message
       tags:
       - Send Message
@@ -8291,15 +9148,20 @@ paths:
         "200":
           description: success
           schema:
-            $ref: '#/definitions/gin.H'
+            allOf:
+            - $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Success'
+            - properties:
+                data:
+                  $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_sendMessage_service.MessageSendStruct'
+              type: object
         "400":
           description: Error on validation
           schema:
-            $ref: '#/definitions/gin.H'
+            $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error'
         "500":
           description: Internal server error
           schema:
-            $ref: '#/definitions/gin.H'
+            $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error'
       summary: Send a text message
       tags:
       - Send Message
@@ -8321,15 +9183,15 @@ paths:
         "200":
           description: success
           schema:
-            $ref: '#/definitions/gin.H'
+            $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Success'
         "400":
           description: Error on validation
           schema:
-            $ref: '#/definitions/gin.H'
+            $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error'
         "500":
           description: Internal server error
           schema:
-            $ref: '#/definitions/gin.H'
+            $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error'
       summary: Remove label from chat
       tags:
       - Label
@@ -8351,15 +9213,15 @@ paths:
         "200":
           description: success
           schema:
-            $ref: '#/definitions/gin.H'
+            $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Success'
         "400":
           description: Error on validation
           schema:
-            $ref: '#/definitions/gin.H'
+            $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error'
         "500":
           description: Internal server error
           schema:
-            $ref: '#/definitions/gin.H'
+            $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error'
       summary: Remove label from message
       tags:
       - Label
@@ -8381,15 +9243,20 @@ paths:
         "200":
           description: success
           schema:
-            $ref: '#/definitions/gin.H'
+            allOf:
+            - $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Success'
+            - properties:
+                data:
+                  $ref: '#/definitions/go_mau_fi_whatsmeow_types.ProfilePictureInfo'
+              type: object
         "400":
           description: Error on validation
           schema:
-            $ref: '#/definitions/gin.H'
+            $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error'
         "500":
           description: Internal server error
           schema:
-            $ref: '#/definitions/gin.H'
+            $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error'
       summary: Get a user's avatar
       tags:
       - User
@@ -8411,15 +9278,20 @@ paths:
         "200":
           description: success
           schema:
-            $ref: '#/definitions/gin.H'
+            allOf:
+            - $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Success'
+            - properties:
+                data:
+                  $ref: '#/definitions/go_mau_fi_whatsmeow_types.Blocklist'
+              type: object
         "400":
           description: Error on validation
           schema:
-            $ref: '#/definitions/gin.H'
+            $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error'
         "500":
           description: Internal server error
           schema:
-            $ref: '#/definitions/gin.H'
+            $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error'
       summary: Block a contact
       tags:
       - User
@@ -8434,11 +9306,16 @@ paths:
         "200":
           description: success
           schema:
-            $ref: '#/definitions/gin.H'
+            allOf:
+            - $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Success'
+            - properties:
+                data:
+                  $ref: '#/definitions/go_mau_fi_whatsmeow_types.Blocklist'
+              type: object
         "500":
           description: Internal server error
           schema:
-            $ref: '#/definitions/gin.H'
+            $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error'
       summary: Get a user's block list
       tags:
       - User
@@ -8460,15 +9337,20 @@ paths:
         "200":
           description: success
           schema:
-            $ref: '#/definitions/gin.H'
+            allOf:
+            - $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Success'
+            - properties:
+                data:
+                  $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_user_service.CheckUserCollection'
+              type: object
         "400":
           description: Error on validation
           schema:
-            $ref: '#/definitions/gin.H'
+            $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error'
         "500":
           description: Internal server error
           schema:
-            $ref: '#/definitions/gin.H'
+            $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error'
       summary: Check a user
       tags:
       - User
@@ -8483,11 +9365,18 @@ paths:
         "200":
           description: success
           schema:
-            $ref: '#/definitions/gin.H'
+            allOf:
+            - $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Success'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_user_service.ContactInfo'
+                  type: array
+              type: object
         "500":
           description: Internal server error
           schema:
-            $ref: '#/definitions/gin.H'
+            $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error'
       summary: Get a user's contacts
       tags:
       - User
@@ -8509,15 +9398,20 @@ paths:
         "200":
           description: success
           schema:
-            $ref: '#/definitions/gin.H'
+            allOf:
+            - $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Success'
+            - properties:
+                data:
+                  $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_user_service.UserCollection'
+              type: object
         "400":
           description: Error on validation
           schema:
-            $ref: '#/definitions/gin.H'
+            $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error'
         "500":
           description: Internal server error
           schema:
-            $ref: '#/definitions/gin.H'
+            $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error'
       summary: Get a user
       tags:
       - User
@@ -8532,11 +9426,16 @@ paths:
         "200":
           description: success
           schema:
-            $ref: '#/definitions/gin.H'
+            allOf:
+            - $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Success'
+            - properties:
+                data:
+                  $ref: '#/definitions/go_mau_fi_whatsmeow_types.PrivacySettings'
+              type: object
         "500":
           description: Internal server error
           schema:
-            $ref: '#/definitions/gin.H'
+            $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error'
       summary: Get a user's privacy settings
       tags:
       - User
@@ -8557,11 +9456,16 @@ paths:
         "200":
           description: success
           schema:
-            $ref: '#/definitions/gin.H'
+            allOf:
+            - $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Success'
+            - properties:
+                data:
+                  $ref: '#/definitions/go_mau_fi_whatsmeow_types.PrivacySettings'
+              type: object
         "500":
           description: Internal server error
           schema:
-            $ref: '#/definitions/gin.H'
+            $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error'
       summary: Set a user's privacy settings
       tags:
       - User
@@ -8583,15 +9487,20 @@ paths:
         "200":
           description: success
           schema:
-            $ref: '#/definitions/gin.H'
+            allOf:
+            - $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Success'
+            - properties:
+                data:
+                  $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_user_service.SetProfileNameResponse'
+              type: object
         "400":
           description: Error on validation
           schema:
-            $ref: '#/definitions/gin.H'
+            $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error'
         "500":
           description: Internal server error
           schema:
-            $ref: '#/definitions/gin.H'
+            $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error'
       summary: Set a user's profile name
       tags:
       - User
@@ -8613,15 +9522,20 @@ paths:
         "200":
           description: success
           schema:
-            $ref: '#/definitions/gin.H'
+            allOf:
+            - $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Success'
+            - properties:
+                data:
+                  $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_user_service.SetProfilePictureResponse'
+              type: object
         "400":
           description: Error on validation
           schema:
-            $ref: '#/definitions/gin.H'
+            $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error'
         "500":
           description: Internal server error
           schema:
-            $ref: '#/definitions/gin.H'
+            $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error'
       summary: Set a user's profile picture
       tags:
       - User
@@ -8643,15 +9557,20 @@ paths:
         "200":
           description: success
           schema:
-            $ref: '#/definitions/gin.H'
+            allOf:
+            - $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Success'
+            - properties:
+                data:
+                  $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_user_service.SetProfileStatusResponse'
+              type: object
         "400":
           description: Error on validation
           schema:
-            $ref: '#/definitions/gin.H'
+            $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error'
         "500":
           description: Internal server error
           schema:
-            $ref: '#/definitions/gin.H'
+            $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error'
       summary: Set a user's profile status
       tags:
       - User
@@ -8673,15 +9592,20 @@ paths:
         "200":
           description: success
           schema:
-            $ref: '#/definitions/gin.H'
+            allOf:
+            - $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Success'
+            - properties:
+                data:
+                  $ref: '#/definitions/go_mau_fi_whatsmeow_types.Blocklist'
+              type: object
         "400":
           description: Error on validation
           schema:
-            $ref: '#/definitions/gin.H'
+            $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error'
         "500":
           description: Internal server error
           schema:
-            $ref: '#/definitions/gin.H'
+            $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error'
       summary: Unblock a contact
       tags:
       - User

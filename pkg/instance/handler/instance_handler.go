@@ -6,6 +6,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 
+	_ "github.com/EvolutionAPI/evolution-go/pkg/common/response"
 	config "github.com/EvolutionAPI/evolution-go/pkg/config"
 	instance_model "github.com/EvolutionAPI/evolution-go/pkg/instance/model"
 	instance_service "github.com/EvolutionAPI/evolution-go/pkg/instance/service"
@@ -43,9 +44,9 @@ type instanceHandler struct {
 // @Accept json
 // @Produce json
 // @Param instance body instance_service.CreateStruct true "Instance data with optional advanced settings"
-// @Success 200 {object} gin.H "Instance created successfully"
-// @Failure 400 {object} gin.H "Error on validation"
-// @Failure 500 {object} gin.H "Internal server error"
+// @Success 200 {object} response.Success{data=instance_model.Instance} "Instance created successfully"
+// @Failure 400 {object} response.Error "Error on validation"
+// @Failure 500 {object} response.Error "Internal server error"
 // @Router /instance/create [post]
 func (i *instanceHandler) Create(ctx *gin.Context) {
 	var data *instance_service.CreateStruct
@@ -112,9 +113,9 @@ func (i *instanceHandler) Create(ctx *gin.Context) {
 // @Accept json
 // @Produce json
 // @Param instance body instance_service.ConnectStruct true "Instance data"
-// @Success 200 {object} gin.H "Instance connected successfully"
-// @Failure 400 {object} gin.H "Error on validation"
-// @Failure 500 {object} gin.H "Internal server error"
+// @Success 200 {object} response.Success{data=instance_service.ConnectResponse} "Instance connected successfully"
+// @Failure 400 {object} response.Error "Error on validation"
+// @Failure 500 {object} response.Error "Internal server error"
 // @Router /instance/connect [post]
 func (i *instanceHandler) Connect(ctx *gin.Context) {
 	getInstance := ctx.MustGet("instance")
@@ -155,8 +156,8 @@ func (i *instanceHandler) Connect(ctx *gin.Context) {
 // @Tags Instance
 // @Accept json
 // @Produce json
-// @Success 200 {object} gin.H "Instance reconnected successfully"
-// @Failure 500 {object} gin.H "Internal server error"
+// @Success 200 {object} response.Success "Instance reconnected successfully"
+// @Failure 500 {object} response.Error "Internal server error"
 // @Router /instance/reconnect [post]
 func (i *instanceHandler) Reconnect(ctx *gin.Context) {
 	getInstance := ctx.MustGet("instance")
@@ -182,8 +183,8 @@ func (i *instanceHandler) Reconnect(ctx *gin.Context) {
 // @Tags Instance
 // @Accept json
 // @Produce json
-// @Success 200 {object} gin.H "Instance disconnected successfully"
-// @Failure 500 {object} gin.H "Internal server error"
+// @Success 200 {object} response.Success "Instance disconnected successfully"
+// @Failure 500 {object} response.Error "Internal server error"
 // @Router /instance/disconnect [post]
 func (i *instanceHandler) Disconnect(ctx *gin.Context) {
 	getInstance := ctx.MustGet("instance")
@@ -211,8 +212,8 @@ func (i *instanceHandler) Disconnect(ctx *gin.Context) {
 // @Tags Instance
 // @Accept json
 // @Produce json
-// @Success 200 {object} gin.H "Instance logged out successfully"
-// @Failure 500 {object} gin.H "Internal server error"
+// @Success 200 {object} response.Success "Instance logged out successfully"
+// @Failure 500 {object} response.Error "Internal server error"
 // @Router /instance/logout [delete]
 func (i *instanceHandler) Logout(ctx *gin.Context) {
 	getInstance := ctx.MustGet("instance")
@@ -240,8 +241,8 @@ func (i *instanceHandler) Logout(ctx *gin.Context) {
 // @Tags Instance
 // @Accept json
 // @Produce json
-// @Success 200 {object} gin.H "Instance status"
-// @Failure 500 {object} gin.H "Internal server error"
+// @Success 200 {object} response.Success{data=instance_service.StatusStruct} "Instance status"
+// @Failure 500 {object} response.Error "Internal server error"
 // @Router /instance/status [get]
 func (i *instanceHandler) Status(ctx *gin.Context) {
 	getInstance := ctx.MustGet("instance")
@@ -267,8 +268,8 @@ func (i *instanceHandler) Status(ctx *gin.Context) {
 // @Tags Instance
 // @Accept json
 // @Produce json
-// @Success 200 {object} gin.H "Instance QR code"
-// @Failure 500 {object} gin.H "Internal server error"
+// @Success 200 {object} response.Success{data=instance_service.QrcodeStruct} "Instance QR code"
+// @Failure 500 {object} response.Error "Internal server error"
 // @Router /instance/qr [get]
 func (i *instanceHandler) Qr(ctx *gin.Context) {
 	getInstance := ctx.MustGet("instance")
@@ -295,9 +296,9 @@ func (i *instanceHandler) Qr(ctx *gin.Context) {
 // @Accept json
 // @Produce json
 // @Param instance body instance_service.PairStruct true "Instance data"
-// @Success 200 {object} gin.H "Pairing code"
-// @Failure 400 {object} gin.H "Error on validation"
-// @Failure 500 {object} gin.H "Internal server error"
+// @Success 200 {object} response.Success{data=instance_service.PairReturnStruct} "Pairing code"
+// @Failure 400 {object} response.Error "Error on validation"
+// @Failure 500 {object} response.Error "Internal server error"
 // @Router /instance/pair [post]
 func (i *instanceHandler) Pair(ctx *gin.Context) {
 	getInstance := ctx.MustGet("instance")
@@ -335,8 +336,8 @@ func (i *instanceHandler) Pair(ctx *gin.Context) {
 // @Tags Instance
 // @Accept json
 // @Produce json
-// @Success 200 {object} gin.H "All instances"
-// @Failure 500 {object} gin.H "Internal server error"
+// @Success 200 {object} response.Success{data=[]instance_model.Instance} "All instances"
+// @Failure 500 {object} response.Error "Internal server error"
 // @Router /instance/all [get]
 func (i *instanceHandler) All(ctx *gin.Context) {
 	instances, err := i.instanceService.GetAll()
@@ -355,9 +356,9 @@ func (i *instanceHandler) All(ctx *gin.Context) {
 // @Accept json
 // @Produce json
 // @Param instanceId path string true "Instance Id"
-// @Success 200 {object} gin.H "Instance"
-// @Failure 400 {object} gin.H "Error on validation"
-// @Failure 500 {object} gin.H "Internal server error"
+// @Success 200 {object} response.Success{data=instance_model.Instance} "Instance"
+// @Failure 400 {object} response.Error "Error on validation"
+// @Failure 500 {object} response.Error "Internal server error"
 // @Router /instance/get/{instanceId} [get]
 func (i *instanceHandler) Info(ctx *gin.Context) {
 	instanceId := ctx.Param("instanceId")
@@ -383,9 +384,9 @@ func (i *instanceHandler) Info(ctx *gin.Context) {
 // @Accept json
 // @Produce json
 // @Param instanceId path string true "Instance Id"
-// @Success 200 {object} gin.H "Instance deleted successfully"
-// @Failure 400 {object} gin.H "Error on validation"
-// @Failure 500 {object} gin.H "Internal server error"
+// @Success 200 {object} response.Success "Instance deleted successfully"
+// @Failure 400 {object} response.Error "Error on validation"
+// @Failure 500 {object} response.Error "Internal server error"
 // @Router /instance/delete/{instanceId} [delete]
 func (i *instanceHandler) Delete(ctx *gin.Context) {
 	instanceId := ctx.Param("instanceId")
@@ -412,9 +413,9 @@ func (i *instanceHandler) Delete(ctx *gin.Context) {
 // @Produce json
 // @Param instanceId path string true "Instance id"
 // @Param proxy body instance_service.SetProxyStruct true "Proxy configuration"
-// @Success 200 {object} gin.H "Proxy set successfully"
-// @Failure 400 {object} gin.H "Error on validation"
-// @Failure 500 {object} gin.H "Internal server error"
+// @Success 200 {object} response.Success{data=instance_service.SetProxyResponse} "Proxy set successfully"
+// @Failure 400 {object} response.Error "Error on validation"
+// @Failure 500 {object} response.Error "Internal server error"
 // @Router /instance/proxy/{instanceId} [post]
 func (i *instanceHandler) SetProxy(ctx *gin.Context) {
 	instanceId := ctx.Param("instanceId")
@@ -464,9 +465,9 @@ func (i *instanceHandler) SetProxy(ctx *gin.Context) {
 // @Accept json
 // @Produce json
 // @Param instanceId path string true "Instance id"
-// @Success 200 {object} gin.H "Proxy deleted successfully"
-// @Failure 400 {object} gin.H "Error on validation"
-// @Failure 500 {object} gin.H "Internal server error"
+// @Success 200 {object} response.Success "Proxy deleted successfully"
+// @Failure 400 {object} response.Error "Error on validation"
+// @Failure 500 {object} response.Error "Internal server error"
 // @Router /instance/proxy/{instanceId} [delete]
 func (i *instanceHandler) DeleteProxy(ctx *gin.Context) {
 	instanceId := ctx.Param("instanceId")
@@ -493,9 +494,9 @@ func (i *instanceHandler) DeleteProxy(ctx *gin.Context) {
 // @Produce json
 // @Param instanceId path string true "Instance Id"
 // @Param instance body instance_service.ForceReconnectStruct true "Instance data"
-// @Success 200 {object} gin.H "Instance force reconnected successfully"
-// @Failure 400 {object} gin.H "Error on validation"
-// @Failure 500 {object} gin.H "Internal server error"
+// @Success 200 {object} response.Success "Instance force reconnected successfully"
+// @Failure 400 {object} response.Error "Error on validation"
+// @Failure 500 {object} response.Error "Internal server error"
 // @Router /instance/forcereconnect/{instanceId} [post]
 func (i *instanceHandler) ForceReconnect(ctx *gin.Context) {
 	instanceId := ctx.Param("instanceId")
@@ -579,9 +580,9 @@ func (h *instanceHandler) GetLogs(c *gin.Context) {
 // @Produce json
 // @Param instanceId path string true "Instance ID"
 // @Success 200 {object} instance_model.AdvancedSettings "Advanced settings retrieved successfully"
-// @Failure 400 {object} gin.H "Invalid instance ID"
-// @Failure 404 {object} gin.H "Instance not found"
-// @Failure 500 {object} gin.H "Internal server error"
+// @Failure 400 {object} response.Error "Invalid instance ID"
+// @Failure 404 {object} response.Error "Instance not found"
+// @Failure 500 {object} response.Error "Internal server error"
 // @Router /instance/{instanceId}/advanced-settings [get]
 func (h *instanceHandler) GetAdvancedSettings(c *gin.Context) {
 	instanceId := c.Param("instanceId")
@@ -608,10 +609,10 @@ func (h *instanceHandler) GetAdvancedSettings(c *gin.Context) {
 // @Produce json
 // @Param instanceId path string true "Instance ID"
 // @Param settings body instance_model.AdvancedSettings true "Advanced settings data"
-// @Success 200 {object} gin.H "Advanced settings updated successfully"
-// @Failure 400 {object} gin.H "Invalid request data"
-// @Failure 404 {object} gin.H "Instance not found"
-// @Failure 500 {object} gin.H "Internal server error"
+// @Success 200 {object} instance_service.UpdateAdvancedSettingsResponse "Advanced settings updated successfully"
+// @Failure 400 {object} response.Error "Invalid request data"
+// @Failure 404 {object} response.Error "Instance not found"
+// @Failure 500 {object} response.Error "Internal server error"
 // @Router /instance/{instanceId}/advanced-settings [put]
 func (h *instanceHandler) UpdateAdvancedSettings(c *gin.Context) {
 	instanceId := c.Param("instanceId")

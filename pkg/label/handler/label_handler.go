@@ -3,7 +3,9 @@ package label_handler
 import (
 	"net/http"
 
+	_ "github.com/EvolutionAPI/evolution-go/pkg/common/response"
 	instance_model "github.com/EvolutionAPI/evolution-go/pkg/instance/model"
+	_ "github.com/EvolutionAPI/evolution-go/pkg/label/model"
 	label_service "github.com/EvolutionAPI/evolution-go/pkg/label/service"
 	"github.com/gin-gonic/gin"
 )
@@ -28,9 +30,9 @@ type labelHandler struct {
 // @Accept json
 // @Produce json
 // @Param message body label_service.ChatLabelStruct true "Label data"
-// @Success 200 {object} gin.H "success"
-// @Failure 400 {object} gin.H "Error on validation"
-// @Failure 500 {object} gin.H "Internal server error"
+// @Success 200 {object} response.Success "success"
+// @Failure 400 {object} response.Error "Error on validation"
+// @Failure 500 {object} response.Error "Internal server error"
 // @Router /label/chat [post]
 func (l *labelHandler) ChatLabel(ctx *gin.Context) {
 	getInstance := ctx.MustGet("instance")
@@ -74,9 +76,9 @@ func (l *labelHandler) ChatLabel(ctx *gin.Context) {
 // @Accept json
 // @Produce json
 // @Param message body label_service.MessageLabelStruct true "Label data"
-// @Success 200 {object} gin.H "success"
-// @Failure 400 {object} gin.H "Error on validation"
-// @Failure 500 {object} gin.H "Internal server error"
+// @Success 200 {object} response.Success "success"
+// @Failure 400 {object} response.Error "Error on validation"
+// @Failure 500 {object} response.Error "Internal server error"
 // @Router /label/message [post]
 func (l *labelHandler) MessageLabel(ctx *gin.Context) {
 	getInstance := ctx.MustGet("instance")
@@ -125,9 +127,9 @@ func (l *labelHandler) MessageLabel(ctx *gin.Context) {
 // @Accept json
 // @Produce json
 // @Param message body label_service.EditLabelStruct true "Label data"
-// @Success 200 {object} gin.H "success"
-// @Failure 400 {object} gin.H "Error on validation"
-// @Failure 500 {object} gin.H "Internal server error"
+// @Success 200 {object} response.Success "success"
+// @Failure 400 {object} response.Error "Error on validation"
+// @Failure 500 {object} response.Error "Internal server error"
 // @Router /label/edit [post]
 func (l *labelHandler) EditLabel(ctx *gin.Context) {
 	getInstance := ctx.MustGet("instance")
@@ -171,9 +173,9 @@ func (l *labelHandler) EditLabel(ctx *gin.Context) {
 // @Accept json
 // @Produce json
 // @Param message body label_service.ChatLabelStruct true "Label data"
-// @Success 200 {object} gin.H "success"
-// @Failure 400 {object} gin.H "Error on validation"
-// @Failure 500 {object} gin.H "Internal server error"
+// @Success 200 {object} response.Success "success"
+// @Failure 400 {object} response.Error "Error on validation"
+// @Failure 500 {object} response.Error "Internal server error"
 // @Router /unlabel/chat [post]
 func (l *labelHandler) ChatUnlabel(ctx *gin.Context) {
 	getInstance := ctx.MustGet("instance")
@@ -217,9 +219,9 @@ func (l *labelHandler) ChatUnlabel(ctx *gin.Context) {
 // @Accept json
 // @Produce json
 // @Param message body label_service.MessageLabelStruct true "Label data"
-// @Success 200 {object} gin.H "success"
-// @Failure 400 {object} gin.H "Error on validation"
-// @Failure 500 {object} gin.H "Internal server error"
+// @Success 200 {object} response.Success "success"
+// @Failure 400 {object} response.Error "Error on validation"
+// @Failure 500 {object} response.Error "Internal server error"
 // @Router /unlabel/message [post]
 func (l *labelHandler) MessageUnlabel(ctx *gin.Context) {
 	getInstance := ctx.MustGet("instance")
@@ -267,8 +269,8 @@ func (l *labelHandler) MessageUnlabel(ctx *gin.Context) {
 // @Tags Label
 // @Accept json
 // @Produce json
-// @Success 200 {object} gin.H "success"
-// @Failure 500 {object} gin.H "Internal server error"
+// @Success 200 {array} label_model.Label "success"
+// @Failure 500 {object} response.Error "Internal server error"
 // @Router /label [get]
 func (l *labelHandler) GetLabels(ctx *gin.Context) {
 	getInstance := ctx.MustGet("instance")

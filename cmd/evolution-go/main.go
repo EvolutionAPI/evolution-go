@@ -25,6 +25,7 @@ import (
 	call_service "github.com/EvolutionAPI/evolution-go/pkg/call/service"
 	chat_handler "github.com/EvolutionAPI/evolution-go/pkg/chat/handler"
 	chat_service "github.com/EvolutionAPI/evolution-go/pkg/chat/service"
+	_ "github.com/EvolutionAPI/evolution-go/pkg/common/response"
 	community_handler "github.com/EvolutionAPI/evolution-go/pkg/community/handler"
 	community_service "github.com/EvolutionAPI/evolution-go/pkg/community/service"
 	config "github.com/EvolutionAPI/evolution-go/pkg/config"

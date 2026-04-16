@@ -4,8 +4,10 @@ import (
 	"net/http"
 
 	chat_service "github.com/EvolutionAPI/evolution-go/pkg/chat/service"
+	_ "github.com/EvolutionAPI/evolution-go/pkg/common/response"
 	instance_model "github.com/EvolutionAPI/evolution-go/pkg/instance/model"
 	"github.com/gin-gonic/gin"
+	_ "go.mau.fi/whatsmeow"
 )
 
 type ChatHandler interface {
@@ -29,9 +31,9 @@ type chatHandler struct {
 // @Accept json
 // @Produce json
 // @Param message body chat_service.BodyStruct true "Chat"
-// @Success 200 {object} gin.H "success"
-// @Failure 400 {object} gin.H "Error on validation"
-// @Failure 500 {object} gin.H "Internal server error"
+// @Success 200 {object} response.Success{data=chat_service.TimestampResponse} "success"
+// @Failure 400 {object} response.Error "Error on validation"
+// @Failure 500 {object} response.Error "Internal server error"
 // @Router /chat/pin [post]
 func (c *chatHandler) ChatPin(ctx *gin.Context) {
 	getInstance := ctx.MustGet("instance")
@@ -74,9 +76,9 @@ func (c *chatHandler) ChatPin(ctx *gin.Context) {
 // @Accept json
 // @Produce json
 // @Param message body chat_service.BodyStruct true "Chat"
-// @Success 200 {object} gin.H "success"
-// @Failure 400 {object} gin.H "Error on validation"
-// @Failure 500 {object} gin.H "Internal server error"
+// @Success 200 {object} response.Success{data=chat_service.TimestampResponse} "success"
+// @Failure 400 {object} response.Error "Error on validation"
+// @Failure 500 {object} response.Error "Internal server error"
 // @Router /chat/unpin [post]
 func (c *chatHandler) ChatUnpin(ctx *gin.Context) {
 	getInstance := ctx.MustGet("instance")
@@ -119,9 +121,9 @@ func (c *chatHandler) ChatUnpin(ctx *gin.Context) {
 // @Accept json
 // @Produce json
 // @Param message body chat_service.BodyStruct true "Chat"
-// @Success 200 {object} gin.H "success"
-// @Failure 400 {object} gin.H "Error on validation"
-// @Failure 500 {object} gin.H "Internal server error"
+// @Success 200 {object} response.Success{data=chat_service.TimestampResponse} "success"
+// @Failure 400 {object} response.Error "Error on validation"
+// @Failure 500 {object} response.Error "Internal server error"
 // @Router /chat/archive [post]
 func (c *chatHandler) ChatArchive(ctx *gin.Context) {
 	getInstance := ctx.MustGet("instance")
@@ -164,9 +166,9 @@ func (c *chatHandler) ChatArchive(ctx *gin.Context) {
 // @Accept json
 // @Produce json
 // @Param message body chat_service.BodyStruct true "Chat"
-// @Success 200 {object} gin.H "success"
-// @Failure 400 {object} gin.H "Error on validation"
-// @Failure 500 {object} gin.H "Internal server error"
+// @Success 200 {object} response.Success{data=chat_service.TimestampResponse} "success"
+// @Failure 400 {object} response.Error "Error on validation"
+// @Failure 500 {object} response.Error "Internal server error"
 // @Router /chat/unarchive [post]
 func (c *chatHandler) ChatUnarchive(ctx *gin.Context) {
 	getInstance := ctx.MustGet("instance")
@@ -209,9 +211,9 @@ func (c *chatHandler) ChatUnarchive(ctx *gin.Context) {
 // @Accept json
 // @Produce json
 // @Param message body chat_service.BodyStruct true "Chat"
-// @Success 200 {object} gin.H "success"
-// @Failure 400 {object} gin.H "Error on validation"
-// @Failure 500 {object} gin.H "Internal server error"
+// @Success 200 {object} response.Success{data=chat_service.TimestampResponse} "success"
+// @Failure 400 {object} response.Error "Error on validation"
+// @Failure 500 {object} response.Error "Internal server error"
 // @Router /chat/mute [post]
 func (c *chatHandler) ChatMute(ctx *gin.Context) {
 	getInstance := ctx.MustGet("instance")
@@ -254,9 +256,9 @@ func (c *chatHandler) ChatMute(ctx *gin.Context) {
 // @Accept json
 // @Produce json
 // @Param message body chat_service.BodyStruct true "Chat"
-// @Success 200 {object} gin.H "success"
-// @Failure 400 {object} gin.H "Error on validation"
-// @Failure 500 {object} gin.H "Internal server error"
+// @Success 200 {object} response.Success{data=chat_service.TimestampResponse} "success"
+// @Failure 400 {object} response.Error "Error on validation"
+// @Failure 500 {object} response.Error "Internal server error"
 // @Router /chat/unmute [post]
 func (c *chatHandler) ChatUnmute(ctx *gin.Context) {
 	getInstance := ctx.MustGet("instance")
@@ -299,9 +301,9 @@ func (c *chatHandler) ChatUnmute(ctx *gin.Context) {
 // @Accept json
 // @Produce json
 // @Param message body chat_service.HistorySyncRequestStruct true "Chat"
-// @Success 200 {object} gin.H "success"
-// @Failure 400 {object} gin.H "Error on validation"
-// @Failure 500 {object} gin.H "Internal server error"
+// @Success 200 {object} response.Success{data=whatsmeow.SendResponse} "success"
+// @Failure 400 {object} response.Error "Error on validation"
+// @Failure 500 {object} response.Error "Internal server error"
 // @Router /chat/history-sync-request [post]
 func (c *chatHandler) HistorySyncRequest(ctx *gin.Context) {
 	getInstance := ctx.MustGet("instance")
