@@ -3,6 +3,7 @@ package utils
 import (
 	"encoding/json"
 	"fmt"
+	"net"
 	"net/http"
 	"net/url"
 	"runtime"
@@ -253,6 +254,66 @@ func CreateSocks5Proxy(socks5Host, socks5Port, user, password string) (proxy.Dia
 	// }, nil
 }
 
+// NormalizeProxyProtocol returns the proxy protocol normalized to one of
+// http/https/socks5. If not supplied, it is inferred from the port — ports
+// 1080, 2080, and 42000-43000 map to socks5; everything else defaults to http.
+func NormalizeProxyProtocol(protocol, port string) string {
+	normalized := strings.ToLower(strings.TrimSpace(protocol))
+
+	switch normalized {
+	case "socks":
+		return "socks5"
+	case "http", "https", "socks5":
+		return normalized
+	}
+
+	switch strings.TrimSpace(port) {
+	case "1080", "2080":
+		return "socks5"
+	}
+
+	portNum, err := strconv.Atoi(strings.TrimSpace(port))
+	if err == nil && portNum >= 42000 && portNum <= 43000 {
+		return "socks5"
+	}
+
+	return "http"
+}
+
+// BuildProxyAddress builds a proxy URL string suitable for whatsmeow's
+// client.SetProxyAddress — it supports http, https, and socks5 with optional
+// basic auth credentials.
+func BuildProxyAddress(protocol, host, port, user, password string) (string, error) {
+	if strings.TrimSpace(host) == "" {
+		return "", fmt.Errorf("proxy host is required")
+	}
+
+	if strings.TrimSpace(port) == "" {
+		return "", fmt.Errorf("proxy port is required")
+	}
+
+	normalizedProtocol := NormalizeProxyProtocol(protocol, port)
+
+	if normalizedProtocol != "http" && normalizedProtocol != "https" && normalizedProtocol != "socks5" {
+		return "", fmt.Errorf("unsupported proxy protocol %q", protocol)
+	}
+
+	proxyURL := &url.URL{
+		Scheme: normalizedProtocol,
+		Host:   net.JoinHostPort(strings.TrimSpace(host), strings.TrimSpace(port)),
+	}
+
+	if user != "" {
+		if password != "" {
+			proxyURL.User = url.UserPassword(user, password)
+		} else {
+			proxyURL.User = url.User(user)
+		}
+	}
+
+	return proxyURL.String(), nil
+}
+
 func UpdateUserInfo(values interface{}, field string, value string) interface{} {
 	v, ok := values.(Values)
 	if !ok {
@@ -447,6 +508,8 @@ func GetMessageType(waMsg *waE2E.Message) string {
 		return "template button reply"
 	case waMsg.InteractiveMessage != nil:
 		return "interactive"
+	case waMsg.GetInteractiveResponseMessage() != nil:
+		return "interactive response"
 	case waMsg.ListMessage != nil:
 		return "list"
 	case waMsg.ProductMessage != nil:

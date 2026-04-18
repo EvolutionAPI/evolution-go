@@ -31,7 +31,7 @@ services:
 
       # Conexão
       CONNECT_ON_STARTUP: "false"
-      WEBHOOKFILES: "true"
+      WEBHOOK_FILES: "true"
 
       # Sistema
       OS_NAME: "Linux"

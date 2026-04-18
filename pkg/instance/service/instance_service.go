@@ -18,6 +18,7 @@ import (
 	instance_repository "github.com/EvolutionAPI/evolution-go/pkg/instance/repository"
 	event_types "github.com/EvolutionAPI/evolution-go/pkg/internal/event_types"
 	logger_wrapper "github.com/EvolutionAPI/evolution-go/pkg/logger"
+	"github.com/EvolutionAPI/evolution-go/pkg/utils"
 	whatsmeow_service "github.com/EvolutionAPI/evolution-go/pkg/whatsmeow/service"
 	"go.mau.fi/whatsmeow"
 	"go.mau.fi/whatsmeow/types"
@@ -55,6 +56,7 @@ type instances struct {
 }
 
 type ProxyConfig struct {
+	Protocol string `json:"protocol,omitempty"`
 	Port     string `json:"port"`
 	Password string `json:"password"`
 	Username string `json:"username"`
@@ -101,6 +103,7 @@ type PairReturnStruct struct {
 }
 
 type SetProxyStruct struct {
+	Protocol string `json:"protocol,omitempty"`
 	Host     string `json:"host" validate:"required"`
 	Port     string `json:"port" validate:"required"`
 	Username string `json:"username"`
@@ -152,6 +155,10 @@ func (i *instances) ensureClientConnected(instanceId string) (*whatsmeow.Client,
 }
 
 func (i instances) Create(data *CreateStruct) (*instance_model.Instance, error) {
+	if data.Proxy != nil {
+		data.Proxy.Protocol = utils.NormalizeProxyProtocol(data.Proxy.Protocol, data.Proxy.Port)
+	}
+
 	proxyJson, err := json.Marshal(data.Proxy)
 	if err != nil {
 		return nil, err
@@ -562,6 +569,8 @@ func (i instances) SetProxy(id string, proxyConfig *ProxyConfig) error {
 		return fmt.Errorf("proxy port is required")
 	}
 
+	proxyConfig.Protocol = utils.NormalizeProxyProtocol(proxyConfig.Protocol, proxyConfig.Port)
+
 	// Convert proxy config to JSON
 	proxyJSON, err := json.Marshal(proxyConfig)
 	if err != nil {
@@ -578,7 +587,7 @@ func (i instances) SetProxy(id string, proxyConfig *ProxyConfig) error {
 		return err
 	}
 
-	i.loggerWrapper.GetLogger(id).LogInfo("[%s] Proxy configuration updated: %s:%s", id, proxyConfig.Host, proxyConfig.Port)
+	i.loggerWrapper.GetLogger(id).LogInfo("[%s] Proxy configuration updated: %s://%s:%s", id, proxyConfig.Protocol, proxyConfig.Host, proxyConfig.Port)
 
 	// Reconnect to apply proxy changes
 	go i.Reconnect(instance)
@@ -592,6 +601,7 @@ func (i instances) SetProxyFromStruct(id string, data *SetProxyStruct) error {
 	}
 
 	proxyConfig := &ProxyConfig{
+		Protocol: data.Protocol,
 		Host:     data.Host,
 		Port:     data.Port,
 		Username: data.Username,

@@ -85,7 +85,7 @@ services:
       WADEBUG: "INFO"
       LOGTYPE: "console"
       CONNECT_ON_STARTUP: "false"
-      WEBHOOKFILES: "true"
+      WEBHOOK_FILES: "true"
 
     volumes:
       - evolution_data:/app/dbdata
@@ -469,7 +469,7 @@ data:
   WADEBUG: "INFO"
   LOGTYPE: "console"
   CONNECT_ON_STARTUP: "false"
-  WEBHOOKFILES: "true"
+  WEBHOOK_FILES: "true"
   DATABASE_SAVE_MESSAGES: "false"
 ```
 

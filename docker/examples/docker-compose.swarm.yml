@@ -29,7 +29,7 @@ services:
 
       # Conexão
       CONNECT_ON_STARTUP: "true"
-      WEBHOOKFILES: "true"
+      WEBHOOK_FILES: "true"
 
       # Sistema
       OS_NAME: "Linux"

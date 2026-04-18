@@ -12,8 +12,9 @@ Documentação completa dos endpoints para enviar e gerenciar mensagens WhatsApp
 - [Enviar Sticker](#enviar-sticker)
 - [Enviar Localização](#enviar-localização)
 - [Enviar Contato](#enviar-contato)
-- [~~Enviar Botões~~](#enviar-botões) ⚠️ **DEPRECIADO**
-- [~~Enviar Lista~~](#enviar-lista) ⚠️ **DEPRECIADO**
+- [Enviar Botões](api-interactive.md#enviar-botões) ➡️ **Ver [API de Mensagens Interativas](api-interactive.md)**
+- [Enviar Lista](api-interactive.md#enviar-lista) ➡️ **Ver [API de Mensagens Interativas](api-interactive.md)**
+- [Enviar Carrossel](api-interactive.md#enviar-carrossel) ➡️ **Ver [API de Mensagens Interativas](api-interactive.md)**
 
 ### Gerenciar Mensagens
 - [Reagir a Mensagem](#reagir-a-mensagem)
