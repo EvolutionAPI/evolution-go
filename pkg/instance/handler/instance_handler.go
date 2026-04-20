@@ -10,6 +10,7 @@ import (
 	config "github.com/EvolutionAPI/evolution-go/pkg/config"
 	instance_model "github.com/EvolutionAPI/evolution-go/pkg/instance/model"
 	instance_service "github.com/EvolutionAPI/evolution-go/pkg/instance/service"
+	_ "github.com/EvolutionAPI/evolution-go/pkg/logger"
 	"github.com/EvolutionAPI/evolution-go/pkg/utils"
 )
 
@@ -539,6 +540,20 @@ type GetLogsQuery struct {
 	Limit     int    `form:"limit"`
 }
 
+// GetLogs retrieves log entries for an instance within a date range
+// @Summary Get instance logs
+// @Description Get log entries for a specific instance, optionally filtered by date range and level
+// @Tags Instance
+// @Produce json
+// @Param instanceId path string true "Instance ID"
+// @Param start_date query string false "Start date (YYYY-MM-DD). Defaults to 7 days ago."
+// @Param end_date query string false "End date (YYYY-MM-DD). Defaults to today."
+// @Param level query string false "Log level filter (e.g. INFO, WARN, ERROR)"
+// @Param limit query int false "Maximum number of entries to return. Defaults to 100."
+// @Success 200 {object} response.Success{data=[]logger.LogEntry} "Logs retrieved successfully"
+// @Failure 400 {object} response.Error "Invalid query parameters"
+// @Failure 500 {object} response.Error "Internal server error"
+// @Router /instance/logs/{instanceId} [get]
 func (h *instanceHandler) GetLogs(c *gin.Context) {
 	instanceId := c.Param("instanceId")
 
@@ -572,7 +587,7 @@ func (h *instanceHandler) GetLogs(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, logs)
+	c.JSON(http.StatusOK, gin.H{"message": "success", "data": logs})
 }
 
 // GetAdvancedSettings retrieves advanced settings for an instance
@@ -581,7 +596,7 @@ func (h *instanceHandler) GetLogs(c *gin.Context) {
 // @Tags Instance
 // @Produce json
 // @Param instanceId path string true "Instance ID"
-// @Success 200 {object} instance_model.AdvancedSettings "Advanced settings retrieved successfully"
+// @Success 200 {object} response.Success{data=instance_model.AdvancedSettings} "Advanced settings retrieved successfully"
 // @Failure 400 {object} response.Error "Invalid instance ID"
 // @Failure 404 {object} response.Error "Instance not found"
 // @Failure 500 {object} response.Error "Internal server error"
@@ -600,7 +615,7 @@ func (h *instanceHandler) GetAdvancedSettings(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, settings)
+	c.JSON(http.StatusOK, gin.H{"message": "success", "data": settings})
 }
 
 // UpdateAdvancedSettings updates advanced settings for an instance
@@ -611,7 +626,7 @@ func (h *instanceHandler) GetAdvancedSettings(c *gin.Context) {
 // @Produce json
 // @Param instanceId path string true "Instance ID"
 // @Param settings body instance_model.AdvancedSettings true "Advanced settings data"
-// @Success 200 {object} instance_service.UpdateAdvancedSettingsResponse "Advanced settings updated successfully"
+// @Success 200 {object} response.Success{data=instance_model.AdvancedSettings} "Advanced settings updated successfully"
 // @Failure 400 {object} response.Error "Invalid request data"
 // @Failure 404 {object} response.Error "Instance not found"
 // @Failure 500 {object} response.Error "Internal server error"
@@ -636,10 +651,7 @@ func (h *instanceHandler) UpdateAdvancedSettings(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"message":  "Advanced settings updated successfully",
-		"settings": settings,
-	})
+	c.JSON(http.StatusOK, gin.H{"message": "success", "data": settings})
 }
 
 func NewInstanceHandler(instanceService instance_service.InstanceService, config *config.Config) InstanceHandler {

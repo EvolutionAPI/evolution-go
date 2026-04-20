@@ -31,7 +31,7 @@ type LogEntry struct {
 	Level      string          `json:"level"`
 	InstanceId string          `json:"instance_id"`
 	Message    string          `json:"message"`
-	Metadata   json.RawMessage `json:"metadata,omitempty"`
+	Metadata   json.RawMessage `json:"metadata,omitempty" swaggertype:"object"`
 }
 
 func NewLoggerManager(config *config.Config) *LoggerManager {

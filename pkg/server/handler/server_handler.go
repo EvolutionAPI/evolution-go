@@ -9,11 +9,19 @@ type ServerHandler interface {
 type serverHandler struct {
 }
 
+type ServerStatus struct {
+	Status string `json:"status" example:"ok"`
+}
+
 // ServerOk implements ServerHandler.
+// @Summary Health check
+// @Description Returns server status
+// @Tags Server
+// @Produce json
+// @Success 200 {object} ServerStatus "Server is healthy"
+// @Router /server/ok [get]
 func (s *serverHandler) ServerOk(ctx *gin.Context) {
-	ctx.JSON(200, gin.H{
-		"status": "ok",
-	})
+	ctx.JSON(200, ServerStatus{Status: "ok"})
 }
 
 func NewServerHandler() ServerHandler {

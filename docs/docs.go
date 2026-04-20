@@ -1556,6 +1556,86 @@ const docTemplate = `{
                 }
             }
         },
+        "/instance/logs/{instanceId}": {
+            "get": {
+                "description": "Get log entries for a specific instance, optionally filtered by date range and level",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Instance"
+                ],
+                "summary": "Get instance logs",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Instance ID",
+                        "name": "instanceId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Start date (YYYY-MM-DD). Defaults to 7 days ago.",
+                        "name": "start_date",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "End date (YYYY-MM-DD). Defaults to today.",
+                        "name": "end_date",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Log level filter (e.g. INFO, WARN, ERROR)",
+                        "name": "level",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Maximum number of entries to return. Defaults to 100.",
+                        "name": "limit",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Logs retrieved successfully",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Success"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_logger.LogEntry"
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid query parameters",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error"
+                        }
+                    }
+                }
+            }
+        },
         "/instance/pair": {
             "post": {
                 "description": "Request pairing code",
@@ -1855,7 +1935,19 @@ const docTemplate = `{
                     "200": {
                         "description": "Advanced settings retrieved successfully",
                         "schema": {
-                            "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_instance_model.AdvancedSettings"
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Success"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_instance_model.AdvancedSettings"
+                                        }
+                                    }
+                                }
+                            ]
                         }
                     },
                     "400": {
@@ -1912,7 +2004,19 @@ const docTemplate = `{
                     "200": {
                         "description": "Advanced settings updated successfully",
                         "schema": {
-                            "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_instance_service.UpdateAdvancedSettingsResponse"
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Success"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_instance_model.AdvancedSettings"
+                                        }
+                                    }
+                                }
+                            ]
                         }
                     },
                     "400": {
@@ -2861,25 +2965,43 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "200": {
-                        "description": "OK",
+                        "description": "Poll results retrieved successfully",
                         "schema": {
-                            "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_poll_model.PollResults"
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Success"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_poll_model.PollResults"
+                                        }
+                                    }
+                                }
+                            ]
                         }
                     },
                     "400": {
-                        "description": "Bad Request",
+                        "description": "Invalid request",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error"
+                        }
+                    },
+                    "401": {
+                        "description": "Authentication required",
                         "schema": {
                             "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error"
                         }
                     },
                     "404": {
-                        "description": "Not Found",
+                        "description": "No votes found",
                         "schema": {
                             "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error"
                         }
                     },
                     "500": {
-                        "description": "Internal Server Error",
+                        "description": "Internal server error",
                         "schema": {
                             "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error"
                         }
@@ -2908,6 +3030,64 @@ const docTemplate = `{
                         "required": true,
                         "schema": {
                             "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_sendMessage_service.ContactStruct"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "success",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Success"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_sendMessage_service.MessageSendStruct"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Error on validation",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error"
+                        }
+                    }
+                }
+            }
+        },
+        "/send/carousel": {
+            "post": {
+                "description": "Send a carousel message",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Send Message"
+                ],
+                "summary": "Send a carousel message",
+                "parameters": [
+                    {
+                        "description": "Message data",
+                        "name": "message",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_sendMessage_service.CarouselStruct"
                         }
                     }
                 ],
@@ -3293,6 +3473,145 @@ const docTemplate = `{
                 }
             }
         },
+        "/send/status/media": {
+            "post": {
+                "description": "Send an image or video status to status@broadcast. Supports JSON (URL) or multipart/form-data (file upload)",
+                "consumes": [
+                    "application/json",
+                    " multipart/form-data"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Send Message"
+                ],
+                "summary": "Send a WhatsApp media status (image/video)",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Media type: image or video",
+                        "name": "type",
+                        "in": "formData",
+                        "required": true
+                    },
+                    {
+                        "type": "file",
+                        "description": "Media file (for multipart upload)",
+                        "name": "file",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Media URL (for JSON upload)",
+                        "name": "url",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Caption for the media",
+                        "name": "caption",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Custom message ID",
+                        "name": "id",
+                        "in": "formData"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "success",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Success"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_sendMessage_service.MessageSendStruct"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Error on validation",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error"
+                        }
+                    }
+                }
+            }
+        },
+        "/send/status/text": {
+            "post": {
+                "description": "Send a WhatsApp text status to status@broadcast",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Send Message"
+                ],
+                "summary": "Send a WhatsApp text status",
+                "parameters": [
+                    {
+                        "description": "Status text data",
+                        "name": "message",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_sendMessage_service.StatusTextStruct"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "success",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Success"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_sendMessage_service.MessageSendStruct"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Error on validation",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error"
+                        }
+                    }
+                }
+            }
+        },
         "/send/sticker": {
             "post": {
                 "description": "Send a sticker message",
@@ -3404,6 +3723,26 @@ const docTemplate = `{
                         "description": "Internal server error",
                         "schema": {
                             "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error"
+                        }
+                    }
+                }
+            }
+        },
+        "/server/ok": {
+            "get": {
+                "description": "Returns server status",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Server"
+                ],
+                "summary": "Health check",
+                "responses": {
+                    "200": {
+                        "description": "Server is healthy",
+                        "schema": {
+                            "$ref": "#/definitions/pkg_server_handler.ServerStatus"
                         }
                     }
                 }
@@ -4569,6 +4908,9 @@ const docTemplate = `{
                 "port": {
                     "type": "string"
                 },
+                "protocol": {
+                    "type": "string"
+                },
                 "username": {
                     "type": "string"
                 }
@@ -4615,6 +4957,9 @@ const docTemplate = `{
                 "port": {
                     "type": "string"
                 },
+                "protocol": {
+                    "type": "string"
+                },
                 "username": {
                     "type": "string"
                 }
@@ -4631,17 +4976,6 @@ const docTemplate = `{
                 },
                 "name": {
                     "type": "string"
-                }
-            }
-        },
-        "github_com_EvolutionAPI_evolution-go_pkg_instance_service.UpdateAdvancedSettingsResponse": {
-            "type": "object",
-            "properties": {
-                "message": {
-                    "type": "string"
-                },
-                "settings": {
-                    "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_instance_model.AdvancedSettings"
                 }
             }
         },
@@ -4706,6 +5040,26 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "messageId": {
+                    "type": "string"
+                }
+            }
+        },
+        "github_com_EvolutionAPI_evolution-go_pkg_logger.LogEntry": {
+            "type": "object",
+            "properties": {
+                "instance_id": {
+                    "type": "string"
+                },
+                "level": {
+                    "type": "string"
+                },
+                "message": {
+                    "type": "string"
+                },
+                "metadata": {
+                    "type": "object"
+                },
+                "timestamp": {
                     "type": "string"
                 }
             }
@@ -5016,6 +5370,97 @@ const docTemplate = `{
                 }
             }
         },
+        "github_com_EvolutionAPI_evolution-go_pkg_sendMessage_service.CarouselButtonStruct": {
+            "type": "object",
+            "properties": {
+                "copyCode": {
+                    "type": "string"
+                },
+                "displayText": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "type": {
+                    "type": "string"
+                }
+            }
+        },
+        "github_com_EvolutionAPI_evolution-go_pkg_sendMessage_service.CarouselCardBodyStruct": {
+            "type": "object",
+            "properties": {
+                "text": {
+                    "type": "string"
+                }
+            }
+        },
+        "github_com_EvolutionAPI_evolution-go_pkg_sendMessage_service.CarouselCardHeaderStruct": {
+            "type": "object",
+            "properties": {
+                "imageUrl": {
+                    "type": "string"
+                },
+                "subtitle": {
+                    "type": "string"
+                },
+                "title": {
+                    "type": "string"
+                },
+                "videoUrl": {
+                    "type": "string"
+                }
+            }
+        },
+        "github_com_EvolutionAPI_evolution-go_pkg_sendMessage_service.CarouselCardStruct": {
+            "type": "object",
+            "properties": {
+                "body": {
+                    "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_sendMessage_service.CarouselCardBodyStruct"
+                },
+                "buttons": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_sendMessage_service.CarouselButtonStruct"
+                    }
+                },
+                "footer": {
+                    "type": "string"
+                },
+                "header": {
+                    "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_sendMessage_service.CarouselCardHeaderStruct"
+                }
+            }
+        },
+        "github_com_EvolutionAPI_evolution-go_pkg_sendMessage_service.CarouselStruct": {
+            "type": "object",
+            "properties": {
+                "body": {
+                    "type": "string"
+                },
+                "cards": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_sendMessage_service.CarouselCardStruct"
+                    }
+                },
+                "delay": {
+                    "type": "integer"
+                },
+                "footer": {
+                    "type": "string"
+                },
+                "formatJid": {
+                    "type": "boolean"
+                },
+                "number": {
+                    "type": "string"
+                },
+                "quoted": {
+                    "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_sendMessage_service.QuotedStruct"
+                }
+            }
+        },
         "github_com_EvolutionAPI_evolution-go_pkg_sendMessage_service.ContactStruct": {
             "type": "object",
             "properties": {
@@ -5236,6 +5681,17 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "participant": {
+                    "type": "string"
+                }
+            }
+        },
+        "github_com_EvolutionAPI_evolution-go_pkg_sendMessage_service.StatusTextStruct": {
+            "type": "object",
+            "properties": {
+                "id": {
+                    "type": "string"
+                },
+                "text": {
                     "type": "string"
                 }
             }
@@ -5655,6 +6111,7 @@ const docTemplate = `{
         },
         "go_mau_fi_whatsmeow_proto_waAICommon.AIThreadInfo_AIThreadClientInfo_AIThreadType": {
             "type": "integer",
+            "format": "int32",
             "enum": [
                 0,
                 1,
@@ -5692,6 +6149,7 @@ const docTemplate = `{
         },
         "go_mau_fi_whatsmeow_proto_waAICommon.BotAgeCollectionMetadata_AgeCollectionType": {
             "type": "integer",
+            "format": "int32",
             "enum": [
                 0,
                 1
@@ -5730,6 +6188,7 @@ const docTemplate = `{
         },
         "go_mau_fi_whatsmeow_proto_waAICommon.BotCapabilityMetadata_BotCapabilityType": {
             "type": "integer",
+            "format": "int32",
             "enum": [
                 0,
                 1,
@@ -5869,6 +6328,7 @@ const docTemplate = `{
         },
         "go_mau_fi_whatsmeow_proto_waAICommon.BotDocumentMessageMetadata_DocumentPluginType": {
             "type": "integer",
+            "format": "int32",
             "enum": [
                 0,
                 1
@@ -5906,6 +6366,7 @@ const docTemplate = `{
         },
         "go_mau_fi_whatsmeow_proto_waAICommon.BotFeedbackMessage_BotFeedbackKind": {
             "type": "integer",
+            "format": "int32",
             "enum": [
                 0,
                 1,
@@ -5943,6 +6404,7 @@ const docTemplate = `{
         },
         "go_mau_fi_whatsmeow_proto_waAICommon.BotFeedbackMessage_ReportKind": {
             "type": "integer",
+            "format": "int32",
             "enum": [
                 0,
                 1
@@ -6103,6 +6565,7 @@ const docTemplate = `{
         },
         "go_mau_fi_whatsmeow_proto_waAICommon.BotImagineMetadata_ImagineType": {
             "type": "integer",
+            "format": "int32",
             "enum": [
                 0,
                 1,
@@ -6137,6 +6600,7 @@ const docTemplate = `{
         },
         "go_mau_fi_whatsmeow_proto_waAICommon.BotInfrastructureDiagnostics_BotBackend": {
             "type": "integer",
+            "format": "int32",
             "enum": [
                 0,
                 1
@@ -6156,6 +6620,7 @@ const docTemplate = `{
         },
         "go_mau_fi_whatsmeow_proto_waAICommon.BotLinkedAccount_BotLinkedAccountType": {
             "type": "integer",
+            "format": "int32",
             "enum": [
                 0
             ],
@@ -6211,6 +6676,7 @@ const docTemplate = `{
         },
         "go_mau_fi_whatsmeow_proto_waAICommon.BotMediaMetadata_OrientationType": {
             "type": "integer",
+            "format": "int32",
             "enum": [
                 1,
                 2,
@@ -6285,6 +6751,7 @@ const docTemplate = `{
         },
         "go_mau_fi_whatsmeow_proto_waAICommon.BotMessageOrigin_BotMessageOriginType": {
             "type": "integer",
+            "format": "int32",
             "enum": [
                 0
             ],
@@ -6430,6 +6897,7 @@ const docTemplate = `{
         },
         "go_mau_fi_whatsmeow_proto_waAICommon.BotMetricsEntryPoint": {
             "type": "integer",
+            "format": "int32",
             "enum": [
                 0,
                 1,
@@ -6545,6 +7013,7 @@ const docTemplate = `{
         },
         "go_mau_fi_whatsmeow_proto_waAICommon.BotMetricsThreadEntryPoint": {
             "type": "integer",
+            "format": "int32",
             "enum": [
                 1,
                 2,
@@ -6579,6 +7048,7 @@ const docTemplate = `{
         },
         "go_mau_fi_whatsmeow_proto_waAICommon.BotModeSelectionMetadata_BotUserSelectionMode": {
             "type": "integer",
+            "format": "int32",
             "enum": [
                 0,
                 1
@@ -6604,6 +7074,7 @@ const docTemplate = `{
         },
         "go_mau_fi_whatsmeow_proto_waAICommon.BotModelMetadata_ModelType": {
             "type": "integer",
+            "format": "int32",
             "enum": [
                 0,
                 1,
@@ -6617,6 +7088,7 @@ const docTemplate = `{
         },
         "go_mau_fi_whatsmeow_proto_waAICommon.BotModelMetadata_PremiumModelStatus": {
             "type": "integer",
+            "format": "int32",
             "enum": [
                 0,
                 1,
@@ -6671,6 +7143,7 @@ const docTemplate = `{
         },
         "go_mau_fi_whatsmeow_proto_waAICommon.BotPluginMetadata_PluginType": {
             "type": "integer",
+            "format": "int32",
             "enum": [
                 0,
                 1,
@@ -6684,6 +7157,7 @@ const docTemplate = `{
         },
         "go_mau_fi_whatsmeow_proto_waAICommon.BotPluginMetadata_SearchProvider": {
             "type": "integer",
+            "format": "int32",
             "enum": [
                 0,
                 1,
@@ -6779,6 +7253,7 @@ const docTemplate = `{
         },
         "go_mau_fi_whatsmeow_proto_waAICommon.BotProgressIndicatorMetadata_BotPlanningStepMetadata_BotPlanningSearchSourcesMetadata_BotPlanningSearchSourceProvider": {
             "type": "integer",
+            "format": "int32",
             "enum": [
                 0,
                 1,
@@ -6811,6 +7286,7 @@ const docTemplate = `{
         },
         "go_mau_fi_whatsmeow_proto_waAICommon.BotProgressIndicatorMetadata_BotPlanningStepMetadata_BotSearchSourceProvider": {
             "type": "integer",
+            "format": "int32",
             "enum": [
                 0,
                 1,
@@ -6826,6 +7302,7 @@ const docTemplate = `{
         },
         "go_mau_fi_whatsmeow_proto_waAICommon.BotProgressIndicatorMetadata_BotPlanningStepMetadata_PlanningStepStatus": {
             "type": "integer",
+            "format": "int32",
             "enum": [
                 0,
                 1,
@@ -6852,6 +7329,7 @@ const docTemplate = `{
         },
         "go_mau_fi_whatsmeow_proto_waAICommon.BotPromotionMessageMetadata_BotPromotionType": {
             "type": "integer",
+            "format": "int32",
             "enum": [
                 0,
                 1,
@@ -6912,6 +7390,7 @@ const docTemplate = `{
         },
         "go_mau_fi_whatsmeow_proto_waAICommon.BotQuotaMetadata_BotFeatureQuotaMetadata_BotFeatureType": {
             "type": "integer",
+            "format": "int32",
             "enum": [
                 0,
                 1
@@ -6943,6 +7422,7 @@ const docTemplate = `{
         },
         "go_mau_fi_whatsmeow_proto_waAICommon.BotReminderMetadata_ReminderAction": {
             "type": "integer",
+            "format": "int32",
             "enum": [
                 1,
                 2,
@@ -6958,6 +7438,7 @@ const docTemplate = `{
         },
         "go_mau_fi_whatsmeow_proto_waAICommon.BotReminderMetadata_ReminderFrequency": {
             "type": "integer",
+            "format": "int32",
             "enum": [
                 1,
                 2,
@@ -7022,6 +7503,7 @@ const docTemplate = `{
         },
         "go_mau_fi_whatsmeow_proto_waAICommon.BotSessionSource": {
             "type": "integer",
+            "format": "int32",
             "enum": [
                 0,
                 1,
@@ -7062,7 +7544,8 @@ const docTemplate = `{
                     "items": {
                         "type": "array",
                         "items": {
-                            "type": "integer"
+                            "type": "integer",
+                            "format": "int32"
                         }
                     }
                 },
@@ -7082,6 +7565,7 @@ const docTemplate = `{
         },
         "go_mau_fi_whatsmeow_proto_waAICommon.BotSignatureVerificationUseCaseProof_BotSignatureUseCase": {
             "type": "integer",
+            "format": "int32",
             "enum": [
                 0,
                 1,
@@ -7132,6 +7616,7 @@ const docTemplate = `{
         },
         "go_mau_fi_whatsmeow_proto_waAICommon.BotSourcesMetadata_BotSourceItem_SourceProvider": {
             "type": "integer",
+            "format": "int32",
             "enum": [
                 0,
                 1,
@@ -7343,6 +7828,7 @@ const docTemplate = `{
         },
         "go_mau_fi_whatsmeow_proto_waAICommon.SessionTransparencyType": {
             "type": "integer",
+            "format": "int32",
             "enum": [
                 0,
                 1
@@ -7379,6 +7865,7 @@ const docTemplate = `{
         },
         "go_mau_fi_whatsmeow_proto_waAICommonDeprecated.AIRichResponseCodeMetadata_AIRichResponseCodeHighlightType": {
             "type": "integer",
+            "format": "int32",
             "enum": [
                 0,
                 1,
@@ -7420,6 +7907,7 @@ const docTemplate = `{
         },
         "go_mau_fi_whatsmeow_proto_waAICommonDeprecated.AIRichResponseContentItemsMetadata_ContentType": {
             "type": "integer",
+            "format": "int32",
             "enum": [
                 0,
                 1
@@ -7448,6 +7936,7 @@ const docTemplate = `{
         },
         "go_mau_fi_whatsmeow_proto_waAICommonDeprecated.AIRichResponseDynamicMetadata_AIRichResponseDynamicMetadataType": {
             "type": "integer",
+            "format": "int32",
             "enum": [
                 0,
                 1,
@@ -7506,6 +7995,7 @@ const docTemplate = `{
         },
         "go_mau_fi_whatsmeow_proto_waAICommonDeprecated.AIRichResponseInlineImageMetadata_AIRichResponseImageAlignment": {
             "type": "integer",
+            "format": "int32",
             "enum": [
                 0,
                 1,
@@ -7611,6 +8101,7 @@ const docTemplate = `{
         },
         "go_mau_fi_whatsmeow_proto_waAICommonDeprecated.AIRichResponseMessageType": {
             "type": "integer",
+            "format": "int32",
             "enum": [
                 0,
                 1
@@ -7657,6 +8148,7 @@ const docTemplate = `{
         },
         "go_mau_fi_whatsmeow_proto_waAICommonDeprecated.AIRichResponseSubMessageType": {
             "type": "integer",
+            "format": "int32",
             "enum": [
                 0,
                 1,
@@ -7712,6 +8204,7 @@ const docTemplate = `{
         },
         "go_mau_fi_whatsmeow_proto_waAdv.ADVEncryptionType": {
             "type": "integer",
+            "format": "int32",
             "enum": [
                 0,
                 1
@@ -8033,6 +8526,7 @@ const docTemplate = `{
         },
         "go_mau_fi_whatsmeow_proto_waE2E.BCallMessage_MediaType": {
             "type": "integer",
+            "format": "int32",
             "enum": [
                 0,
                 1,
@@ -8108,6 +8602,7 @@ const docTemplate = `{
         },
         "go_mau_fi_whatsmeow_proto_waE2E.ButtonsMessage_Button_Type": {
             "type": "integer",
+            "format": "int32",
             "enum": [
                 0,
                 1,
@@ -8121,6 +8616,7 @@ const docTemplate = `{
         },
         "go_mau_fi_whatsmeow_proto_waE2E.ButtonsMessage_HeaderType": {
             "type": "integer",
+            "format": "int32",
             "enum": [
                 0,
                 1,
@@ -8159,6 +8655,7 @@ const docTemplate = `{
         },
         "go_mau_fi_whatsmeow_proto_waE2E.ButtonsResponseMessage_Type": {
             "type": "integer",
+            "format": "int32",
             "enum": [
                 0,
                 1
@@ -8240,6 +8737,7 @@ const docTemplate = `{
         },
         "go_mau_fi_whatsmeow_proto_waE2E.CallLogMessage_CallOutcome": {
             "type": "integer",
+            "format": "int32",
             "enum": [
                 0,
                 1,
@@ -8274,6 +8772,7 @@ const docTemplate = `{
         },
         "go_mau_fi_whatsmeow_proto_waE2E.CallLogMessage_CallType": {
             "type": "integer",
+            "format": "int32",
             "enum": [
                 0,
                 1,
@@ -8329,6 +8828,7 @@ const docTemplate = `{
         },
         "go_mau_fi_whatsmeow_proto_waE2E.CloudAPIThreadControlNotification_CloudAPIThreadControl": {
             "type": "integer",
+            "format": "int32",
             "enum": [
                 0,
                 1,
@@ -8387,6 +8887,7 @@ const docTemplate = `{
         },
         "go_mau_fi_whatsmeow_proto_waE2E.ConditionalRevealMessage_ConditionalRevealMessageType": {
             "type": "integer",
+            "format": "int32",
             "enum": [
                 0,
                 1
@@ -8652,6 +9153,7 @@ const docTemplate = `{
         },
         "go_mau_fi_whatsmeow_proto_waE2E.ContextInfo_AdReplyInfo_MediaType": {
             "type": "integer",
+            "format": "int32",
             "enum": [
                 0,
                 1,
@@ -8805,6 +9307,7 @@ const docTemplate = `{
         },
         "go_mau_fi_whatsmeow_proto_waE2E.ContextInfo_ExternalAdReplyInfo_AdType": {
             "type": "integer",
+            "format": "int32",
             "enum": [
                 0,
                 1
@@ -8816,6 +9319,7 @@ const docTemplate = `{
         },
         "go_mau_fi_whatsmeow_proto_waE2E.ContextInfo_ExternalAdReplyInfo_MediaType": {
             "type": "integer",
+            "format": "int32",
             "enum": [
                 0,
                 1,
@@ -8849,6 +9353,7 @@ const docTemplate = `{
         },
         "go_mau_fi_whatsmeow_proto_waE2E.ContextInfo_ForwardOrigin": {
             "type": "integer",
+            "format": "int32",
             "enum": [
                 0,
                 1,
@@ -8891,6 +9396,7 @@ const docTemplate = `{
         },
         "go_mau_fi_whatsmeow_proto_waE2E.ContextInfo_ForwardedNewsletterMessageInfo_ContentType": {
             "type": "integer",
+            "format": "int32",
             "enum": [
                 1,
                 2,
@@ -8904,6 +9410,7 @@ const docTemplate = `{
         },
         "go_mau_fi_whatsmeow_proto_waE2E.ContextInfo_PairedMediaType": {
             "type": "integer",
+            "format": "int32",
             "enum": [
                 0,
                 1,
@@ -8951,6 +9458,7 @@ const docTemplate = `{
         },
         "go_mau_fi_whatsmeow_proto_waE2E.ContextInfo_QuotedType": {
             "type": "integer",
+            "format": "int32",
             "enum": [
                 0,
                 1
@@ -8962,6 +9470,7 @@ const docTemplate = `{
         },
         "go_mau_fi_whatsmeow_proto_waE2E.ContextInfo_StatusAttributionType": {
             "type": "integer",
+            "format": "int32",
             "enum": [
                 0,
                 1,
@@ -8993,6 +9502,7 @@ const docTemplate = `{
         },
         "go_mau_fi_whatsmeow_proto_waE2E.ContextInfo_StatusAudienceMetadata_AudienceType": {
             "type": "integer",
+            "format": "int32",
             "enum": [
                 0,
                 1
@@ -9004,6 +9514,7 @@ const docTemplate = `{
         },
         "go_mau_fi_whatsmeow_proto_waE2E.ContextInfo_StatusSourceType": {
             "type": "integer",
+            "format": "int32",
             "enum": [
                 0,
                 1,
@@ -9114,6 +9625,7 @@ const docTemplate = `{
         },
         "go_mau_fi_whatsmeow_proto_waE2E.DisappearingMode_Initiator": {
             "type": "integer",
+            "format": "int32",
             "enum": [
                 0,
                 1,
@@ -9129,6 +9641,7 @@ const docTemplate = `{
         },
         "go_mau_fi_whatsmeow_proto_waE2E.DisappearingMode_Trigger": {
             "type": "integer",
+            "format": "int32",
             "enum": [
                 0,
                 1,
@@ -9550,6 +10063,7 @@ const docTemplate = `{
         },
         "go_mau_fi_whatsmeow_proto_waE2E.ExtendedTextMessage_FontType": {
             "type": "integer",
+            "format": "int32",
             "enum": [
                 0,
                 1,
@@ -9573,6 +10087,7 @@ const docTemplate = `{
         },
         "go_mau_fi_whatsmeow_proto_waE2E.ExtendedTextMessage_InviteLinkGroupType": {
             "type": "integer",
+            "format": "int32",
             "enum": [
                 0,
                 1,
@@ -9588,6 +10103,7 @@ const docTemplate = `{
         },
         "go_mau_fi_whatsmeow_proto_waE2E.ExtendedTextMessage_PreviewType": {
             "type": "integer",
+            "format": "int32",
             "enum": [
                 0,
                 1,
@@ -9675,6 +10191,7 @@ const docTemplate = `{
         },
         "go_mau_fi_whatsmeow_proto_waE2E.GroupInviteMessage_GroupType": {
             "type": "integer",
+            "format": "int32",
             "enum": [
                 0,
                 1
@@ -9816,6 +10333,7 @@ const docTemplate = `{
         },
         "go_mau_fi_whatsmeow_proto_waE2E.HistorySyncType": {
             "type": "integer",
+            "format": "int32",
             "enum": [
                 0,
                 1,
@@ -9986,6 +10504,7 @@ const docTemplate = `{
         },
         "go_mau_fi_whatsmeow_proto_waE2E.ImageMessage_ImageSourceType": {
             "type": "integer",
+            "format": "int32",
             "enum": [
                 0,
                 1,
@@ -10009,6 +10528,7 @@ const docTemplate = `{
         },
         "go_mau_fi_whatsmeow_proto_waE2E.InsightDeliveryState": {
             "type": "integer",
+            "format": "int32",
             "enum": [
                 0,
                 1,
@@ -10049,6 +10569,7 @@ const docTemplate = `{
         },
         "go_mau_fi_whatsmeow_proto_waE2E.InteractiveAnnotation_StatusLinkType": {
             "type": "integer",
+            "format": "int32",
             "enum": [
                 1,
                 2,
@@ -10169,6 +10690,7 @@ const docTemplate = `{
         },
         "go_mau_fi_whatsmeow_proto_waE2E.InteractiveResponseMessage_Body_Format": {
             "type": "integer",
+            "format": "int32",
             "enum": [
                 0,
                 1
@@ -10227,6 +10749,7 @@ const docTemplate = `{
         },
         "go_mau_fi_whatsmeow_proto_waE2E.InvoiceMessage_AttachmentType": {
             "type": "integer",
+            "format": "int32",
             "enum": [
                 0,
                 1
@@ -10252,6 +10775,7 @@ const docTemplate = `{
         },
         "go_mau_fi_whatsmeow_proto_waE2E.KeepType": {
             "type": "integer",
+            "format": "int32",
             "enum": [
                 0,
                 1,
@@ -10308,6 +10832,7 @@ const docTemplate = `{
         },
         "go_mau_fi_whatsmeow_proto_waE2E.LinkPreviewMetadata_SocialMediaPostType": {
             "type": "integer",
+            "format": "int32",
             "enum": [
                 0,
                 1,
@@ -10359,6 +10884,7 @@ const docTemplate = `{
         },
         "go_mau_fi_whatsmeow_proto_waE2E.ListMessage_ListType": {
             "type": "integer",
+            "format": "int32",
             "enum": [
                 0,
                 1,
@@ -10473,6 +10999,7 @@ const docTemplate = `{
         },
         "go_mau_fi_whatsmeow_proto_waE2E.ListResponseMessage_ListType": {
             "type": "integer",
+            "format": "int32",
             "enum": [
                 0,
                 1
@@ -10623,6 +11150,7 @@ const docTemplate = `{
         },
         "go_mau_fi_whatsmeow_proto_waE2E.MediaKeyDomain": {
             "type": "integer",
+            "format": "int32",
             "enum": [
                 0,
                 1,
@@ -10989,6 +11517,7 @@ const docTemplate = `{
         },
         "go_mau_fi_whatsmeow_proto_waE2E.MessageAssociation_AssociationType": {
             "type": "integer",
+            "format": "int32",
             "enum": [
                 0,
                 1,
@@ -11103,6 +11632,7 @@ const docTemplate = `{
         },
         "go_mau_fi_whatsmeow_proto_waE2E.MessageContextInfo_MessageAddonExpiryType": {
             "type": "integer",
+            "format": "int32",
             "enum": [
                 1,
                 2
@@ -11305,6 +11835,7 @@ const docTemplate = `{
         },
         "go_mau_fi_whatsmeow_proto_waE2E.OrderMessage_OrderStatus": {
             "type": "integer",
+            "format": "int32",
             "enum": [
                 1,
                 2,
@@ -11318,6 +11849,7 @@ const docTemplate = `{
         },
         "go_mau_fi_whatsmeow_proto_waE2E.OrderMessage_OrderSurface": {
             "type": "integer",
+            "format": "int32",
             "enum": [
                 1
             ],
@@ -11391,6 +11923,7 @@ const docTemplate = `{
         },
         "go_mau_fi_whatsmeow_proto_waE2E.PaymentBackground_Type": {
             "type": "integer",
+            "format": "int32",
             "enum": [
                 0,
                 1
@@ -11433,6 +11966,7 @@ const docTemplate = `{
         },
         "go_mau_fi_whatsmeow_proto_waE2E.PaymentInviteMessage_InviteType": {
             "type": "integer",
+            "format": "int32",
             "enum": [
                 0,
                 1
@@ -11444,6 +11978,7 @@ const docTemplate = `{
         },
         "go_mau_fi_whatsmeow_proto_waE2E.PaymentInviteMessage_ServiceType": {
             "type": "integer",
+            "format": "int32",
             "enum": [
                 0,
                 1,
@@ -11489,6 +12024,7 @@ const docTemplate = `{
         },
         "go_mau_fi_whatsmeow_proto_waE2E.PaymentLinkMetadata_PaymentLinkHeader_PaymentLinkHeaderType": {
             "type": "integer",
+            "format": "int32",
             "enum": [
                 0,
                 1
@@ -11616,6 +12152,7 @@ const docTemplate = `{
         },
         "go_mau_fi_whatsmeow_proto_waE2E.PeerDataOperationRequestMessage_GalaxyFlowAction_GalaxyFlowActionType": {
             "type": "integer",
+            "format": "int32",
             "enum": [
                 1,
                 2
@@ -11868,6 +12405,7 @@ const docTemplate = `{
         },
         "go_mau_fi_whatsmeow_proto_waE2E.PeerDataOperationRequestResponseMessage_PeerDataOperationResult_FullHistorySyncOnDemandResponseCode": {
             "type": "integer",
+            "format": "int32",
             "enum": [
                 0,
                 1,
@@ -11909,6 +12447,7 @@ const docTemplate = `{
         },
         "go_mau_fi_whatsmeow_proto_waE2E.PeerDataOperationRequestResponseMessage_PeerDataOperationResult_HistorySyncChunkRetryResponseCode": {
             "type": "integer",
+            "format": "int32",
             "enum": [
                 1,
                 2,
@@ -12045,6 +12584,7 @@ const docTemplate = `{
         },
         "go_mau_fi_whatsmeow_proto_waE2E.PeerDataOperationRequestType": {
             "type": "integer",
+            "format": "int32",
             "enum": [
                 0,
                 1,
@@ -12094,6 +12634,7 @@ const docTemplate = `{
         },
         "go_mau_fi_whatsmeow_proto_waE2E.PinInChatMessage_Type": {
             "type": "integer",
+            "format": "int32",
             "enum": [
                 0,
                 1,
@@ -12115,6 +12656,7 @@ const docTemplate = `{
         },
         "go_mau_fi_whatsmeow_proto_waE2E.PlaceholderMessage_PlaceholderType": {
             "type": "integer",
+            "format": "int32",
             "enum": [
                 0
             ],
@@ -12152,6 +12694,7 @@ const docTemplate = `{
         },
         "go_mau_fi_whatsmeow_proto_waE2E.PollContentType": {
             "type": "integer",
+            "format": "int32",
             "enum": [
                 0,
                 1,
@@ -12268,6 +12811,7 @@ const docTemplate = `{
         },
         "go_mau_fi_whatsmeow_proto_waE2E.PollType": {
             "type": "integer",
+            "format": "int32",
             "enum": [
                 0,
                 1
@@ -12334,6 +12878,7 @@ const docTemplate = `{
         },
         "go_mau_fi_whatsmeow_proto_waE2E.ProcessedVideo_VideoQuality": {
             "type": "integer",
+            "format": "int32",
             "enum": [
                 0,
                 1,
@@ -12513,6 +13058,7 @@ const docTemplate = `{
         },
         "go_mau_fi_whatsmeow_proto_waE2E.ProtocolMessage_Type": {
             "type": "integer",
+            "format": "int32",
             "enum": [
                 0,
                 3,
@@ -12654,6 +13200,7 @@ const docTemplate = `{
         },
         "go_mau_fi_whatsmeow_proto_waE2E.RequestWelcomeMessageMetadata_LocalChatState": {
             "type": "integer",
+            "format": "int32",
             "enum": [
                 0,
                 1
@@ -12665,6 +13212,7 @@ const docTemplate = `{
         },
         "go_mau_fi_whatsmeow_proto_waE2E.RequestWelcomeMessageMetadata_WelcomeTrigger": {
             "type": "integer",
+            "format": "int32",
             "enum": [
                 0,
                 1
@@ -12690,6 +13238,7 @@ const docTemplate = `{
         },
         "go_mau_fi_whatsmeow_proto_waE2E.ScheduledCallCreationMessage_CallType": {
             "type": "integer",
+            "format": "int32",
             "enum": [
                 0,
                 1,
@@ -12714,6 +13263,7 @@ const docTemplate = `{
         },
         "go_mau_fi_whatsmeow_proto_waE2E.ScheduledCallEditMessage_EditType": {
             "type": "integer",
+            "format": "int32",
             "enum": [
                 0,
                 1
@@ -12751,6 +13301,7 @@ const docTemplate = `{
         },
         "go_mau_fi_whatsmeow_proto_waE2E.SecretEncryptedMessage_SecretEncType": {
             "type": "integer",
+            "format": "int32",
             "enum": [
                 0,
                 1,
@@ -12815,6 +13366,7 @@ const docTemplate = `{
         },
         "go_mau_fi_whatsmeow_proto_waE2E.StatusNotificationMessage_StatusNotificationType": {
             "type": "integer",
+            "format": "int32",
             "enum": [
                 0,
                 1,
@@ -12861,6 +13413,7 @@ const docTemplate = `{
         },
         "go_mau_fi_whatsmeow_proto_waE2E.StatusQuotedMessage_StatusQuotedMessageType": {
             "type": "integer",
+            "format": "int32",
             "enum": [
                 1
             ],
@@ -12884,6 +13437,7 @@ const docTemplate = `{
         },
         "go_mau_fi_whatsmeow_proto_waE2E.StatusStickerInteractionMessage_StatusStickerType": {
             "type": "integer",
+            "format": "int32",
             "enum": [
                 0,
                 1
@@ -13096,6 +13650,7 @@ const docTemplate = `{
         },
         "go_mau_fi_whatsmeow_proto_waE2E.StickerPackMessage_StickerPackOrigin": {
             "type": "integer",
+            "format": "int32",
             "enum": [
                 0,
                 1,
@@ -13200,6 +13755,7 @@ const docTemplate = `{
         },
         "go_mau_fi_whatsmeow_proto_waE2E.ThreadID_ThreadType": {
             "type": "integer",
+            "format": "int32",
             "enum": [
                 0,
                 1,
@@ -13391,6 +13947,7 @@ const docTemplate = `{
         },
         "go_mau_fi_whatsmeow_proto_waE2E.VideoMessage_Attribution": {
             "type": "integer",
+            "format": "int32",
             "enum": [
                 0,
                 1,
@@ -13406,6 +13963,7 @@ const docTemplate = `{
         },
         "go_mau_fi_whatsmeow_proto_waE2E.VideoMessage_VideoSourceType": {
             "type": "integer",
+            "format": "int32",
             "enum": [
                 0,
                 1
@@ -13417,6 +13975,7 @@ const docTemplate = `{
         },
         "go_mau_fi_whatsmeow_proto_waE2E.WebLinkRenderConfig": {
             "type": "integer",
+            "format": "int32",
             "enum": [
                 0,
                 1
@@ -13428,6 +13987,7 @@ const docTemplate = `{
         },
         "go_mau_fi_whatsmeow_proto_waMmsRetry.MediaRetryNotification_ResultType": {
             "type": "integer",
+            "format": "int32",
             "enum": [
                 0,
                 1,
@@ -13457,6 +14017,7 @@ const docTemplate = `{
         },
         "go_mau_fi_whatsmeow_proto_waStatusAttributions.StatusAttribution_Type": {
             "type": "integer",
+            "format": "int32",
             "enum": [
                 0,
                 1,
@@ -13619,6 +14180,14 @@ const docTemplate = `{
             "x-enum-comments": {
                 "EditAttributeAdminEdit": "only used in newsletters"
             },
+            "x-enum-descriptions": [
+                "",
+                "",
+                "",
+                "only used in newsletters",
+                "",
+                ""
+            ],
             "x-enum-varnames": [
                 "EditAttributeEmpty",
                 "EditAttributeMessageEdit",
@@ -13645,7 +14214,8 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "disappearingTimer": {
-                    "type": "integer"
+                    "type": "integer",
+                    "format": "int32"
                 },
                 "groupCreated": {
                     "type": "string"
@@ -13796,13 +14366,16 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "device": {
-                    "type": "integer"
+                    "type": "integer",
+                    "format": "int32"
                 },
                 "integrator": {
-                    "type": "integer"
+                    "type": "integer",
+                    "format": "int32"
                 },
                 "rawAgent": {
-                    "type": "integer"
+                    "type": "integer",
+                    "format": "int32"
                 },
                 "server": {
                     "type": "string"
@@ -14326,8 +14899,18 @@ const docTemplate = `{
                 }
             }
         },
+        "pkg_server_handler.ServerStatus": {
+            "type": "object",
+            "properties": {
+                "status": {
+                    "type": "string",
+                    "example": "ok"
+                }
+            }
+        },
         "time.Duration": {
             "type": "integer",
+            "format": "int64",
             "enum": [
                 -9223372036854775808,
                 9223372036854775807,
@@ -14337,24 +14920,10 @@ const docTemplate = `{
                 1000000000,
                 60000000000,
                 3600000000000,
-                -9223372036854775808,
-                9223372036854775807,
                 1,
                 1000,
                 1000000,
                 1000000000,
-                60000000000,
-                3600000000000,
-                -9223372036854775808,
-                9223372036854775807,
-                1,
-                1000,
-                1000000,
-                1000000000,
-                60000000000,
-                3600000000000,
-                -9223372036854775808,
-                9223372036854775807,
                 1,
                 1000,
                 1000000,
@@ -14371,24 +14940,10 @@ const docTemplate = `{
                 "Second",
                 "Minute",
                 "Hour",
-                "minDuration",
-                "maxDuration",
                 "Nanosecond",
                 "Microsecond",
                 "Millisecond",
                 "Second",
-                "Minute",
-                "Hour",
-                "minDuration",
-                "maxDuration",
-                "Nanosecond",
-                "Microsecond",
-                "Millisecond",
-                "Second",
-                "Minute",
-                "Hour",
-                "minDuration",
-                "maxDuration",
                 "Nanosecond",
                 "Microsecond",
                 "Millisecond",

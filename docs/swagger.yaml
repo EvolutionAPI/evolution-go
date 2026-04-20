@@ -275,6 +275,8 @@ definitions:
         type: string
       port:
         type: string
+      protocol:
+        type: string
       username:
         type: string
     type: object
@@ -302,6 +304,8 @@ definitions:
         type: string
       port:
         type: string
+      protocol:
+        type: string
       username:
         type: string
     required:
@@ -316,13 +320,6 @@ definitions:
         type: boolean
       name:
         type: string
-    type: object
-  github_com_EvolutionAPI_evolution-go_pkg_instance_service.UpdateAdvancedSettingsResponse:
-    properties:
-      message:
-        type: string
-      settings:
-        $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_instance_model.AdvancedSettings'
     type: object
   github_com_EvolutionAPI_evolution-go_pkg_label_model.Label:
     properties:
@@ -364,6 +361,19 @@ definitions:
       labelId:
         type: string
       messageId:
+        type: string
+    type: object
+  github_com_EvolutionAPI_evolution-go_pkg_logger.LogEntry:
+    properties:
+      instance_id:
+        type: string
+      level:
+        type: string
+      message:
+        type: string
+      metadata:
+        type: object
+      timestamp:
         type: string
     type: object
   github_com_EvolutionAPI_evolution-go_pkg_message_model.Message:
@@ -564,6 +574,65 @@ definitions:
       votedAt:
         type: string
     type: object
+  github_com_EvolutionAPI_evolution-go_pkg_sendMessage_service.CarouselButtonStruct:
+    properties:
+      copyCode:
+        type: string
+      displayText:
+        type: string
+      id:
+        type: string
+      type:
+        type: string
+    type: object
+  github_com_EvolutionAPI_evolution-go_pkg_sendMessage_service.CarouselCardBodyStruct:
+    properties:
+      text:
+        type: string
+    type: object
+  github_com_EvolutionAPI_evolution-go_pkg_sendMessage_service.CarouselCardHeaderStruct:
+    properties:
+      imageUrl:
+        type: string
+      subtitle:
+        type: string
+      title:
+        type: string
+      videoUrl:
+        type: string
+    type: object
+  github_com_EvolutionAPI_evolution-go_pkg_sendMessage_service.CarouselCardStruct:
+    properties:
+      body:
+        $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_sendMessage_service.CarouselCardBodyStruct'
+      buttons:
+        items:
+          $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_sendMessage_service.CarouselButtonStruct'
+        type: array
+      footer:
+        type: string
+      header:
+        $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_sendMessage_service.CarouselCardHeaderStruct'
+    type: object
+  github_com_EvolutionAPI_evolution-go_pkg_sendMessage_service.CarouselStruct:
+    properties:
+      body:
+        type: string
+      cards:
+        items:
+          $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_sendMessage_service.CarouselCardStruct'
+        type: array
+      delay:
+        type: integer
+      footer:
+        type: string
+      formatJid:
+        type: boolean
+      number:
+        type: string
+      quoted:
+        $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_sendMessage_service.QuotedStruct'
+    type: object
   github_com_EvolutionAPI_evolution-go_pkg_sendMessage_service.ContactStruct:
     properties:
       delay:
@@ -709,6 +778,13 @@ definitions:
       messageId:
         type: string
       participant:
+        type: string
+    type: object
+  github_com_EvolutionAPI_evolution-go_pkg_sendMessage_service.StatusTextStruct:
+    properties:
+      id:
+        type: string
+      text:
         type: string
     type: object
   github_com_EvolutionAPI_evolution-go_pkg_sendMessage_service.StickerStruct:
@@ -988,6 +1064,7 @@ definitions:
     - 1
     - 2
     - 3
+    format: int32
     type: integer
     x-enum-varnames:
     - AIThreadInfo_AIThreadClientInfo_UNKNOWN
@@ -1012,6 +1089,7 @@ definitions:
     enum:
     - 0
     - 1
+    format: int32
     type: integer
     x-enum-varnames:
     - BotAgeCollectionMetadata_O18_BINARY
@@ -1097,6 +1175,7 @@ definitions:
     - 59
     - 60
     - 61
+    format: int32
     type: integer
     x-enum-varnames:
     - BotCapabilityMetadata_UNKNOWN
@@ -1170,6 +1249,7 @@ definitions:
     enum:
     - 0
     - 1
+    format: int32
     type: integer
     x-enum-varnames:
     - BotDocumentMessageMetadata_TEXT_EXTRACTION
@@ -1208,6 +1288,7 @@ definitions:
     - 12
     - 13
     - 14
+    format: int32
     type: integer
     x-enum-varnames:
     - BotFeedbackMessage_BOT_FEEDBACK_POSITIVE
@@ -1229,6 +1310,7 @@ definitions:
     enum:
     - 0
     - 1
+    format: int32
     type: integer
     x-enum-varnames:
     - BotFeedbackMessage_NONE
@@ -1336,6 +1418,7 @@ definitions:
     - 2
     - 3
     - 4
+    format: int32
     type: integer
     x-enum-varnames:
     - BotImagineMetadata_UNKNOWN
@@ -1358,6 +1441,7 @@ definitions:
     enum:
     - 0
     - 1
+    format: int32
     type: integer
     x-enum-varnames:
     - BotInfrastructureDiagnostics_AAPI
@@ -1370,6 +1454,7 @@ definitions:
   go_mau_fi_whatsmeow_proto_waAICommon.BotLinkedAccount_BotLinkedAccountType:
     enum:
     - 0
+    format: int32
     type: integer
     x-enum-varnames:
     - BotLinkedAccount_BOT_LINKED_ACCOUNT_TYPE_1P
@@ -1408,6 +1493,7 @@ definitions:
     - 1
     - 2
     - 3
+    format: int32
     type: integer
     x-enum-varnames:
     - BotMediaMetadata_CENTER
@@ -1448,6 +1534,7 @@ definitions:
   go_mau_fi_whatsmeow_proto_waAICommon.BotMessageOrigin_BotMessageOriginType:
     enum:
     - 0
+    format: int32
     type: integer
     x-enum-varnames:
     - BotMessageOrigin_BOT_MESSAGE_ORIGIN_TYPE_AI_INITIATED
@@ -1597,6 +1684,7 @@ definitions:
     - 47
     - 54
     - 55
+    format: int32
     type: integer
     x-enum-varnames:
     - BotMetricsEntryPoint_UNDEFINED_ENTRY_POINT
@@ -1662,6 +1750,7 @@ definitions:
     - 3
     - 4
     - 5
+    format: int32
     type: integer
     x-enum-varnames:
     - BotMetricsThreadEntryPoint_AI_TAB_THREAD
@@ -1684,6 +1773,7 @@ definitions:
     enum:
     - 0
     - 1
+    format: int32
     type: integer
     x-enum-varnames:
     - BotModeSelectionMetadata_DEFAULT_MODE
@@ -1702,6 +1792,7 @@ definitions:
     - 0
     - 1
     - 2
+    format: int32
     type: integer
     x-enum-varnames:
     - BotModelMetadata_UNKNOWN_TYPE
@@ -1712,6 +1803,7 @@ definitions:
     - 0
     - 1
     - 2
+    format: int32
     type: integer
     x-enum-varnames:
     - BotModelMetadata_UNKNOWN_STATUS
@@ -1749,6 +1841,7 @@ definitions:
     - 0
     - 1
     - 2
+    format: int32
     type: integer
     x-enum-varnames:
     - BotPluginMetadata_UNKNOWN_PLUGIN
@@ -1760,6 +1853,7 @@ definitions:
     - 1
     - 2
     - 3
+    format: int32
     type: integer
     x-enum-varnames:
     - BotPluginMetadata_UNKNOWN
@@ -1824,6 +1918,7 @@ definitions:
     - 1
     - 2
     - 3
+    format: int32
     type: integer
     x-enum-varnames:
     - BotProgressIndicatorMetadata_BotPlanningStepMetadata_BotPlanningSearchSourcesMetadata_UNKNOWN
@@ -1847,6 +1942,7 @@ definitions:
     - 1
     - 2
     - 3
+    format: int32
     type: integer
     x-enum-varnames:
     - BotProgressIndicatorMetadata_BotPlanningStepMetadata_UNKNOWN_PROVIDER
@@ -1859,6 +1955,7 @@ definitions:
     - 1
     - 2
     - 3
+    format: int32
     type: integer
     x-enum-varnames:
     - BotProgressIndicatorMetadata_BotPlanningStepMetadata_UNKNOWN
@@ -1877,6 +1974,7 @@ definitions:
     - 0
     - 1
     - 2
+    format: int32
     type: integer
     x-enum-varnames:
     - BotPromotionMessageMetadata_UNKNOWN_TYPE
@@ -1916,6 +2014,7 @@ definitions:
     enum:
     - 0
     - 1
+    format: int32
     type: integer
     x-enum-varnames:
     - BotQuotaMetadata_BotFeatureQuotaMetadata_UNKNOWN_FEATURE
@@ -1939,6 +2038,7 @@ definitions:
     - 2
     - 3
     - 4
+    format: int32
     type: integer
     x-enum-varnames:
     - BotReminderMetadata_NOTIFY
@@ -1952,6 +2052,7 @@ definitions:
     - 3
     - 4
     - 5
+    format: int32
     type: integer
     x-enum-varnames:
     - BotReminderMetadata_ONCE
@@ -1999,6 +2100,7 @@ definitions:
     - 5
     - 6
     - 7
+    format: int32
     type: integer
     x-enum-varnames:
     - BotSessionSource_NONE
@@ -2021,6 +2123,7 @@ definitions:
       certificateChain:
         items:
           items:
+            format: int32
             type: integer
           type: array
         type: array
@@ -2038,6 +2141,7 @@ definitions:
     - 0
     - 1
     - 2
+    format: int32
     type: integer
     x-enum-varnames:
     - BotSignatureVerificationUseCaseProof_UNSPECIFIED
@@ -2074,6 +2178,7 @@ definitions:
     - 2
     - 3
     - 4
+    format: int32
     type: integer
     x-enum-varnames:
     - BotSourcesMetadata_BotSourceItem_UNKNOWN
@@ -2211,6 +2316,7 @@ definitions:
     enum:
     - 0
     - 1
+    format: int32
     type: integer
     x-enum-varnames:
     - SessionTransparencyType_UNKNOWN_TYPE
@@ -2239,6 +2345,7 @@ definitions:
     - 3
     - 4
     - 5
+    format: int32
     type: integer
     x-enum-varnames:
     - AIRichResponseCodeMetadata_AI_RICH_RESPONSE_CODE_HIGHLIGHT_DEFAULT
@@ -2265,6 +2372,7 @@ definitions:
     enum:
     - 0
     - 1
+    format: int32
     type: integer
     x-enum-varnames:
     - AIRichResponseContentItemsMetadata_DEFAULT
@@ -2285,6 +2393,7 @@ definitions:
     - 0
     - 1
     - 2
+    format: int32
     type: integer
     x-enum-varnames:
     - AIRichResponseDynamicMetadata_AI_RICH_RESPONSE_DYNAMIC_METADATA_TYPE_UNKNOWN
@@ -2324,6 +2433,7 @@ definitions:
     - 0
     - 1
     - 2
+    format: int32
     type: integer
     x-enum-varnames:
     - AIRichResponseInlineImageMetadata_AI_RICH_RESPONSE_IMAGE_LAYOUT_LEADING_ALIGNED
@@ -2393,6 +2503,7 @@ definitions:
     enum:
     - 0
     - 1
+    format: int32
     type: integer
     x-enum-varnames:
     - AIRichResponseMessageType_AI_RICH_RESPONSE_TYPE_UNKNOWN
@@ -2432,6 +2543,7 @@ definitions:
     - 7
     - 8
     - 9
+    format: int32
     type: integer
     x-enum-varnames:
     - AIRichResponseSubMessageType_AI_RICH_RESPONSE_UNKNOWN
@@ -2466,6 +2578,7 @@ definitions:
     enum:
     - 0
     - 1
+    format: int32
     type: integer
     x-enum-varnames:
     - ADVEncryptionType_E2EE
@@ -2677,6 +2790,7 @@ definitions:
     - 0
     - 1
     - 2
+    format: int32
     type: integer
     x-enum-varnames:
     - BCallMessage_UNKNOWN
@@ -2727,6 +2841,7 @@ definitions:
     - 0
     - 1
     - 2
+    format: int32
     type: integer
     x-enum-varnames:
     - ButtonsMessage_Button_UNKNOWN
@@ -2741,6 +2856,7 @@ definitions:
     - 4
     - 5
     - 6
+    format: int32
     type: integer
     x-enum-varnames:
     - ButtonsMessage_UNKNOWN
@@ -2765,6 +2881,7 @@ definitions:
     enum:
     - 0
     - 1
+    format: int32
     type: integer
     x-enum-varnames:
     - ButtonsResponseMessage_UNKNOWN
@@ -2825,6 +2942,7 @@ definitions:
     - 5
     - 6
     - 7
+    format: int32
     type: integer
     x-enum-varnames:
     - CallLogMessage_CONNECTED
@@ -2847,6 +2965,7 @@ definitions:
     - 0
     - 1
     - 2
+    format: int32
     type: integer
     x-enum-varnames:
     - CallLogMessage_REGULAR
@@ -2884,6 +3003,7 @@ definitions:
     - 0
     - 1
     - 2
+    format: int32
     type: integer
     x-enum-varnames:
     - CloudAPIThreadControlNotification_UNKNOWN
@@ -2922,6 +3042,7 @@ definitions:
     enum:
     - 0
     - 1
+    format: int32
     type: integer
     x-enum-varnames:
     - ConditionalRevealMessage_UNKNOWN
@@ -3099,6 +3220,7 @@ definitions:
     - 0
     - 1
     - 2
+    format: int32
     type: integer
     x-enum-varnames:
     - ContextInfo_AdReplyInfo_NONE
@@ -3200,6 +3322,7 @@ definitions:
     enum:
     - 0
     - 1
+    format: int32
     type: integer
     x-enum-varnames:
     - ContextInfo_ExternalAdReplyInfo_CTWA
@@ -3209,6 +3332,7 @@ definitions:
     - 0
     - 1
     - 2
+    format: int32
     type: integer
     x-enum-varnames:
     - ContextInfo_ExternalAdReplyInfo_NONE
@@ -3235,6 +3359,7 @@ definitions:
     - 3
     - 4
     - 5
+    format: int32
     type: integer
     x-enum-varnames:
     - ContextInfo_UNKNOWN
@@ -3263,6 +3388,7 @@ definitions:
     - 1
     - 2
     - 3
+    format: int32
     type: integer
     x-enum-varnames:
     - ContextInfo_ForwardedNewsletterMessageInfo_UPDATE
@@ -3279,6 +3405,7 @@ definitions:
     - 6
     - 7
     - 8
+    format: int32
     type: integer
     x-enum-varnames:
     - ContextInfo_NOT_PAIRED_MEDIA
@@ -3308,6 +3435,7 @@ definitions:
     enum:
     - 0
     - 1
+    format: int32
     type: integer
     x-enum-varnames:
     - ContextInfo_EXPLICIT
@@ -3319,6 +3447,7 @@ definitions:
     - 2
     - 3
     - 4
+    format: int32
     type: integer
     x-enum-varnames:
     - ContextInfo_NONE
@@ -3339,6 +3468,7 @@ definitions:
     enum:
     - 0
     - 1
+    format: int32
     type: integer
     x-enum-varnames:
     - ContextInfo_StatusAudienceMetadata_UNKNOWN
@@ -3351,6 +3481,7 @@ definitions:
     - 3
     - 4
     - 5
+    format: int32
     type: integer
     x-enum-varnames:
     - ContextInfo_IMAGE
@@ -3424,6 +3555,7 @@ definitions:
     - 1
     - 2
     - 3
+    format: int32
     type: integer
     x-enum-varnames:
     - DisappearingMode_CHANGED_IN_CHAT
@@ -3438,6 +3570,7 @@ definitions:
     - 3
     - 4
     - 5
+    format: int32
     type: integer
     x-enum-varnames:
     - DisappearingMode_UNKNOWN
@@ -3721,6 +3854,7 @@ definitions:
     - 8
     - 9
     - 10
+    format: int32
     type: integer
     x-enum-varnames:
     - ExtendedTextMessage_SYSTEM
@@ -3737,6 +3871,7 @@ definitions:
     - 1
     - 2
     - 3
+    format: int32
     type: integer
     x-enum-varnames:
     - ExtendedTextMessage_DEFAULT
@@ -3751,6 +3886,7 @@ definitions:
     - 5
     - 6
     - 7
+    format: int32
     type: integer
     x-enum-varnames:
     - ExtendedTextMessage_NONE
@@ -3807,6 +3943,7 @@ definitions:
     enum:
     - 0
     - 1
+    format: int32
     type: integer
     x-enum-varnames:
     - GroupInviteMessage_DEFAULT
@@ -3907,6 +4044,7 @@ definitions:
     - 6
     - 7
     - 8
+    format: int32
     type: integer
     x-enum-varnames:
     - HistorySyncType_INITIAL_BOOTSTRAP
@@ -4020,6 +4158,7 @@ definitions:
     - 1
     - 2
     - 3
+    format: int32
     type: integer
     x-enum-varnames:
     - ImageMessage_USER_IMAGE
@@ -4038,6 +4177,7 @@ definitions:
     - 2
     - 3
     - 4
+    format: int32
     type: integer
     x-enum-varnames:
     - InsightDeliveryState_SENT
@@ -4065,6 +4205,7 @@ definitions:
     - 1
     - 2
     - 3
+    format: int32
     type: integer
     x-enum-varnames:
     - InteractiveAnnotation_RASTERIZED_LINK_PREVIEW
@@ -4143,6 +4284,7 @@ definitions:
     enum:
     - 0
     - 1
+    format: int32
     type: integer
     x-enum-varnames:
     - InteractiveResponseMessage_Body_DEFAULT
@@ -4182,6 +4324,7 @@ definitions:
     enum:
     - 0
     - 1
+    format: int32
     type: integer
     x-enum-varnames:
     - InvoiceMessage_IMAGE
@@ -4200,6 +4343,7 @@ definitions:
     - 0
     - 1
     - 2
+    format: int32
     type: integer
     x-enum-varnames:
     - KeepType_UNKNOWN_KEEP_TYPE
@@ -4241,6 +4385,7 @@ definitions:
     - 3
     - 4
     - 5
+    format: int32
     type: integer
     x-enum-varnames:
     - LinkPreviewMetadata_NONE
@@ -4275,6 +4420,7 @@ definitions:
     - 0
     - 1
     - 2
+    format: int32
     type: integer
     x-enum-varnames:
     - ListMessage_UNKNOWN
@@ -4349,6 +4495,7 @@ definitions:
     enum:
     - 0
     - 1
+    format: int32
     type: integer
     x-enum-varnames:
     - ListResponseMessage_UNKNOWN
@@ -4449,6 +4596,7 @@ definitions:
     - 0
     - 1
     - 2
+    format: int32
     type: integer
     x-enum-varnames:
     - MediaKeyDomain_MEDIA_KEY_DOMAIN_UNKNOWN
@@ -4711,6 +4859,7 @@ definitions:
     - 18
     - 19
     - 20
+    format: int32
     type: integer
     x-enum-varnames:
     - MessageAssociation_UNKNOWN
@@ -4781,6 +4930,7 @@ definitions:
     enum:
     - 1
     - 2
+    format: int32
     type: integer
     x-enum-varnames:
     - MessageContextInfo_STATIC
@@ -4915,6 +5065,7 @@ definitions:
     - 1
     - 2
     - 3
+    format: int32
     type: integer
     x-enum-varnames:
     - OrderMessage_INQUIRY
@@ -4923,6 +5074,7 @@ definitions:
   go_mau_fi_whatsmeow_proto_waE2E.OrderMessage_OrderSurface:
     enum:
     - 1
+    format: int32
     type: integer
     x-enum-varnames:
     - OrderMessage_CATALOG
@@ -4972,6 +5124,7 @@ definitions:
     enum:
     - 0
     - 1
+    format: int32
     type: integer
     x-enum-varnames:
     - PaymentBackground_UNKNOWN
@@ -5000,6 +5153,7 @@ definitions:
     enum:
     - 0
     - 1
+    format: int32
     type: integer
     x-enum-varnames:
     - PaymentInviteMessage_DEFAULT
@@ -5010,6 +5164,7 @@ definitions:
     - 1
     - 2
     - 3
+    format: int32
     type: integer
     x-enum-varnames:
     - PaymentInviteMessage_UNKNOWN
@@ -5039,6 +5194,7 @@ definitions:
     enum:
     - 0
     - 1
+    format: int32
     type: integer
     x-enum-varnames:
     - PaymentLinkMetadata_PaymentLinkHeader_LINK_PREVIEW
@@ -5122,6 +5278,7 @@ definitions:
     enum:
     - 1
     - 2
+    format: int32
     type: integer
     x-enum-varnames:
     - PeerDataOperationRequestMessage_GalaxyFlowAction_NOTIFY_LAUNCH
@@ -5291,6 +5448,7 @@ definitions:
     - 4
     - 5
     - 6
+    format: int32
     type: integer
     x-enum-varnames:
     - PeerDataOperationRequestResponseMessage_PeerDataOperationResult_REQUEST_SUCCESS
@@ -5321,6 +5479,7 @@ definitions:
     - 4
     - 5
     - 6
+    format: int32
     type: integer
     x-enum-varnames:
     - PeerDataOperationRequestResponseMessage_PeerDataOperationResult_GENERATION_ERROR
@@ -5421,6 +5580,7 @@ definitions:
     - 11
     - 12
     - 13
+    format: int32
     type: integer
     x-enum-varnames:
     - PeerDataOperationRequestType_UPLOAD_STICKER
@@ -5451,6 +5611,7 @@ definitions:
     - 0
     - 1
     - 2
+    format: int32
     type: integer
     x-enum-varnames:
     - PinInChatMessage_UNKNOWN_TYPE
@@ -5464,6 +5625,7 @@ definitions:
   go_mau_fi_whatsmeow_proto_waE2E.PlaceholderMessage_PlaceholderType:
     enum:
     - 0
+    format: int32
     type: integer
     x-enum-varnames:
     - PlaceholderMessage_MASK_LINKED_DEVICES
@@ -5490,6 +5652,7 @@ definitions:
     - 0
     - 1
     - 2
+    format: int32
     type: integer
     x-enum-varnames:
     - PollContentType_UNKNOWN_POLL_CONTENT_TYPE
@@ -5566,6 +5729,7 @@ definitions:
     enum:
     - 0
     - 1
+    format: int32
     type: integer
     x-enum-varnames:
     - PollType_POLL
@@ -5612,6 +5776,7 @@ definitions:
     - 1
     - 2
     - 3
+    format: int32
     type: integer
     x-enum-varnames:
     - ProcessedVideo_UNDEFINED
@@ -5757,6 +5922,7 @@ definitions:
     - 31
     - 32
     - 33
+    format: int32
     type: integer
     x-enum-varnames:
     - ProtocolMessage_REVOKE
@@ -5841,6 +6007,7 @@ definitions:
     enum:
     - 0
     - 1
+    format: int32
     type: integer
     x-enum-varnames:
     - RequestWelcomeMessageMetadata_EMPTY
@@ -5849,6 +6016,7 @@ definitions:
     enum:
     - 0
     - 1
+    format: int32
     type: integer
     x-enum-varnames:
     - RequestWelcomeMessageMetadata_CHAT_OPEN
@@ -5867,6 +6035,7 @@ definitions:
     - 0
     - 1
     - 2
+    format: int32
     type: integer
     x-enum-varnames:
     - ScheduledCallCreationMessage_UNKNOWN
@@ -5883,6 +6052,7 @@ definitions:
     enum:
     - 0
     - 1
+    format: int32
     type: integer
     x-enum-varnames:
     - ScheduledCallEditMessage_UNKNOWN
@@ -5912,6 +6082,7 @@ definitions:
     - 3
     - 4
     - 5
+    format: int32
     type: integer
     x-enum-varnames:
     - SecretEncryptedMessage_UNKNOWN
@@ -5955,6 +6126,7 @@ definitions:
     - 1
     - 2
     - 3
+    format: int32
     type: integer
     x-enum-varnames:
     - StatusNotificationMessage_UNKNOWN
@@ -5984,6 +6156,7 @@ definitions:
   go_mau_fi_whatsmeow_proto_waE2E.StatusQuotedMessage_StatusQuotedMessageType:
     enum:
     - 1
+    format: int32
     type: integer
     x-enum-varnames:
     - StatusQuotedMessage_QUESTION_ANSWER
@@ -6000,6 +6173,7 @@ definitions:
     enum:
     - 0
     - 1
+    format: int32
     type: integer
     x-enum-varnames:
     - StatusStickerInteractionMessage_UNKNOWN
@@ -6142,6 +6316,7 @@ definitions:
     - 0
     - 1
     - 2
+    format: int32
     type: integer
     x-enum-varnames:
     - StickerPackMessage_FIRST_PARTY
@@ -6211,6 +6386,7 @@ definitions:
     - 0
     - 1
     - 2
+    format: int32
     type: integer
     x-enum-varnames:
     - ThreadID_UNKNOWN
@@ -6339,6 +6515,7 @@ definitions:
     - 1
     - 2
     - 3
+    format: int32
     type: integer
     x-enum-varnames:
     - VideoMessage_NONE
@@ -6349,6 +6526,7 @@ definitions:
     enum:
     - 0
     - 1
+    format: int32
     type: integer
     x-enum-varnames:
     - VideoMessage_USER_VIDEO
@@ -6357,6 +6535,7 @@ definitions:
     enum:
     - 0
     - 1
+    format: int32
     type: integer
     x-enum-varnames:
     - WebLinkRenderConfig_WEBVIEW
@@ -6367,6 +6546,7 @@ definitions:
     - 1
     - 2
     - 3
+    format: int32
     type: integer
     x-enum-varnames:
     - MediaRetryNotification_GENERAL_ERROR
@@ -6395,6 +6575,7 @@ definitions:
     - 8
     - 9
     - 10
+    format: int32
     type: integer
     x-enum-varnames:
     - StatusAttribution_UNKNOWN
@@ -6502,6 +6683,13 @@ definitions:
     type: string
     x-enum-comments:
       EditAttributeAdminEdit: only used in newsletters
+    x-enum-descriptions:
+    - ""
+    - ""
+    - ""
+    - only used in newsletters
+    - ""
+    - ""
     x-enum-varnames:
     - EditAttributeEmpty
     - EditAttributeMessageEdit
@@ -6521,6 +6709,7 @@ definitions:
         description: request_required
         type: string
       disappearingTimer:
+        format: int32
         type: integer
       groupCreated:
         type: string
@@ -6626,10 +6815,13 @@ definitions:
   go_mau_fi_whatsmeow_types.JID:
     properties:
       device:
+        format: int32
         type: integer
       integrator:
+        format: int32
         type: integer
       rawAgent:
+        format: int32
         type: integer
       server:
         type: string
@@ -6976,6 +7168,12 @@ definitions:
       time.Time:
         type: string
     type: object
+  pkg_server_handler.ServerStatus:
+    properties:
+      status:
+        example: ok
+        type: string
+    type: object
   time.Duration:
     enum:
     - -9223372036854775808
@@ -6986,30 +7184,17 @@ definitions:
     - 1000000000
     - 60000000000
     - 3600000000000
-    - -9223372036854775808
-    - 9223372036854775807
+    - 1
+    - 1000
+    - 1000000
+    - 1000000000
     - 1
     - 1000
     - 1000000
     - 1000000000
     - 60000000000
     - 3600000000000
-    - -9223372036854775808
-    - 9223372036854775807
-    - 1
-    - 1000
-    - 1000000
-    - 1000000000
-    - 60000000000
-    - 3600000000000
-    - -9223372036854775808
-    - 9223372036854775807
-    - 1
-    - 1000
-    - 1000000
-    - 1000000000
-    - 60000000000
-    - 3600000000000
+    format: int64
     type: integer
     x-enum-varnames:
     - minDuration
@@ -7020,24 +7205,10 @@ definitions:
     - Second
     - Minute
     - Hour
-    - minDuration
-    - maxDuration
     - Nanosecond
     - Microsecond
     - Millisecond
     - Second
-    - Minute
-    - Hour
-    - minDuration
-    - maxDuration
-    - Nanosecond
-    - Microsecond
-    - Millisecond
-    - Second
-    - Minute
-    - Hour
-    - minDuration
-    - maxDuration
     - Nanosecond
     - Microsecond
     - Millisecond
@@ -7805,7 +7976,12 @@ paths:
         "200":
           description: Advanced settings retrieved successfully
           schema:
-            $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_instance_model.AdvancedSettings'
+            allOf:
+            - $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Success'
+            - properties:
+                data:
+                  $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_instance_model.AdvancedSettings'
+              type: object
         "400":
           description: Invalid instance ID
           schema:
@@ -7843,7 +8019,12 @@ paths:
         "200":
           description: Advanced settings updated successfully
           schema:
-            $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_instance_service.UpdateAdvancedSettingsResponse'
+            allOf:
+            - $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Success'
+            - properties:
+                data:
+                  $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_instance_model.AdvancedSettings'
+              type: object
         "400":
           description: Invalid request data
           schema:
@@ -8090,6 +8271,57 @@ paths:
           schema:
             $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error'
       summary: Logout from instance
+      tags:
+      - Instance
+  /instance/logs/{instanceId}:
+    get:
+      description: Get log entries for a specific instance, optionally filtered by
+        date range and level
+      parameters:
+      - description: Instance ID
+        in: path
+        name: instanceId
+        required: true
+        type: string
+      - description: Start date (YYYY-MM-DD). Defaults to 7 days ago.
+        in: query
+        name: start_date
+        type: string
+      - description: End date (YYYY-MM-DD). Defaults to today.
+        in: query
+        name: end_date
+        type: string
+      - description: Log level filter (e.g. INFO, WARN, ERROR)
+        in: query
+        name: level
+        type: string
+      - description: Maximum number of entries to return. Defaults to 100.
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Logs retrieved successfully
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Success'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_logger.LogEntry'
+                  type: array
+              type: object
+        "400":
+          description: Invalid query parameters
+          schema:
+            $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error'
+      summary: Get instance logs
       tags:
       - Instance
   /instance/pair:
@@ -8832,19 +9064,28 @@ paths:
       - application/json
       responses:
         "200":
-          description: OK
+          description: Poll results retrieved successfully
           schema:
-            $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_poll_model.PollResults'
+            allOf:
+            - $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Success'
+            - properties:
+                data:
+                  $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_poll_model.PollResults'
+              type: object
         "400":
-          description: Bad Request
+          description: Invalid request
+          schema:
+            $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error'
+        "401":
+          description: Authentication required
           schema:
             $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error'
         "404":
-          description: Not Found
+          description: No votes found
           schema:
             $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error'
         "500":
-          description: Internal Server Error
+          description: Internal server error
           schema:
             $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error'
       summary: Get poll results
@@ -8883,6 +9124,41 @@ paths:
           schema:
             $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error'
       summary: Send a button message
+      tags:
+      - Send Message
+  /send/carousel:
+    post:
+      consumes:
+      - application/json
+      description: Send a carousel message
+      parameters:
+      - description: Message data
+        in: body
+        name: message
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_sendMessage_service.CarouselStruct'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: success
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Success'
+            - properties:
+                data:
+                  $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_sendMessage_service.MessageSendStruct'
+              type: object
+        "400":
+          description: Error on validation
+          schema:
+            $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error'
+      summary: Send a carousel message
       tags:
       - Send Message
   /send/contact:
@@ -9095,6 +9371,93 @@ paths:
       summary: Send a poll message
       tags:
       - Send Message
+  /send/status/media:
+    post:
+      consumes:
+      - application/json
+      - ' multipart/form-data'
+      description: Send an image or video status to status@broadcast. Supports JSON
+        (URL) or multipart/form-data (file upload)
+      parameters:
+      - description: 'Media type: image or video'
+        in: formData
+        name: type
+        required: true
+        type: string
+      - description: Media file (for multipart upload)
+        in: formData
+        name: file
+        type: file
+      - description: Media URL (for JSON upload)
+        in: formData
+        name: url
+        type: string
+      - description: Caption for the media
+        in: formData
+        name: caption
+        type: string
+      - description: Custom message ID
+        in: formData
+        name: id
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: success
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Success'
+            - properties:
+                data:
+                  $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_sendMessage_service.MessageSendStruct'
+              type: object
+        "400":
+          description: Error on validation
+          schema:
+            $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error'
+      summary: Send a WhatsApp media status (image/video)
+      tags:
+      - Send Message
+  /send/status/text:
+    post:
+      consumes:
+      - application/json
+      description: Send a WhatsApp text status to status@broadcast
+      parameters:
+      - description: Status text data
+        in: body
+        name: message
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_sendMessage_service.StatusTextStruct'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: success
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Success'
+            - properties:
+                data:
+                  $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_sendMessage_service.MessageSendStruct'
+              type: object
+        "400":
+          description: Error on validation
+          schema:
+            $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_common_response.Error'
+      summary: Send a WhatsApp text status
+      tags:
+      - Send Message
   /send/sticker:
     post:
       consumes:
@@ -9165,6 +9528,19 @@ paths:
       summary: Send a text message
       tags:
       - Send Message
+  /server/ok:
+    get:
+      description: Returns server status
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Server is healthy
+          schema:
+            $ref: '#/definitions/pkg_server_handler.ServerStatus'
+      summary: Health check
+      tags:
+      - Server
   /unlabel/chat:
     post:
       consumes:

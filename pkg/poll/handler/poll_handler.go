@@ -6,6 +6,7 @@ import (
 
 	_ "github.com/EvolutionAPI/evolution-go/pkg/common/response"
 	logger_wrapper "github.com/EvolutionAPI/evolution-go/pkg/logger"
+	_ "github.com/EvolutionAPI/evolution-go/pkg/poll/model"
 	poll_service "github.com/EvolutionAPI/evolution-go/pkg/poll/service"
 	"github.com/gin-gonic/gin"
 )
@@ -30,10 +31,11 @@ func NewPollHandler(pollService poll_service.PollService, loggerWrapper *logger_
 // @Accept json
 // @Produce json
 // @Param pollMessageId path string true "ID da mensagem da enquete"
-// @Success 200 {object} github_com_EvolutionAPI_evolution-go_pkg_poll_model.PollResults
-// @Failure 400 {object} response.Error
-// @Failure 404 {object} response.Error
-// @Failure 500 {object} response.Error
+// @Success 200 {object} response.Success{data=github_com_EvolutionAPI_evolution-go_pkg_poll_model.PollResults} "Poll results retrieved successfully"
+// @Failure 400 {object} response.Error "Invalid request"
+// @Failure 401 {object} response.Error "Authentication required"
+// @Failure 404 {object} response.Error "No votes found"
+// @Failure 500 {object} response.Error "Internal server error"
 // @Router /polls/{pollMessageId}/results [get]
 func (h *PollHandler) GetPollResults(c *gin.Context) {
 	pollMessageID := c.Param("pollMessageId")
@@ -88,12 +90,11 @@ func (h *PollHandler) GetPollResults(c *gin.Context) {
 	if results.TotalVotes == 0 {
 		h.loggerWrapper.GetLogger("poll-handler").LogInfo("[POLL] No votes found for poll %s", pollMessageID)
 		c.JSON(http.StatusNotFound, gin.H{
-			"error":   "No votes found for this poll",
-			"message": "This poll has no votes yet, or the pollMessageId is incorrect",
+			"error": "No votes found for this poll — it may have no votes yet, or the pollMessageId is incorrect",
 		})
 		return
 	}
 
 	h.loggerWrapper.GetLogger("poll-handler").LogInfo("[POLL] Returning %d votes for poll %s", results.TotalVotes, pollMessageID)
-	c.JSON(http.StatusOK, results)
+	c.JSON(http.StatusOK, gin.H{"message": "success", "data": results})
 }

@@ -617,9 +617,9 @@ func (s *sendHandler) SendList(ctx *gin.Context) {
 // @Accept json
 // @Produce json
 // @Param message body send_service.CarouselStruct true "Message data"
-// @Success 200 {object} gin.H "success"
-// @Failure 400 {object} gin.H "Error on validation"
-// @Failure 500 {object} gin.H "Internal server error"
+// @Success 200 {object} response.Success{data=send_service.MessageSendStruct} "success"
+// @Failure 400 {object} response.Error "Error on validation"
+// @Failure 500 {object} response.Error "Internal server error"
 // @Router /send/carousel [post]
 func (s *sendHandler) SendCarousel(ctx *gin.Context) {
 	getInstance := ctx.MustGet("instance")
@@ -663,9 +663,9 @@ func (s *sendHandler) SendCarousel(ctx *gin.Context) {
 // @Accept json
 // @Produce json
 // @Param message body send_service.StatusTextStruct true "Status text data"
-// @Success 200 {object} gin.H "success"
-// @Failure 400 {object} gin.H "Error on validation"
-// @Failure 500 {object} gin.H "Internal server error"
+// @Success 200 {object} response.Success{data=send_service.MessageSendStruct} "success"
+// @Failure 400 {object} response.Error "Error on validation"
+// @Failure 500 {object} response.Error "Internal server error"
 // @Router /send/status/text [post]
 func (s *sendHandler) SendStatusText(ctx *gin.Context) {
 	getInstance := ctx.MustGet("instance")
@@ -708,9 +708,9 @@ func (s *sendHandler) SendStatusText(ctx *gin.Context) {
 // @Param url formData string false "Media URL (for JSON upload)"
 // @Param caption formData string false "Caption for the media"
 // @Param id formData string false "Custom message ID"
-// @Success 200 {object} gin.H "success"
-// @Failure 400 {object} gin.H "Error on validation"
-// @Failure 500 {object} gin.H "Internal server error"
+// @Success 200 {object} response.Success{data=send_service.MessageSendStruct} "success"
+// @Failure 400 {object} response.Error "Error on validation"
+// @Failure 500 {object} response.Error "Internal server error"
 // @Router /send/status/media [post]
 func (s *sendHandler) SendStatusMedia(ctx *gin.Context) {
 	getInstance := ctx.MustGet("instance")
