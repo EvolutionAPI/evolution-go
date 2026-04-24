@@ -121,7 +121,9 @@ func (r *Routes) AssignRoutes(eng *gin.Engine) {
 			routes.POST("/contact", r.jidValidationMiddleware.ValidateContactFields(), r.sendHandler.SendContact) // TODO: send multiple contacts
 			routes.POST("/button", r.jidValidationMiddleware.ValidateNumberFieldWithFormatJid(), r.sendHandler.SendButton)
 			routes.POST("/list", r.jidValidationMiddleware.ValidateNumberFieldWithFormatJid(), r.sendHandler.SendList)
-			// TODO: send status
+			routes.POST("/carousel", r.jidValidationMiddleware.ValidateNumberFieldWithFormatJid(), r.sendHandler.SendCarousel)
+			routes.POST("/status/text", r.sendHandler.SendStatusText)
+			routes.POST("/status/media", r.sendHandler.SendStatusMedia)
 		}
 	}
 	routes = eng.Group("/user")

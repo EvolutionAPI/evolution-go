@@ -147,7 +147,7 @@ LOGTYPE=console
 
 # Configurações de desenvolvimento
 CONNECT_ON_STARTUP=false
-WEBHOOKFILES=true
+WEBHOOK_FILES=true
 OS_NAME=Linux
 ```
 

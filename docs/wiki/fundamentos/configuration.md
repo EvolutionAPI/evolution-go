@@ -211,7 +211,7 @@ CONNECT_ON_STARTUP=false
 
 **Recomendação**: `false` para maior controle sobre o ciclo de vida das instâncias.
 
-### WEBHOOKFILES
+### WEBHOOK_FILES
 
 Envia URLs de mídia nos payloads de webhook.
 
@@ -219,7 +219,7 @@ Envia URLs de mídia nos payloads de webhook.
 - **Padrão**: `true`
 
 ```env
-WEBHOOKFILES=true
+WEBHOOK_FILES=true
 ```
 
 ### QRCODE_MAX_COUNT
@@ -540,7 +540,7 @@ LOGTYPE=console
 
 # Comportamento
 CONNECT_ON_STARTUP=false
-WEBHOOKFILES=true
+WEBHOOK_FILES=true
 CHECK_USER_EXISTS=true
 EVENT_IGNORE_STATUS=true
 ```

@@ -398,8 +398,6 @@ func (m *messageService) EditMessage(data *EditMessageStruct, instance *instance
 		return "", "", err
 	}
 
-	var ts time.Time
-
 	recipient, ok := utils.ParseJID(data.Chat)
 	if !ok {
 		m.loggerWrapper.GetLogger(instance.Id).LogError("[%s] Error validating message fields", instance.Id)
@@ -413,16 +411,16 @@ func (m *messageService) EditMessage(data *EditMessageStruct, instance *instance
 			recipient,
 			data.MessageID,
 			&waE2E.Message{
-				Conversation: proto.String(data.Message),
+				ExtendedTextMessage: &waE2E.ExtendedTextMessage{
+					Text: &data.Message,
+				},
 			}))
 	if err != nil {
 		m.loggerWrapper.GetLogger(instance.Id).LogError("[%s] error revoking message: %v", instance.Id, err)
 		return "", "", err
 	}
 
-	response := resp.ID
-
-	return response, ts.String(), nil
+	return resp.ID, resp.Timestamp.String(), nil
 }
 
 func NewMessageService(
