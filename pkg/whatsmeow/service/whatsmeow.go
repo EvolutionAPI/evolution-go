@@ -122,6 +122,18 @@ type MyClient struct {
 	qrcodeCount        int
 }
 
+func (mycli *MyClient) persistMessageAsync(message message_model.Message) {
+	if mycli == nil || mycli.messageRepository == nil {
+		return
+	}
+
+	go func() {
+		if err := mycli.messageRepository.InsertMessage(message); err != nil {
+			mycli.loggerWrapper.GetLogger(mycli.userID).LogError("[%s] Failed to persist message %s: %v", mycli.userID, message.MessageID, err)
+		}
+	}()
+}
+
 type ClientData struct {
 	Instance      *instance_model.Instance
 	Subscriptions []string
@@ -1529,7 +1541,7 @@ func (mycli *MyClient) myEventHandler(rawEvt interface{}) {
 				Referral:  referral,
 			}
 
-			go mycli.messageRepository.InsertMessage(message)
+			mycli.persistMessageAsync(message)
 		}
 
 		// ===== BUTTON CLICK EVENT DETECTION =====
@@ -1661,7 +1673,7 @@ func (mycli *MyClient) myEventHandler(rawEvt interface{}) {
 					message.Source = evt.Chat.ToNonAD().User
 
 					if mycli.config.DatabaseSaveMessages {
-						go mycli.messageRepository.InsertMessage(message)
+						mycli.persistMessageAsync(message)
 					}
 				}
 			} else {
@@ -1686,7 +1698,7 @@ func (mycli *MyClient) myEventHandler(rawEvt interface{}) {
 			mycli.processedMessages.Set(messageKey, true, 30*time.Minute)
 
 			if mycli.config.DatabaseSaveMessages {
-				go mycli.messageRepository.InsertMessage(message)
+				mycli.persistMessageAsync(message)
 			}
 
 			mycli.loggerWrapper.GetLogger(mycli.userID).LogInfo("[%s] Message delivered to %s", mycli.userID, evt.SourceString())
