@@ -148,10 +148,20 @@ Content-Type: application/json
     "message": {
       "conversation": "Olá!"
     },
+    "referral": {
+      "ctwaClid": "FAKE_CLID_abc123xyz",
+      "sourceURL": "https://fb.me/fake-ad-link",
+      "sourceID": "123456789012345",
+      "sourceType": "ad",
+      "showAdAttribution": true,
+      "automatedGreetingMessageShown": true
+    },
     "messageTimestamp": "1699999999"
   }
 }
 ```
+
+> **Nota**: quando a conversa vier de um anúncio Click-to-WhatsApp, o payload também inclui `data.referral` com os metadados brutos de `contextInfo.externalAdReply`, e o mesmo JSON é persistido no registro da mensagem.
 
 ### Implementação no Servidor Receptor
 

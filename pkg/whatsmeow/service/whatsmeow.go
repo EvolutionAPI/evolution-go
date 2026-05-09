@@ -1161,6 +1161,8 @@ func (mycli *MyClient) myEventHandler(rawEvt interface{}) {
 			dataMap = make(map[string]interface{})
 		}
 
+		referral := extractReferralFromMessage(evt.Message)
+
 		if evt.Message.GetPollUpdateMessage() != nil {
 			fmt.Printf("[POLL DEBUG] 🎯 PollUpdateMessage detected!\n")
 			fmt.Printf("[POLL DEBUG] � BEFORE accessing evt.Info - Sender: %s, Server: %s\n", evt.Info.Sender.String(), evt.Info.Sender.Server)
@@ -1254,6 +1256,10 @@ func (mycli *MyClient) myEventHandler(rawEvt interface{}) {
 
 			dataMap["quoted"] = quotedMap
 			dataMap["isQuoted"] = true
+		}
+
+		if len(referral) > 0 {
+			dataMap["referral"] = referral
 		}
 
 		if mycli.config.WebhookFiles {
@@ -1514,6 +1520,18 @@ func (mycli *MyClient) myEventHandler(rawEvt interface{}) {
 
 		postMap["data"] = dataMap
 
+		if mycli.config.DatabaseSaveMessages {
+			message := message_model.Message{
+				MessageID: evt.Info.ID,
+				Timestamp: evt.Info.Timestamp.Format("2006-01-02 15:04:05"),
+				Status:    "Received",
+				Source:    evt.Info.Chat.ToNonAD().User,
+				Referral:  referral,
+			}
+
+			go mycli.messageRepository.InsertMessage(message)
+		}
+
 		// ===== BUTTON CLICK EVENT DETECTION =====
 		// Detecta cliques em botões e emite evento separado "ButtonClick"
 		// Suporta 3 formatos: ButtonsResponseMessage, InteractiveResponseMessage (NativeFlow), TemplateButtonReplyMessage
@@ -1577,17 +1595,17 @@ func (mycli *MyClient) myEventHandler(rawEvt interface{}) {
 			buttonClickMap := map[string]interface{}{
 				"event": "ButtonClick",
 				"data": map[string]interface{}{
-					"buttonId":     buttonClickData["buttonId"],
-					"buttonText":   buttonClickData["buttonText"],
-					"type":         buttonClickData["type"],
-					"phone":        dataMap["Sender"],
-					"jid":          dataMap["Sender"],
-					"pushName":     dataMap["PushName"],
-					"messageId":    dataMap["ID"],
-					"chat":         dataMap["Chat"],
-					"fromMe":       dataMap["FromMe"],
-					"timestamp":    evt.Info.Timestamp.Unix(),
-					"extraData":    buttonClickData,
+					"buttonId":   buttonClickData["buttonId"],
+					"buttonText": buttonClickData["buttonText"],
+					"type":       buttonClickData["type"],
+					"phone":      dataMap["Sender"],
+					"jid":        dataMap["Sender"],
+					"pushName":   dataMap["PushName"],
+					"messageId":  dataMap["ID"],
+					"chat":       dataMap["Chat"],
+					"fromMe":     dataMap["FromMe"],
+					"timestamp":  evt.Info.Timestamp.Unix(),
+					"extraData":  buttonClickData,
 				},
 				"instanceToken": mycli.token,
 				"instanceId":    mycli.userID,
