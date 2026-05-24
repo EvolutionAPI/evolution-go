@@ -1,6 +1,7 @@
 package instance_repository
 
 import (
+	"errors"
 	"fmt"
 
 	instance_model "github.com/EvolutionAPI/evolution-go/pkg/instance/model"
@@ -14,6 +15,9 @@ import (
 	message_model "github.com/EvolutionAPI/evolution-go/pkg/message/model"
 	message_repository "github.com/EvolutionAPI/evolution-go/pkg/message/repository"
 )
+
+// ErrInstanceNotFound is returned by GetInstanceByID when no record matches the given ID.
+var ErrInstanceNotFound = errors.New("instance not found")
 
 type InstanceRepository interface {
 	Create(instance instance_model.Instance) (*instance_model.Instance, error)
@@ -76,6 +80,9 @@ func (i *instanceRepository) GetInstanceByID(instanceId string) (*instance_model
 	var instance instance_model.Instance
 	err := i.db.Where("id = ?", instanceId).First(&instance).Error
 	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, ErrInstanceNotFound
+		}
 		return nil, err
 	}
 
