@@ -150,7 +150,8 @@ func (m *messageService) React(data *ReactStruct, instance *instance_model.Insta
 		reaction = ""
 	}
 
-	// Create MessageKey
+	// Create MessageKey — msgId here is the ID of the message being reacted to,
+	// NOT the ID of the reaction message itself.
 	messageKey := &waCommon.MessageKey{
 		RemoteJID: proto.String(recipient.String()),
 		FromMe:    proto.Bool(fromMe),
@@ -167,16 +168,16 @@ func (m *messageService) React(data *ReactStruct, instance *instance_model.Insta
 
 	msg := &waE2E.Message{
 		ReactionMessage: &waE2E.ReactionMessage{
-			Key:  messageKey,
-			Text: proto.String(reaction),
-			// GroupingKey:       proto.String(reaction),
+			Key:               messageKey,
+			Text:              proto.String(reaction),
 			SenderTimestampMS: proto.Int64(time.Now().UnixMilli()),
 		},
 	}
 
-	response, err := client.SendMessage(context.Background(), recipient, msg, whatsmeow.SendRequestExtra{
-		ID: msgId,
-	})
+	// Do NOT pass ID: msgId in SendRequestExtra — that would reuse the original
+	// message ID as the reaction envelope ID, causing WhatsApp to silently
+	// deduplicate and drop the reaction. Let whatsmeow generate a fresh ID.
+	response, err := client.SendMessage(context.Background(), recipient, msg)
 	if err != nil {
 		return nil, err
 	}
@@ -191,7 +192,7 @@ func (m *messageService) React(data *ReactStruct, instance *instance_model.Insta
 			IsFromMe: true,
 			IsGroup:  isGroup,
 		},
-		ID:        msgId,
+		ID:        response.ID,
 		Timestamp: time.Now(),
 		ServerID:  response.ServerID,
 		Type:      messageType,
@@ -225,12 +226,19 @@ func (m *messageService) ChatPresence(data *ChatPresenceStruct, instance *instan
 		media = "audio"
 	}
 
+	// Subscribe to the recipient's presence first.
+	// WhatsApp requires an active presence subscription before chat-state events
+	// (typing / recording indicators) are forwarded to the recipient by the servers.
+	if subErr := client.SubscribePresence(context.Background(), recipient); subErr != nil {
+		m.loggerWrapper.GetLogger(instance.Id).LogWarn("[%s] SubscribePresence for %s failed (non-fatal): %v", instance.Id, data.Number, subErr)
+	}
+
 	err = client.SendChatPresence(context.Background(), recipient, types.ChatPresence(data.State), types.ChatPresenceMedia(media))
 	if err != nil {
 		return "", err
 	}
 
-	m.loggerWrapper.GetLogger(instance.Id).LogInfo("Message sent to %s", data.Number)
+	m.loggerWrapper.GetLogger(instance.Id).LogInfo("Presence sent to %s", data.Number)
 
 	return ts.String(), nil
 }
