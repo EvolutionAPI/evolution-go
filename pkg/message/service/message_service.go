@@ -150,8 +150,8 @@ func (m *messageService) React(data *ReactStruct, instance *instance_model.Insta
 		reaction = ""
 	}
 
-	// Create MessageKey — msgId here is the ID of the message being reacted to,
-	// NOT the ID of the reaction message itself.
+	// Create MessageKey — msgId is the ID of the message being reacted to,
+	// NOT the ID of the reaction envelope itself.
 	messageKey := &waCommon.MessageKey{
 		RemoteJID: proto.String(recipient.String()),
 		FromMe:    proto.Bool(fromMe),
@@ -174,9 +174,10 @@ func (m *messageService) React(data *ReactStruct, instance *instance_model.Insta
 		},
 	}
 
-	// Do NOT pass ID: msgId in SendRequestExtra — that would reuse the original
-	// message ID as the reaction envelope ID, causing WhatsApp to silently
-	// deduplicate and drop the reaction. Let whatsmeow generate a fresh ID.
+	// Do NOT pass ID: msgId in SendRequestExtra. Doing so would reuse the
+	// original message ID as the reaction envelope ID; WhatsApp silently
+	// deduplicates it and drops the reaction. Let whatsmeow generate a
+	// fresh, unique ID for the envelope.
 	response, err := client.SendMessage(context.Background(), recipient, msg)
 	if err != nil {
 		return nil, err
@@ -226,19 +227,12 @@ func (m *messageService) ChatPresence(data *ChatPresenceStruct, instance *instan
 		media = "audio"
 	}
 
-	// Subscribe to the recipient's presence first.
-	// WhatsApp requires an active presence subscription before chat-state events
-	// (typing / recording indicators) are forwarded to the recipient by the servers.
-	if subErr := client.SubscribePresence(context.Background(), recipient); subErr != nil {
-		m.loggerWrapper.GetLogger(instance.Id).LogWarn("[%s] SubscribePresence for %s failed (non-fatal): %v", instance.Id, data.Number, subErr)
-	}
-
 	err = client.SendChatPresence(context.Background(), recipient, types.ChatPresence(data.State), types.ChatPresenceMedia(media))
 	if err != nil {
 		return "", err
 	}
 
-	m.loggerWrapper.GetLogger(instance.Id).LogInfo("Presence sent to %s", data.Number)
+	m.loggerWrapper.GetLogger(instance.Id).LogInfo("Message sent to %s", data.Number)
 
 	return ts.String(), nil
 }
