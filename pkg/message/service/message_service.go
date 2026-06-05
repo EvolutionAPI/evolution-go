@@ -141,6 +141,13 @@ func (m *messageService) React(data *ReactStruct, instance *instance_model.Insta
 		return nil, errors.New("invalid phone number")
 	}
 
+	// Strip the "+" that ParseJID/CreateJID adds. The recipient is used both as
+	// the SendMessage target (usync/device resolution) AND as the MessageKey
+	// RemoteJID that references the reacted message's chat. A malformed "+JID"
+	// breaks device resolution (usync) and prevents the reaction from matching
+	// the original message's chat. See utils.CanonicalJID.
+	recipient = utils.CanonicalJID(recipient)
+
 	if data.Id == "" {
 		m.loggerWrapper.GetLogger(instance.Id).LogError("[%s] Missing Id in Payload", instance.Id)
 		return nil, errors.New("missing id in payload")
@@ -166,7 +173,7 @@ func (m *messageService) React(data *ReactStruct, instance *instance_model.Insta
 	if data.Participant != "" {
 		participantJID, ok := utils.ParseJID(data.Participant)
 		if ok {
-			messageKey.Participant = proto.String(participantJID.String())
+			messageKey.Participant = proto.String(utils.CanonicalJID(participantJID).String())
 		}
 	}
 
