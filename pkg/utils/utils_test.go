@@ -1,6 +1,7 @@
 package utils
 
 import (
+	"strings"
 	"testing"
 )
 
@@ -321,6 +322,64 @@ func TestParseJID(t *testing.T) {
 
 			if tt.expectOk && jid.String() != tt.expectJID {
 				t.Errorf("For input %q, expected JID %q, but got %q", tt.input, tt.expectJID, jid.String())
+			}
+		})
+	}
+}
+
+// TestCanonicalJID locks in the fix for the silent typing-indicator / receipt
+// drop: ParseJID (via CreateJID) prefixes phone numbers with "+", which is
+// tolerated by message sending (usync normalizes it) but breaks RAW nodes
+// (chatstate, read receipts). CanonicalJID must strip that "+" while leaving
+// already-canonical JIDs (LID, group, digits-only) untouched.
+func TestCanonicalJID(t *testing.T) {
+	tests := []struct {
+		name        string
+		input       string
+		expectedJID string // canonical JID expected after ParseJID -> CanonicalJID
+	}{
+		{
+			name:        "BR phone strips the leading +",
+			input:       "554187083284",
+			expectedJID: "554187083284@s.whatsapp.net",
+		},
+		{
+			name:        "US phone strips the leading +",
+			input:       "15551234567",
+			expectedJID: "15551234567@s.whatsapp.net",
+		},
+		{
+			name:        "Already-canonical JID is unchanged",
+			input:       "554187083284@s.whatsapp.net",
+			expectedJID: "554187083284@s.whatsapp.net",
+		},
+		{
+			name:        "LID JID is left untouched",
+			input:       "15883309207561@lid",
+			expectedJID: "15883309207561@lid",
+		},
+		{
+			name:        "Group JID is left untouched",
+			input:       "120363123456789012@g.us",
+			expectedJID: "120363123456789012@g.us",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			jid, ok := ParseJID(tt.input)
+			if !ok {
+				t.Fatalf("ParseJID(%q) failed", tt.input)
+			}
+
+			canonical := CanonicalJID(jid)
+
+			if got := canonical.String(); got != tt.expectedJID {
+				t.Errorf("CanonicalJID for input %q = %q, want %q", tt.input, got, tt.expectedJID)
+			}
+
+			if strings.HasPrefix(canonical.User, "+") {
+				t.Errorf("CanonicalJID for input %q still has '+' in User: %q", tt.input, canonical.User)
 			}
 		})
 	}

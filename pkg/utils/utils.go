@@ -215,6 +215,21 @@ func ParseJID(arg string) (whatsmeow_types.JID, bool) {
 	return recipient, true
 }
 
+// CanonicalJID returns a JID safe for RAW protocol nodes (chatstate / typing,
+// read receipts, presence subscribe, etc.).
+//
+// CreateJID intentionally prefixes phone numbers with "+" (e.g.
+// "+554187083284@s.whatsapp.net") to match the IsOnWhatsApp/display convention.
+// Message sending tolerates this because whatsmeow normalizes the JID during
+// usync/device resolution. RAW nodes are sent WITHOUT usync, so a malformed
+// "+JID" reaches the server and the node is silently dropped (e.g. the "typing"
+// indicator never reaches the recipient). WhatsApp user JIDs are digits-only, so
+// strip the leading "+" to get the canonical form.
+func CanonicalJID(jid whatsmeow_types.JID) whatsmeow_types.JID {
+	jid.User = strings.TrimPrefix(jid.User, "+")
+	return jid
+}
+
 func CreateHTTPProxy(httpHost, httpPort, user, password string) (func(*http.Request) (*url.URL, error), error) {
 	address := fmt.Sprintf("http://%s:%s@%s:%s", user, password, httpHost, httpPort)
 

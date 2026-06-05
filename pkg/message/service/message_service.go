@@ -52,6 +52,10 @@ type ChatPresenceStruct struct {
 	Number  string `json:"number"`
 	State   string `json:"state"`
 	IsAudio bool   `json:"isAudio"`
+	// Delay, in milliseconds, keeps the "composing"/"recording" indicator alive
+	// for the given duration (re-sending it periodically) and then sends "paused".
+	// Only applies when State is "composing". 0 = single fire (legacy behaviour).
+	Delay int `json:"delay"`
 }
 
 type MarkReadStruct struct {
@@ -221,18 +225,70 @@ func (m *messageService) ChatPresence(data *ChatPresenceStruct, instance *instan
 		return "", errors.New("invalid phone number")
 	}
 
+	// chatstate (typing) is a RAW node sent without usync normalization, so it
+	// needs a canonical digits-only JID or WhatsApp silently drops it. See
+	// utils.CanonicalJID for the full rationale.
+	recipient = utils.CanonicalJID(recipient)
+
 	media := ""
 
 	if data.IsAudio {
 		media = "audio"
 	}
 
-	err = client.SendChatPresence(context.Background(), recipient, types.ChatPresence(data.State), types.ChatPresenceMedia(media))
+	// WhatsApp only forwards chatstate (typing / recording) events to the
+	// recipient while the sender is marked online. SendChatPresence merely
+	// sends the chatstate node — it does NOT mark us available. Background
+	// presence handling (events.AppStateSyncComplete) may have set us to
+	// Unavailable, in which case the server silently drops the typing
+	// indicator. Mark ourselves available first to guarantee delivery.
+	if presErr := client.SendPresence(context.Background(), types.PresenceAvailable); presErr != nil {
+		m.loggerWrapper.GetLogger(instance.Id).LogWarn("[%s] SendPresence(available) before chatstate failed (non-fatal): %v", instance.Id, presErr)
+	}
+
+	state := types.ChatPresence(data.State)
+	mediaType := types.ChatPresenceMedia(media)
+
+	err = client.SendChatPresence(context.Background(), recipient, state, mediaType)
 	if err != nil {
 		return "", err
 	}
 
-	m.loggerWrapper.GetLogger(instance.Id).LogInfo("Message sent to %s", data.Number)
+	// A single "composing" indicator is ephemeral: WhatsApp expires it after a
+	// few seconds unless refreshed. When a Delay is provided (and we're typing),
+	// keep the indicator alive for the requested duration by re-sending it, then
+	// send "paused" so the indicator clears cleanly instead of timing out.
+	if data.Delay > 0 && state == types.ChatPresenceComposing {
+		const keepAliveInterval = 5 * time.Second
+		const maxDelay = 60 * time.Second
+
+		remaining := time.Duration(data.Delay) * time.Millisecond
+		if remaining > maxDelay {
+			remaining = maxDelay
+		}
+
+		for remaining > 0 {
+			sleep := keepAliveInterval
+			if remaining < sleep {
+				sleep = remaining
+			}
+			time.Sleep(sleep)
+			remaining -= sleep
+
+			if remaining > 0 {
+				// Refresh the indicator so it doesn't expire mid-delay.
+				if refreshErr := client.SendChatPresence(context.Background(), recipient, state, mediaType); refreshErr != nil {
+					m.loggerWrapper.GetLogger(instance.Id).LogWarn("[%s] Refresh chatstate failed (non-fatal): %v", instance.Id, refreshErr)
+				}
+			}
+		}
+
+		if pausedErr := client.SendChatPresence(context.Background(), recipient, types.ChatPresencePaused, mediaType); pausedErr != nil {
+			m.loggerWrapper.GetLogger(instance.Id).LogWarn("[%s] SendChatPresence(paused) failed (non-fatal): %v", instance.Id, pausedErr)
+		}
+	}
+
+	m.loggerWrapper.GetLogger(instance.Id).LogInfo("Presence (%s) sent to %s", data.State, data.Number)
 
 	return ts.String(), nil
 }
@@ -250,6 +306,10 @@ func (m *messageService) MarkRead(data *MarkReadStruct, instance *instance_model
 		m.loggerWrapper.GetLogger(instance.Id).LogError("[%s] Error validating message fields", instance.Id)
 		return "", errors.New("invalid phone number")
 	}
+
+	// Read receipts are RAW nodes (no usync) — strip the "+" so the receipt
+	// reaches the recipient. Same root cause as the typing fix above.
+	jid = utils.CanonicalJID(jid)
 
 	err = client.MarkRead(context.Background(), data.Id, time.Now(), jid, jid)
 	if err != nil {
