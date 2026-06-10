@@ -349,6 +349,15 @@ func (u *userService) GetAvatar(data *GetAvatarStruct, instance *instance_model.
 	pic, err = client.GetProfilePictureInfo(ctx, jid, &whatsmeow.GetProfilePictureParams{
 		Preview: data.Preview,
 	})
+	// Group/community JIDs may be rejected on the regular profile-picture query
+	// (401 not-authorized) and require the community variant instead.
+	if err != nil && jid.Server == types.GroupServer {
+		u.loggerWrapper.GetLogger(instance.Id).LogInfo("[%s] GetProfilePictureInfo failed for group JID (%v), retrying with IsCommunity", instance.Id, err)
+		pic, err = client.GetProfilePictureInfo(ctx, jid, &whatsmeow.GetProfilePictureParams{
+			Preview:     data.Preview,
+			IsCommunity: true,
+		})
+	}
 	if err != nil {
 		u.loggerWrapper.GetLogger(instance.Id).LogError("[%s] GetProfilePictureInfo failed: %v", instance.Id, err)
 		return nil, err
