@@ -336,7 +336,8 @@ func (u *userService) GetAvatar(data *GetAvatarStruct, instance *instance_model.
 		return nil, errors.New("invalid phone number")
 	}
 
-	u.loggerWrapper.GetLogger(instance.Id).LogInfo("[%s] Requesting avatar for JID: %s, Preview: %v", instance.Id, jid, data.Preview)
+	log := u.loggerWrapper.GetLogger(instance.Id)
+	log.LogInfo("[%s] Requesting avatar for JID: %s, Preview: %v", instance.Id, jid, data.Preview)
 
 	var pic *types.ProfilePictureInfo
 
@@ -345,21 +346,22 @@ func (u *userService) GetAvatar(data *GetAvatarStruct, instance *instance_model.
 	ctx, cancel := context.WithTimeout(context.Background(), 80*time.Second)
 	defer cancel()
 
-	u.loggerWrapper.GetLogger(instance.Id).LogInfo("[%s] Starting GetProfilePictureInfo request...", instance.Id)
+	log.LogInfo("[%s] Starting GetProfilePictureInfo request...", instance.Id)
 	pic, err = client.GetProfilePictureInfo(ctx, jid, &whatsmeow.GetProfilePictureParams{
 		Preview: data.Preview,
 	})
-	// Group/community JIDs may be rejected on the regular profile-picture query
-	// (401 not-authorized) and require the community variant instead.
-	if err != nil && jid.Server == types.GroupServer {
-		u.loggerWrapper.GetLogger(instance.Id).LogInfo("[%s] GetProfilePictureInfo failed for group JID (%v), retrying with IsCommunity", instance.Id, err)
+	// Group/community JIDs are rejected with not-authorized on the regular
+	// profile-picture query and require the community variant instead. Retry
+	// only on that specific error so unrelated failures surface unchanged.
+	if jid.Server == types.GroupServer && errors.Is(err, whatsmeow.ErrProfilePictureUnauthorized) {
+		log.LogDebug("[%s] Group JID not authorized on regular query, retrying with IsCommunity", instance.Id)
 		pic, err = client.GetProfilePictureInfo(ctx, jid, &whatsmeow.GetProfilePictureParams{
 			Preview:     data.Preview,
 			IsCommunity: true,
 		})
 	}
 	if err != nil {
-		u.loggerWrapper.GetLogger(instance.Id).LogError("[%s] GetProfilePictureInfo failed: %v", instance.Id, err)
+		log.LogError("[%s] GetProfilePictureInfo failed: %v", instance.Id, err)
 		return nil, err
 	}
 
@@ -367,7 +369,7 @@ func (u *userService) GetAvatar(data *GetAvatarStruct, instance *instance_model.
 		return nil, errors.New("no profile picture found")
 	}
 
-	u.loggerWrapper.GetLogger(instance.Id).LogInfo("[%s] Got avatar %s", instance.Id, pic.URL)
+	log.LogInfo("[%s] Got avatar %s", instance.Id, pic.URL)
 
 	return pic, nil
 }
