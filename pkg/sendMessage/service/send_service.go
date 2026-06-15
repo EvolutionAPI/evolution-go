@@ -1128,15 +1128,23 @@ func (s *sendService) sendMediaFileWithRetry(data *MediaStruct, fileData []byte,
 			}
 			mediaType = "AudioMessage"
 		case "document":
+			// For PDF documents, rasterize page 1 into a JPEG preview thumbnail.
+			// A missing pdftoppm or a failure yields nil and the document is
+			// sent without a preview instead of failing the request.
+			var jpegThumb []byte
+			if mimeType == "application/pdf" {
+				jpegThumb = makePDFThumbnail(fileData, 200)
+			}
 			if isNewsletter {
 				media = &waE2E.Message{DocumentMessage: &waE2E.DocumentMessage{
-					FileName:   &data.Filename,
-					Caption:    proto.String(data.Caption),
-					URL:        &uploaded.URL,
-					DirectPath: &uploaded.DirectPath,
-					Mimetype:   proto.String(mimeType),
-					FileSHA256: uploaded.FileSHA256,
-					FileLength: &uploaded.FileLength,
+					FileName:      &data.Filename,
+					Caption:       proto.String(data.Caption),
+					URL:           &uploaded.URL,
+					DirectPath:    &uploaded.DirectPath,
+					Mimetype:      proto.String(mimeType),
+					FileSHA256:    uploaded.FileSHA256,
+					FileLength:    &uploaded.FileLength,
+					JPEGThumbnail: jpegThumb,
 				}}
 			} else {
 				media = &waE2E.Message{DocumentMessage: &waE2E.DocumentMessage{
@@ -1149,6 +1157,7 @@ func (s *sendService) sendMediaFileWithRetry(data *MediaStruct, fileData []byte,
 					FileEncSHA256: uploaded.FileEncSHA256,
 					FileSHA256:    uploaded.FileSHA256,
 					FileLength:    proto.Uint64(uint64(len(fileData))),
+					JPEGThumbnail: jpegThumb,
 				}}
 			}
 
@@ -1422,15 +1431,23 @@ func (s *sendService) sendMediaUrlWithRetry(data *MediaStruct, instance *instanc
 			}
 			mediaType = "AudioMessage"
 		case "document":
+			// For PDF documents, rasterize page 1 into a JPEG preview thumbnail.
+			// A missing pdftoppm or a failure yields nil and the document is
+			// sent without a preview instead of failing the request.
+			var jpegThumb []byte
+			if mimeType == "application/pdf" {
+				jpegThumb = makePDFThumbnail(fileData, 200)
+			}
 			if isNewsletter {
 				media = &waE2E.Message{DocumentMessage: &waE2E.DocumentMessage{
-					URL:        &uploaded.URL,
-					FileName:   &data.Filename,
-					Caption:    proto.String(data.Caption),
-					DirectPath: &uploaded.DirectPath,
-					Mimetype:   proto.String(mimeType),
-					FileSHA256: uploaded.FileSHA256,
-					FileLength: &uploaded.FileLength,
+					URL:           &uploaded.URL,
+					FileName:      &data.Filename,
+					Caption:       proto.String(data.Caption),
+					DirectPath:    &uploaded.DirectPath,
+					Mimetype:      proto.String(mimeType),
+					FileSHA256:    uploaded.FileSHA256,
+					FileLength:    &uploaded.FileLength,
+					JPEGThumbnail: jpegThumb,
 				}}
 			} else {
 				media = &waE2E.Message{DocumentMessage: &waE2E.DocumentMessage{
@@ -1443,6 +1460,7 @@ func (s *sendService) sendMediaUrlWithRetry(data *MediaStruct, instance *instanc
 					FileEncSHA256: uploaded.FileEncSHA256,
 					FileSHA256:    uploaded.FileSHA256,
 					FileLength:    proto.Uint64(uint64(len(fileData))),
+					JPEGThumbnail: jpegThumb,
 				}}
 			}
 
@@ -1932,6 +1950,45 @@ func makeJPEGThumbnail(fileData []byte, maxWidth int) []byte {
 		return nil
 	}
 	return thumbBuf.Bytes()
+}
+
+// makePDFThumbnail rasterizes the first page of a PDF into a JPEG thumbnail
+// using the external "pdftoppm" tool (poppler-utils). It returns nil when
+// pdftoppm is not installed or rasterization fails, so callers can gracefully
+// send the document without a preview instead of failing the request.
+func makePDFThumbnail(fileData []byte, maxWidth int) []byte {
+	if _, err := exec.LookPath("pdftoppm"); err != nil {
+		return nil
+	}
+
+	scaleWidth := maxWidth
+	if scaleWidth < 1 {
+		scaleWidth = 72
+	}
+
+	// Render only the first page to a PNG on stdout, scaled to scaleWidth.
+	// "-scale-to-y -1" keeps the original aspect ratio.
+	cmd := exec.Command("pdftoppm",
+		"-png",
+		"-f", "1",
+		"-l", "1",
+		"-singlefile",
+		"-scale-to-x", strconv.Itoa(scaleWidth),
+		"-scale-to-y", "-1",
+	)
+	cmd.Stdin = bytes.NewReader(fileData)
+
+	var out bytes.Buffer
+	cmd.Stdout = &out
+	if err := cmd.Run(); err != nil {
+		return nil
+	}
+	if out.Len() == 0 {
+		return nil
+	}
+
+	// Re-encode the rendered PNG as a JPEG thumbnail for consistency with images.
+	return makeJPEGThumbnail(out.Bytes(), maxWidth)
 }
 
 func sectionsToString(data *ListStruct) (string, error) {
