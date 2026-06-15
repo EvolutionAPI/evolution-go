@@ -2,6 +2,8 @@ package utils
 
 import (
 	"testing"
+
+	whatsmeow_types "go.mau.fi/whatsmeow/types"
 )
 
 func TestCreateJID(t *testing.T) {
@@ -166,6 +168,50 @@ func TestCreateJID(t *testing.T) {
 
 			if result != tt.expected {
 				t.Errorf("For input %q, expected %q, but got %q", tt.input, tt.expected, result)
+			}
+		})
+	}
+}
+
+func TestCanonicalJID(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		server   string
+		expected string
+	}{
+		{
+			name:     "Strips leading + from user part",
+			input:    "+15551234567",
+			server:   whatsmeow_types.DefaultUserServer,
+			expected: "15551234567@s.whatsapp.net",
+		},
+		{
+			name:     "Leaves already-canonical user untouched",
+			input:    "15551234567",
+			server:   whatsmeow_types.DefaultUserServer,
+			expected: "15551234567@s.whatsapp.net",
+		},
+		{
+			name:     "Only strips a single leading +",
+			input:    "+5541999999999",
+			server:   whatsmeow_types.DefaultUserServer,
+			expected: "5541999999999@s.whatsapp.net",
+		},
+		{
+			name:     "Group JID user is unaffected",
+			input:    "120363123456789012",
+			server:   whatsmeow_types.GroupServer,
+			expected: "120363123456789012@g.us",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			jid := whatsmeow_types.NewJID(tt.input, tt.server)
+			result := CanonicalJID(jid)
+			if result.String() != tt.expected {
+				t.Errorf("For input %q, expected %q, but got %q", tt.input, tt.expected, result.String())
 			}
 		})
 	}

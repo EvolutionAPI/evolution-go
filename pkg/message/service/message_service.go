@@ -52,6 +52,10 @@ type ChatPresenceStruct struct {
 	Number  string `json:"number"`
 	State   string `json:"state"`
 	IsAudio bool   `json:"isAudio"`
+	// Delay, in milliseconds, keeps the typing/recording indicator alive by
+	// re-sending the chat presence every few seconds. Capped at 60s. 0 sends
+	// the indicator once.
+	Delay int `json:"delay,omitempty"`
 }
 
 type MarkReadStruct struct {
@@ -136,6 +140,9 @@ func (m *messageService) React(data *ReactStruct, instance *instance_model.Insta
 		m.loggerWrapper.GetLogger(instance.Id).LogError("[%s] Error validating message fields", instance.Id)
 		return nil, errors.New("invalid phone number")
 	}
+	// Reactions travel as raw protocol nodes, so the target JID must be
+	// canonical (digits only, no leading "+") or WhatsApp drops them silently.
+	recipient = utils.CanonicalJID(recipient)
 
 	if data.Id == "" {
 		m.loggerWrapper.GetLogger(instance.Id).LogError("[%s] Missing Id in Payload", instance.Id)
@@ -161,7 +168,7 @@ func (m *messageService) React(data *ReactStruct, instance *instance_model.Insta
 	if data.Participant != "" {
 		participantJID, ok := utils.ParseJID(data.Participant)
 		if ok {
-			messageKey.Participant = proto.String(participantJID.String())
+			messageKey.Participant = proto.String(utils.CanonicalJID(participantJID).String())
 		}
 	}
 
@@ -218,6 +225,9 @@ func (m *messageService) ChatPresence(data *ChatPresenceStruct, instance *instan
 		m.loggerWrapper.GetLogger(instance.Id).LogError("[%s] Error validating message fields", instance.Id)
 		return "", errors.New("invalid phone number")
 	}
+	// Chat presence is delivered as a raw protocol node, so the target JID must
+	// be canonical (digits only, no leading "+") or WhatsApp drops it silently.
+	recipient = utils.CanonicalJID(recipient)
 
 	media := ""
 
@@ -225,9 +235,41 @@ func (m *messageService) ChatPresence(data *ChatPresenceStruct, instance *instan
 		media = "audio"
 	}
 
-	err = client.SendChatPresence(context.Background(), recipient, types.ChatPresence(data.State), types.ChatPresenceMedia(media))
-	if err != nil {
+	// WhatsApp only forwards chat presence (typing/recording) while the sender
+	// is marked online, so announce availability before sending the indicator.
+	if err = client.SendPresence(context.Background(), types.PresenceAvailable); err != nil {
+		m.loggerWrapper.GetLogger(instance.Id).LogWarn("[%s] failed to send available presence: %v", instance.Id, err)
+	}
+
+	presence := types.ChatPresence(data.State)
+	presenceMedia := types.ChatPresenceMedia(media)
+
+	if err = client.SendChatPresence(context.Background(), recipient, presence, presenceMedia); err != nil {
 		return "", err
+	}
+
+	// Optionally sustain the indicator by re-sending it periodically, since a
+	// single chat presence node expires after a few seconds on the client.
+	if data.Delay > 0 {
+		const refreshInterval = 5 * time.Second
+		const maxDelay = 60 * time.Second
+
+		remaining := time.Duration(data.Delay) * time.Millisecond
+		if remaining > maxDelay {
+			remaining = maxDelay
+		}
+
+		for remaining > refreshInterval {
+			time.Sleep(refreshInterval)
+			remaining -= refreshInterval
+			if err = client.SendChatPresence(context.Background(), recipient, presence, presenceMedia); err != nil {
+				m.loggerWrapper.GetLogger(instance.Id).LogWarn("[%s] failed to refresh chat presence: %v", instance.Id, err)
+				break
+			}
+		}
+		if remaining > 0 {
+			time.Sleep(remaining)
+		}
 	}
 
 	m.loggerWrapper.GetLogger(instance.Id).LogInfo("Message sent to %s", data.Number)
@@ -248,6 +290,9 @@ func (m *messageService) MarkRead(data *MarkReadStruct, instance *instance_model
 		m.loggerWrapper.GetLogger(instance.Id).LogError("[%s] Error validating message fields", instance.Id)
 		return "", errors.New("invalid phone number")
 	}
+	// Read receipts are sent as raw protocol nodes, so the target JID must be
+	// canonical (digits only, no leading "+") or WhatsApp drops them silently.
+	jid = utils.CanonicalJID(jid)
 
 	err = client.MarkRead(context.Background(), data.Id, time.Now(), jid, jid)
 	if err != nil {

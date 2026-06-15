@@ -215,6 +215,21 @@ func ParseJID(arg string) (whatsmeow_types.JID, bool) {
 	return recipient, true
 }
 
+// CanonicalJID returns a copy of the given JID with any leading "+" removed
+// from the user part, producing a digits-only WhatsApp JID.
+//
+// CreateJID/ParseJID intentionally keep the leading "+" (e.g.
+// "+5541999999999@s.whatsapp.net") because some flows such as IsOnWhatsApp
+// rely on it. However, raw protocol nodes (chat presence, reactions and read
+// receipts) are sent without the device resolution / usync normalization that
+// happens during normal message sending, so the "+"-prefixed user survives at
+// the wire level and WhatsApp silently fails to route the node. Stripping the
+// "+" yields the canonical target those raw nodes expect.
+func CanonicalJID(jid whatsmeow_types.JID) whatsmeow_types.JID {
+	jid.User = strings.TrimPrefix(jid.User, "+")
+	return jid
+}
+
 func CreateHTTPProxy(httpHost, httpPort, user, password string) (func(*http.Request) (*url.URL, error), error) {
 	address := fmt.Sprintf("http://%s:%s@%s:%s", user, password, httpHost, httpPort)
 
