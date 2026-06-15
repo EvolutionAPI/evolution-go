@@ -1028,15 +1028,20 @@ func (s *sendService) sendMediaFileWithRetry(data *MediaStruct, fileData []byte,
 
 		switch data.Type {
 		case "image":
+			// Generate a JPEG preview thumbnail for better client UX (iOS in
+			// particular). On failure jpegThumb is nil and the message is sent
+			// without a preview rather than failing the request.
+			jpegThumb := makeJPEGThumbnail(fileData, 72)
 			if isNewsletter {
 				// Newsletter: SEM MediaKey e FileEncSHA256
 				media = &waE2E.Message{ImageMessage: &waE2E.ImageMessage{
-					Caption:    proto.String(data.Caption),
-					URL:        &uploaded.URL,
-					DirectPath: &uploaded.DirectPath,
-					Mimetype:   proto.String(mimeType),
-					FileSHA256: uploaded.FileSHA256,
-					FileLength: &uploaded.FileLength,
+					Caption:       proto.String(data.Caption),
+					URL:           &uploaded.URL,
+					DirectPath:    &uploaded.DirectPath,
+					Mimetype:      proto.String(mimeType),
+					FileSHA256:    uploaded.FileSHA256,
+					FileLength:    &uploaded.FileLength,
+					JPEGThumbnail: jpegThumb,
 				}}
 			} else {
 				// Normal: COM MediaKey e FileEncSHA256
@@ -1049,6 +1054,7 @@ func (s *sendService) sendMediaFileWithRetry(data *MediaStruct, fileData []byte,
 					FileEncSHA256: uploaded.FileEncSHA256,
 					FileSHA256:    uploaded.FileSHA256,
 					FileLength:    proto.Uint64(uint64(len(fileData))),
+					JPEGThumbnail: jpegThumb,
 				}}
 			}
 			mediaType = "ImageMessage"
@@ -1312,15 +1318,20 @@ func (s *sendService) sendMediaUrlWithRetry(data *MediaStruct, instance *instanc
 
 		switch data.Type {
 		case "image":
+			// Generate a JPEG preview thumbnail for better client UX (iOS in
+			// particular). On failure jpegThumb is nil and the message is sent
+			// without a preview rather than failing the request.
+			jpegThumb := makeJPEGThumbnail(fileData, 72)
 			if isNewsletter {
 				// Newsletter: sem criptografia (sem MediaKey e FileEncSHA256)
 				media = &waE2E.Message{ImageMessage: &waE2E.ImageMessage{
-					Caption:    proto.String(data.Caption),
-					URL:        &uploaded.URL,
-					DirectPath: &uploaded.DirectPath,
-					Mimetype:   proto.String(mimeType),
-					FileSHA256: uploaded.FileSHA256,
-					FileLength: &uploaded.FileLength,
+					Caption:       proto.String(data.Caption),
+					URL:           &uploaded.URL,
+					DirectPath:    &uploaded.DirectPath,
+					Mimetype:      proto.String(mimeType),
+					FileSHA256:    uploaded.FileSHA256,
+					FileLength:    &uploaded.FileLength,
+					JPEGThumbnail: jpegThumb,
 				}}
 			} else {
 				// Normal: com criptografia
@@ -1333,6 +1344,7 @@ func (s *sendService) sendMediaUrlWithRetry(data *MediaStruct, instance *instanc
 					FileEncSHA256: uploaded.FileEncSHA256,
 					FileSHA256:    uploaded.FileSHA256,
 					FileLength:    proto.Uint64(uint64(len(fileData))),
+					JPEGThumbnail: jpegThumb,
 				}}
 			}
 			mediaType = "ImageMessage"
@@ -1873,6 +1885,53 @@ func (s *sendService) SendButton(data *ButtonStruct, instance *instance_model.In
 
 func stringPointer(s string) *string {
 	return &s
+}
+
+// makeJPEGThumbnail decodes raw image bytes and produces a small JPEG
+// thumbnail suitable for the JPEGThumbnail field of WhatsApp media messages.
+// The thumbnail keeps the original aspect ratio and is capped at maxWidth
+// pixels wide. It returns nil if the image cannot be decoded so callers can
+// fall back to sending the message without a preview thumbnail.
+func makeJPEGThumbnail(fileData []byte, maxWidth int) []byte {
+	if maxWidth < 1 {
+		maxWidth = 72
+	}
+
+	img, _, err := image.Decode(bytes.NewReader(fileData))
+	if err != nil {
+		return nil
+	}
+
+	bounds := img.Bounds()
+	srcWidth := bounds.Dx()
+	srcHeight := bounds.Dy()
+	if srcWidth < 1 || srcHeight < 1 {
+		return nil
+	}
+
+	thumbWidth := maxWidth
+	if srcWidth < thumbWidth {
+		thumbWidth = srcWidth
+	}
+	thumbHeight := int(float64(srcHeight) * float64(thumbWidth) / float64(srcWidth))
+	if thumbHeight < 1 {
+		thumbHeight = 1
+	}
+
+	thumbImg := image.NewRGBA(image.Rect(0, 0, thumbWidth, thumbHeight))
+	for y := 0; y < thumbHeight; y++ {
+		for x := 0; x < thumbWidth; x++ {
+			srcX := x * srcWidth / thumbWidth
+			srcY := y * srcHeight / thumbHeight
+			thumbImg.Set(x, y, img.At(srcX+bounds.Min.X, srcY+bounds.Min.Y))
+		}
+	}
+
+	var thumbBuf bytes.Buffer
+	if err := jpeg.Encode(&thumbBuf, thumbImg, &jpeg.Options{Quality: 50}); err != nil {
+		return nil
+	}
+	return thumbBuf.Bytes()
 }
 
 func sectionsToString(data *ListStruct) (string, error) {
@@ -2515,29 +2574,7 @@ func (s *sendService) SendCarousel(data *CarouselStruct, instance *instance_mode
 						uploaded, err := client.Upload(context.Background(), fileData, whatsmeow.MediaImage)
 						if err == nil {
 							// Generate JPEG thumbnail for iOS compatibility
-							var jpegThumb []byte
-							img, _, decErr := image.Decode(bytes.NewReader(fileData))
-							if decErr == nil {
-								// Resize to 72px thumbnail
-								bounds := img.Bounds()
-								thumbWidth := 72
-								thumbHeight := int(float64(bounds.Dy()) * float64(thumbWidth) / float64(bounds.Dx()))
-								if thumbHeight < 1 {
-									thumbHeight = 1
-								}
-								thumbImg := image.NewRGBA(image.Rect(0, 0, thumbWidth, thumbHeight))
-								for y := 0; y < thumbHeight; y++ {
-									for x := 0; x < thumbWidth; x++ {
-										srcX := x * bounds.Dx() / thumbWidth
-										srcY := y * bounds.Dy() / thumbHeight
-										thumbImg.Set(x, y, img.At(srcX+bounds.Min.X, srcY+bounds.Min.Y))
-									}
-								}
-								var thumbBuf bytes.Buffer
-								if jpeg.Encode(&thumbBuf, thumbImg, &jpeg.Options{Quality: 50}) == nil {
-									jpegThumb = thumbBuf.Bytes()
-								}
-							}
+							jpegThumb := makeJPEGThumbnail(fileData, 72)
 
 							header.HasMediaAttachment = proto.Bool(true)
 							header.Media = &waE2E.InteractiveMessage_Header_ImageMessage{
