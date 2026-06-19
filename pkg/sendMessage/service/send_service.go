@@ -58,14 +58,15 @@ type sendService struct {
 }
 
 type SendDataStruct struct {
-	Id           string
-	Number       string
-	Delay        int32
-	MentionAll   bool
-	MentionedJID []string
-	FormatJid    *bool
-	Quoted       QuotedStruct
-	MediaHandle  string
+	Id              string
+	Number          string
+	Delay           int32
+	MentionAll      bool
+	MentionedJID    []string
+	FormatJid       *bool
+	Quoted          QuotedStruct
+	MediaHandle     string
+	ForwardingScore *uint32
 }
 
 type QuotedStruct struct {
@@ -74,14 +75,15 @@ type QuotedStruct struct {
 }
 
 type TextStruct struct {
-	Number       string       `json:"number"`
-	Text         string       `json:"text"`
-	Id           string       `json:"id"`
-	Delay        int32        `json:"delay"`
-	MentionedJID []string     `json:"mentionedJid"`
-	MentionAll   bool         `json:"mentionAll"`
-	FormatJid    *bool        `json:"formatJid,omitempty"`
-	Quoted       QuotedStruct `json:"quoted"`
+	Number          string       `json:"number"`
+	Text            string       `json:"text"`
+	Id              string       `json:"id"`
+	Delay           int32        `json:"delay"`
+	MentionedJID    []string     `json:"mentionedJid"`
+	MentionAll      bool         `json:"mentionAll"`
+	FormatJid       *bool        `json:"formatJid,omitempty"`
+	Quoted          QuotedStruct `json:"quoted"`
+	ForwardingScore *uint32      `json:"forwardingScore,omitempty"`
 }
 
 type LinkStruct struct {
@@ -100,17 +102,18 @@ type LinkStruct struct {
 }
 
 type MediaStruct struct {
-	Number       string       `json:"number"`
-	Url          string       `json:"url"`
-	Type         string       `json:"type"`
-	Caption      string       `json:"caption"`
-	Filename     string       `json:"filename"`
-	Id           string       `json:"id"`
-	Delay        int32        `json:"delay"`
-	MentionedJID []string     `json:"mentionedJid"`
-	MentionAll   bool         `json:"mentionAll"`
-	FormatJid    *bool        `json:"formatJid,omitempty"`
-	Quoted       QuotedStruct `json:"quoted"`
+	Number          string       `json:"number"`
+	Url             string       `json:"url"`
+	Type            string       `json:"type"`
+	Caption         string       `json:"caption"`
+	Filename        string       `json:"filename"`
+	Id              string       `json:"id"`
+	Delay           int32        `json:"delay"`
+	MentionedJID    []string     `json:"mentionedJid"`
+	MentionAll      bool         `json:"mentionAll"`
+	FormatJid       *bool        `json:"formatJid,omitempty"`
+	Quoted          QuotedStruct `json:"quoted"`
+	ForwardingScore *uint32      `json:"forwardingScore,omitempty"`
 }
 
 type PollStruct struct {
@@ -614,13 +617,14 @@ func (s *sendService) sendTextWithRetry(data *TextStruct, instance *instance_mod
 		}
 
 		message, err := s.SendMessage(instance, msg, "ExtendedTextMessage", &SendDataStruct{
-			Id:           data.Id,
-			Number:       data.Number,
-			Quoted:       data.Quoted,
-			Delay:        data.Delay,
-			MentionAll:   data.MentionAll,
-			MentionedJID: data.MentionedJID,
-			FormatJid:    data.FormatJid,
+			Id:              data.Id,
+			Number:          data.Number,
+			Quoted:          data.Quoted,
+			Delay:           data.Delay,
+			MentionAll:      data.MentionAll,
+			MentionedJID:    data.MentionedJID,
+			FormatJid:       data.FormatJid,
+			ForwardingScore: data.ForwardingScore,
 		})
 
 		if err != nil {
@@ -1161,14 +1165,15 @@ func (s *sendService) sendMediaFileWithRetry(data *MediaStruct, fileData []byte,
 		}
 
 		message, err := s.SendMessage(instance, media, mediaType, &SendDataStruct{
-			Id:           data.Id,
-			Number:       data.Number,
-			Quoted:       data.Quoted,
-			Delay:        data.Delay,
-			MentionAll:   data.MentionAll,
-			MentionedJID: data.MentionedJID,
-			FormatJid:    data.FormatJid,
-			MediaHandle:  uploaded.Handle,
+			Id:              data.Id,
+			Number:          data.Number,
+			Quoted:          data.Quoted,
+			Delay:           data.Delay,
+			MentionAll:      data.MentionAll,
+			MentionedJID:    data.MentionedJID,
+			FormatJid:       data.FormatJid,
+			MediaHandle:     uploaded.Handle,
+			ForwardingScore: data.ForwardingScore,
 		})
 
 		if err != nil {
@@ -1450,14 +1455,15 @@ func (s *sendService) sendMediaUrlWithRetry(data *MediaStruct, instance *instanc
 
 		messageStart := time.Now()
 		message, err := s.SendMessage(instance, media, mediaType, &SendDataStruct{
-			Id:           data.Id,
-			Number:       data.Number,
-			Quoted:       data.Quoted,
-			Delay:        data.Delay,
-			MentionAll:   data.MentionAll,
-			MentionedJID: data.MentionedJID,
-			FormatJid:    data.FormatJid,
-			MediaHandle:  uploaded.Handle,
+			Id:              data.Id,
+			Number:          data.Number,
+			Quoted:          data.Quoted,
+			Delay:           data.Delay,
+			MentionAll:      data.MentionAll,
+			MentionedJID:    data.MentionedJID,
+			FormatJid:       data.FormatJid,
+			MediaHandle:     uploaded.Handle,
+			ForwardingScore: data.ForwardingScore,
 		})
 
 		if err != nil {
@@ -2189,6 +2195,63 @@ func (s *sendService) SendMessage(instance *instance_model.Instance, msg *waE2E.
 			// ContextInfo already set in SendList
 		default:
 			return nil, fmt.Errorf("invalid messageType: %s", messageType)
+		}
+	}
+
+	// Apply ForwardingScore to whichever ContextInfo was set above.
+	// WhatsApp renders "Encaminhada" when ContextInfo.ForwardingScore > 0.
+	if data.ForwardingScore != nil && *data.ForwardingScore > 0 {
+		switch messageType {
+		case "ExtendedTextMessage":
+			if msg.ExtendedTextMessage != nil && msg.ExtendedTextMessage.ContextInfo != nil {
+				msg.ExtendedTextMessage.ContextInfo.ForwardingScore = data.ForwardingScore
+			}
+		case "ImageMessage":
+			if msg.ImageMessage != nil && msg.ImageMessage.ContextInfo != nil {
+				msg.ImageMessage.ContextInfo.ForwardingScore = data.ForwardingScore
+			}
+		case "VideoMessage":
+			if msg.VideoMessage != nil && msg.VideoMessage.ContextInfo != nil {
+				msg.VideoMessage.ContextInfo.ForwardingScore = data.ForwardingScore
+			}
+		case "PtvMessage":
+			if msg.PtvMessage != nil && msg.PtvMessage.ContextInfo != nil {
+				msg.PtvMessage.ContextInfo.ForwardingScore = data.ForwardingScore
+			}
+		case "AudioMessage":
+			if msg.AudioMessage != nil && msg.AudioMessage.ContextInfo != nil {
+				msg.AudioMessage.ContextInfo.ForwardingScore = data.ForwardingScore
+			}
+		case "DocumentMessage":
+			if msg.DocumentMessage != nil && msg.DocumentMessage.ContextInfo != nil {
+				msg.DocumentMessage.ContextInfo.ForwardingScore = data.ForwardingScore
+			} else if msg.DocumentWithCaptionMessage != nil && msg.DocumentWithCaptionMessage.Message != nil && msg.DocumentWithCaptionMessage.Message.DocumentMessage != nil && msg.DocumentWithCaptionMessage.Message.DocumentMessage.ContextInfo != nil {
+				msg.DocumentWithCaptionMessage.Message.DocumentMessage.ContextInfo.ForwardingScore = data.ForwardingScore
+			}
+		case "PollCreationMessage":
+			if msg.PollCreationMessage != nil && msg.PollCreationMessage.ContextInfo != nil {
+				msg.PollCreationMessage.ContextInfo.ForwardingScore = data.ForwardingScore
+			}
+		case "StickerMessage":
+			if msg.StickerMessage != nil && msg.StickerMessage.ContextInfo != nil {
+				msg.StickerMessage.ContextInfo.ForwardingScore = data.ForwardingScore
+			}
+		case "LocationMessage":
+			if msg.LocationMessage != nil && msg.LocationMessage.ContextInfo != nil {
+				msg.LocationMessage.ContextInfo.ForwardingScore = data.ForwardingScore
+			}
+		case "ContactMessage":
+			if msg.ContactMessage != nil && msg.ContactMessage.ContextInfo != nil {
+				msg.ContactMessage.ContextInfo.ForwardingScore = data.ForwardingScore
+			}
+		case "InteractiveMessage":
+			if msg.InteractiveMessage != nil && msg.InteractiveMessage.ContextInfo != nil {
+				msg.InteractiveMessage.ContextInfo.ForwardingScore = data.ForwardingScore
+			}
+		case "ListMessage":
+			if msg.ListMessage != nil && msg.ListMessage.ContextInfo != nil {
+				msg.ListMessage.ContextInfo.ForwardingScore = data.ForwardingScore
+			}
 		}
 	}
 
