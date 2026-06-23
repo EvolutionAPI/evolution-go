@@ -1028,19 +1028,22 @@ func (s *sendService) sendMediaFileWithRetry(data *MediaStruct, fileData []byte,
 
 		switch data.Type {
 		case "image":
+			thumbnail := generateJpegThumbnail(fileData)
 			if isNewsletter {
 				// Newsletter: SEM MediaKey e FileEncSHA256
 				media = &waE2E.Message{ImageMessage: &waE2E.ImageMessage{
-					Caption:    proto.String(data.Caption),
-					URL:        &uploaded.URL,
-					DirectPath: &uploaded.DirectPath,
-					Mimetype:   proto.String(mimeType),
-					FileSHA256: uploaded.FileSHA256,
-					FileLength: &uploaded.FileLength,
+					JPEGThumbnail: thumbnail,
+					Caption:       proto.String(data.Caption),
+					URL:           &uploaded.URL,
+					DirectPath:    &uploaded.DirectPath,
+					Mimetype:      proto.String(mimeType),
+					FileSHA256:    uploaded.FileSHA256,
+					FileLength:    &uploaded.FileLength,
 				}}
 			} else {
 				// Normal: COM MediaKey e FileEncSHA256
 				media = &waE2E.Message{ImageMessage: &waE2E.ImageMessage{
+					JPEGThumbnail: thumbnail,
 					Caption:       proto.String(data.Caption),
 					URL:           proto.String(uploaded.URL),
 					DirectPath:    proto.String(uploaded.DirectPath),
@@ -1312,19 +1315,22 @@ func (s *sendService) sendMediaUrlWithRetry(data *MediaStruct, instance *instanc
 
 		switch data.Type {
 		case "image":
+			thumbnail := generateJpegThumbnail(fileData)
 			if isNewsletter {
 				// Newsletter: sem criptografia (sem MediaKey e FileEncSHA256)
 				media = &waE2E.Message{ImageMessage: &waE2E.ImageMessage{
-					Caption:    proto.String(data.Caption),
-					URL:        &uploaded.URL,
-					DirectPath: &uploaded.DirectPath,
-					Mimetype:   proto.String(mimeType),
-					FileSHA256: uploaded.FileSHA256,
-					FileLength: &uploaded.FileLength,
+					JPEGThumbnail: thumbnail,
+					Caption:       proto.String(data.Caption),
+					URL:           &uploaded.URL,
+					DirectPath:    &uploaded.DirectPath,
+					Mimetype:      proto.String(mimeType),
+					FileSHA256:    uploaded.FileSHA256,
+					FileLength:    &uploaded.FileLength,
 				}}
 			} else {
 				// Normal: com criptografia
 				media = &waE2E.Message{ImageMessage: &waE2E.ImageMessage{
+					JPEGThumbnail: thumbnail,
 					Caption:       proto.String(data.Caption),
 					URL:           proto.String(uploaded.URL),
 					DirectPath:    proto.String(uploaded.DirectPath),
@@ -2846,7 +2852,9 @@ func (s *sendService) sendStatusMedia(client *whatsmeow.Client, data *StatusMedi
 
 	switch data.Type {
 	case "image":
+		thumbnail := generateJpegThumbnail(fileData)
 		media = &waE2E.Message{ImageMessage: &waE2E.ImageMessage{
+			JPEGThumbnail: thumbnail,
 			Caption:       proto.String(data.Caption),
 			URL:           proto.String(uploaded.URL),
 			DirectPath:    proto.String(uploaded.DirectPath),
@@ -2956,4 +2964,36 @@ func NewSendService(
 		config:           config,
 		loggerWrapper:    loggerWrapper,
 	}
+}
+
+// generateJpegThumbnail builds a small JPEG preview (~72px wide) to embed in
+// ImageMessage.JPEGThumbnail. Without it WhatsApp shows the gray/green camera
+// placeholder and only renders the image after a manual download; with it the
+// usual blurred inline preview is shown. Returns nil on failure, in which case
+// the message is still sent (just without the inline preview).
+func generateJpegThumbnail(data []byte) []byte {
+	src, _, err := image.Decode(bytes.NewReader(data))
+	if err != nil {
+		return nil
+	}
+	b := src.Bounds()
+	if b.Dx() == 0 || b.Dy() == 0 {
+		return nil
+	}
+	const targetWidth = 72
+	height := b.Dy() * targetWidth / b.Dx()
+	if height < 1 {
+		height = 1
+	}
+	thumb := image.NewRGBA(image.Rect(0, 0, targetWidth, height))
+	for y := 0; y < height; y++ {
+		for x := 0; x < targetWidth; x++ {
+			thumb.Set(x, y, src.At(b.Min.X+x*b.Dx()/targetWidth, b.Min.Y+y*b.Dy()/height))
+		}
+	}
+	var buf bytes.Buffer
+	if jpeg.Encode(&buf, thumb, &jpeg.Options{Quality: 50}) != nil {
+		return nil
+	}
+	return buf.Bytes()
 }
