@@ -2205,52 +2205,65 @@ func (s *sendService) SendMessage(instance *instance_model.Instance, msg *waE2E.
 		case "ExtendedTextMessage":
 			if msg.ExtendedTextMessage != nil && msg.ExtendedTextMessage.ContextInfo != nil {
 				msg.ExtendedTextMessage.ContextInfo.ForwardingScore = data.ForwardingScore
+				msg.ExtendedTextMessage.ContextInfo.IsForwarded = proto.Bool(true)
 			}
 		case "ImageMessage":
 			if msg.ImageMessage != nil && msg.ImageMessage.ContextInfo != nil {
 				msg.ImageMessage.ContextInfo.ForwardingScore = data.ForwardingScore
+				msg.ImageMessage.ContextInfo.IsForwarded = proto.Bool(true)
 			}
 		case "VideoMessage":
 			if msg.VideoMessage != nil && msg.VideoMessage.ContextInfo != nil {
 				msg.VideoMessage.ContextInfo.ForwardingScore = data.ForwardingScore
+				msg.VideoMessage.ContextInfo.IsForwarded = proto.Bool(true)
 			}
 		case "PtvMessage":
 			if msg.PtvMessage != nil && msg.PtvMessage.ContextInfo != nil {
 				msg.PtvMessage.ContextInfo.ForwardingScore = data.ForwardingScore
+				msg.PtvMessage.ContextInfo.IsForwarded = proto.Bool(true)
 			}
 		case "AudioMessage":
 			if msg.AudioMessage != nil && msg.AudioMessage.ContextInfo != nil {
 				msg.AudioMessage.ContextInfo.ForwardingScore = data.ForwardingScore
+				msg.AudioMessage.ContextInfo.IsForwarded = proto.Bool(true)
 			}
 		case "DocumentMessage":
 			if msg.DocumentMessage != nil && msg.DocumentMessage.ContextInfo != nil {
 				msg.DocumentMessage.ContextInfo.ForwardingScore = data.ForwardingScore
+				msg.DocumentMessage.ContextInfo.IsForwarded = proto.Bool(true)
 			} else if msg.DocumentWithCaptionMessage != nil && msg.DocumentWithCaptionMessage.Message != nil && msg.DocumentWithCaptionMessage.Message.DocumentMessage != nil && msg.DocumentWithCaptionMessage.Message.DocumentMessage.ContextInfo != nil {
 				msg.DocumentWithCaptionMessage.Message.DocumentMessage.ContextInfo.ForwardingScore = data.ForwardingScore
+				msg.DocumentWithCaptionMessage.Message.DocumentMessage.ContextInfo.IsForwarded = proto.Bool(true)
 			}
 		case "PollCreationMessage":
 			if msg.PollCreationMessage != nil && msg.PollCreationMessage.ContextInfo != nil {
 				msg.PollCreationMessage.ContextInfo.ForwardingScore = data.ForwardingScore
+				msg.PollCreationMessage.ContextInfo.IsForwarded = proto.Bool(true)
 			}
 		case "StickerMessage":
 			if msg.StickerMessage != nil && msg.StickerMessage.ContextInfo != nil {
 				msg.StickerMessage.ContextInfo.ForwardingScore = data.ForwardingScore
+				msg.StickerMessage.ContextInfo.IsForwarded = proto.Bool(true)
 			}
 		case "LocationMessage":
 			if msg.LocationMessage != nil && msg.LocationMessage.ContextInfo != nil {
 				msg.LocationMessage.ContextInfo.ForwardingScore = data.ForwardingScore
+				msg.LocationMessage.ContextInfo.IsForwarded = proto.Bool(true)
 			}
 		case "ContactMessage":
 			if msg.ContactMessage != nil && msg.ContactMessage.ContextInfo != nil {
 				msg.ContactMessage.ContextInfo.ForwardingScore = data.ForwardingScore
+				msg.ContactMessage.ContextInfo.IsForwarded = proto.Bool(true)
 			}
 		case "InteractiveMessage":
 			if msg.InteractiveMessage != nil && msg.InteractiveMessage.ContextInfo != nil {
 				msg.InteractiveMessage.ContextInfo.ForwardingScore = data.ForwardingScore
+				msg.InteractiveMessage.ContextInfo.IsForwarded = proto.Bool(true)
 			}
 		case "ListMessage":
 			if msg.ListMessage != nil && msg.ListMessage.ContextInfo != nil {
 				msg.ListMessage.ContextInfo.ForwardingScore = data.ForwardingScore
+				msg.ListMessage.ContextInfo.IsForwarded = proto.Bool(true)
 			}
 		}
 	}
