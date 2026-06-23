@@ -1606,6 +1606,27 @@ func (mycli *MyClient) myEventHandler(rawEvt interface{}) {
 		}
 
 		mycli.loggerWrapper.GetLogger(mycli.userID).LogInfo("[%s] ===== MESSAGE PROCESSING COMPLETED ===== ID: %s, From: %s, Type: %s, Webhook: %v", mycli.userID, evt.Info.ID, evt.Info.Chat.String(), evt.Info.Type, doWebhook)
+
+		// ── SendMessage webhook for outbound messages (IsFromMe:true) ──
+		// Messages sent from the WhatsApp app (not via API) also need a
+		// "SendMessage" event so the Laravel backend can capture them.
+		if evt.Info.IsFromMe {
+			sendMap := make(map[string]interface{})
+			for k, v := range postMap {
+				sendMap[k] = v
+			}
+			sendMap["event"] = "SendMessage"
+
+			sendValues, err := json.Marshal(sendMap)
+			if err == nil {
+				sendQueue := strings.ToLower(fmt.Sprintf("%s.sendmessage", userID))
+				go mycli.service.CallWebhook(mycli.Instance, sendQueue, sendValues)
+				if mycli.config.AmqpGlobalEnabled || mycli.config.NatsGlobalEnabled {
+					go mycli.service.SendToGlobalQueues("SendMessage", sendValues, mycli.userID)
+				}
+				mycli.loggerWrapper.GetLogger(mycli.userID).LogInfo("[%s] ===== SENDMESSAGE EVENT DISPATCHED (IsFromMe) ===== ID: %s", mycli.userID, evt.Info.ID)
+			}
+		}
 	case *events.Receipt:
 		doWebhook = true
 		postMap["event"] = "Receipt"
@@ -1994,6 +2015,7 @@ func (w *whatsmeowService) CallWebhook(instance *instance_model.Instance, queueN
 
 	if len(eventArray) < 1 {
 		subscriptions = append(subscriptions, event_types.MESSAGE)
+		subscriptions = append(subscriptions, event_types.SEND_MESSAGE)
 	} else {
 		for _, arg := range eventArray {
 			if !event_types.IsEventType(arg) {
