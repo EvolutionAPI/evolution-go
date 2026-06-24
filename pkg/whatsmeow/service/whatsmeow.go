@@ -905,13 +905,28 @@ func (mycli *MyClient) myEventHandler(rawEvt interface{}) {
 
 			postMap["data"] = dataMap
 
-			go schedulePresenceUpdates(mycli)
+			// Respect the alwaysOnline instance flag. Previously the device was marked
+			// online unconditionally on every connect (and the periodic presence job was
+			// started), which kept the linked device permanently "available". WhatsApp then
+			// delivers messages to that active session and suppresses push notifications on
+			// the user's phone. When alwaysOnline is false we now send Unavailable instead.
+			var err error
+			if mycli.Instance.AlwaysOnline {
+				go schedulePresenceUpdates(mycli)
 
-			err := mycli.WAClient.SendPresence(context.Background(), types.PresenceAvailable)
-			if err != nil {
-				mycli.loggerWrapper.GetLogger(mycli.userID).LogWarn("[%s] Failed to send available presence %v", mycli.userID, err)
+				err = mycli.WAClient.SendPresence(context.Background(), types.PresenceAvailable)
+				if err != nil {
+					mycli.loggerWrapper.GetLogger(mycli.userID).LogWarn("[%s] Failed to send available presence %v", mycli.userID, err)
+				} else {
+					mycli.loggerWrapper.GetLogger(mycli.userID).LogWarn("[%s] Marked self as available", mycli.userID)
+				}
 			} else {
-				mycli.loggerWrapper.GetLogger(mycli.userID).LogWarn("[%s] Marked self as available", mycli.userID)
+				err = mycli.WAClient.SendPresence(context.Background(), types.PresenceUnavailable)
+				if err != nil {
+					mycli.loggerWrapper.GetLogger(mycli.userID).LogWarn("[%s] Failed to send unavailable presence %v", mycli.userID, err)
+				} else {
+					mycli.loggerWrapper.GetLogger(mycli.userID).LogInfo("[%s] Marked self as unavailable (alwaysOnline=false)", mycli.userID)
+				}
 			}
 
 			mycli.Instance.Connected = true
