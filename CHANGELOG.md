@@ -5,6 +5,7 @@
 **Docker:** `evoapicloud/evolution-go:0.7.1`
 
 ### 🆕 New Features
+- **Send Event endpoint** — new `POST /send/event` creates and sends a WhatsApp Event (group agenda). Body supports `name`, `description`, `startTime`/`endTime` (accepting either ISO 8601 with timezone or epoch seconds), optional `location` (name + coordinates + address), `joinLink`, `extraGuestsAllowed`, `hasReminder`/`reminderOffsetSec` and `isCanceled`. Sets the required `MessageContextInfo` secret so the event's going/not-going responses can be decrypted.
 - **Test-send modal in Manager** — new modal in the embedded manager UI to test message sending directly from the panel, covering text, media and interactive message types. Useful for validating an instance right after pairing without leaving the manager.
 
 ### 🔧 Improvements / CI
