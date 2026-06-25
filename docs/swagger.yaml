@@ -633,6 +633,9 @@ definitions:
       isCanceled:
         description: Cancel a previously created event.
         type: boolean
+      isScheduleCall:
+        description: Whether this event is a scheduled call.
+        type: boolean
       joinLink:
         description: Optional call link (Meet, Zoom, etc.).
         type: string
@@ -666,6 +669,13 @@ definitions:
       startTime:
         description: Event start (required). ISO 8601 with timezone or epoch seconds.
         example: "2026-06-25T20:00:00-03:00"
+        type: string
+      text:
+        description: |-
+          Optional text message sent right before the event card (acts like a
+          caption). The WhatsApp event has no caption field, so when set this is
+          delivered as a separate text message first, then the event card. Respects
+          mentionAll/mentionedJid/delay.
         type: string
     type: object
   github_com_EvolutionAPI_evolution-go_pkg_sendMessage_service.LinkStruct:

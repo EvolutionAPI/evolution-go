@@ -4453,6 +4453,10 @@ const docTemplate = `{
                     "description": "Cancel a previously created event.",
                     "type": "boolean"
                 },
+                "isScheduleCall": {
+                    "description": "Whether this event is a scheduled call.",
+                    "type": "boolean"
+                },
                 "joinLink": {
                     "description": "Optional call link (Meet, Zoom, etc.).",
                     "type": "string"
@@ -4502,6 +4506,10 @@ const docTemplate = `{
                     "description": "Event start (required). ISO 8601 with timezone or epoch seconds.",
                     "type": "string",
                     "example": "2026-06-25T20:00:00-03:00"
+                },
+                "text": {
+                    "description": "Optional text message sent right before the event card (acts like a\ncaption). The WhatsApp event has no caption field, so when set this is\ndelivered as a separate text message first, then the event card. Respects\nmentionAll/mentionedJid/delay.",
+                    "type": "string"
                 }
             }
         },

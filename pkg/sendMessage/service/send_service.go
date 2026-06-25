@@ -196,6 +196,11 @@ type EventStruct struct {
 	Name string `json:"name" example:"Reuniao de vendas"`
 	// Optional long description.
 	Description string `json:"description,omitempty"`
+	// Optional text message sent right before the event card (acts like a
+	// caption). The WhatsApp event has no caption field, so when set this is
+	// delivered as a separate text message first, then the event card. Respects
+	// mentionAll/mentionedJid/delay.
+	Text string `json:"text,omitempty"`
 	// Event start (required). ISO 8601 with timezone or epoch seconds.
 	StartTime EventTime `json:"startTime" swaggertype:"string" example:"2026-06-25T20:00:00-03:00"`
 	// Optional event end. ISO 8601 with timezone or epoch seconds.
@@ -206,6 +211,8 @@ type EventStruct struct {
 	JoinLink string `json:"joinLink,omitempty"`
 	// Allow guests to invite extra guests.
 	ExtraGuestsAllowed bool `json:"extraGuestsAllowed,omitempty"`
+	// Whether this event is a scheduled call.
+	IsScheduleCall bool `json:"isScheduleCall,omitempty"`
 	// Enable a reminder for the event.
 	HasReminder bool `json:"hasReminder,omitempty"`
 	// Seconds before startTime to fire the reminder (requires hasReminder).
@@ -1719,6 +1726,22 @@ func (s *sendService) SendEvent(data *EventStruct, instance *instance_model.Inst
 		return nil, err
 	}
 
+	// Optional leading text message — the WhatsApp EventMessage has no caption
+	// field, so when `text` is set it is delivered as a separate text message
+	// right before the event card (same number, mentions and delay).
+	if data.Text != "" {
+		if _, err := s.SendText(&TextStruct{
+			Number:       data.Number,
+			Text:         data.Text,
+			Delay:        data.Delay,
+			MentionAll:   data.MentionAll,
+			MentionedJID: data.MentionedJID,
+			FormatJid:    data.FormatJid,
+		}, instance); err != nil {
+			return nil, fmt.Errorf("failed to send event text: %w", err)
+		}
+	}
+
 	event := &waE2E.EventMessage{
 		Name:      proto.String(data.Name),
 		StartTime: proto.Int64(data.StartTime.Unix()),
@@ -1732,17 +1755,17 @@ func (s *sendService) SendEvent(data *EventStruct, instance *instance_model.Inst
 	if data.JoinLink != "" {
 		event.JoinLink = proto.String(data.JoinLink)
 	}
-	if data.ExtraGuestsAllowed {
-		event.ExtraGuestsAllowed = proto.Bool(true)
-	}
+	// The official WhatsApp client always sends these booleans explicitly on
+	// creation; the server expects them present (a nil *bool is dropped from the
+	// wire and the event is silently discarded), so set them unconditionally.
+	event.IsCanceled = proto.Bool(data.IsCanceled)
+	event.IsScheduleCall = proto.Bool(data.IsScheduleCall)
+	event.ExtraGuestsAllowed = proto.Bool(data.ExtraGuestsAllowed)
 	if data.HasReminder {
 		event.HasReminder = proto.Bool(true)
 		if data.ReminderOffsetSec > 0 {
 			event.ReminderOffsetSec = proto.Int64(data.ReminderOffsetSec)
 		}
-	}
-	if data.IsCanceled {
-		event.IsCanceled = proto.Bool(true)
 	}
 	if data.Location != nil {
 		event.Location = &waE2E.LocationMessage{
