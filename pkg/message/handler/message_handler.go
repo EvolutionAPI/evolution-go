@@ -12,6 +12,7 @@ type MessageHandler interface {
 	React(ctx *gin.Context)
 	ChatPresence(ctx *gin.Context)
 	MarkRead(ctx *gin.Context)
+	MarkPlayed(ctx *gin.Context)
 	DownloadMedia(ctx *gin.Context)
 	GetMessageStatus(ctx *gin.Context)
 	DeleteMessageEveryone(ctx *gin.Context)
@@ -156,6 +157,56 @@ func (m *messageHandler) MarkRead(ctx *gin.Context) {
 	}
 
 	ts, err := m.messageService.MarkRead(data, instance)
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	responseData := gin.H{
+		"timestamp": ts,
+	}
+
+	ctx.JSON(http.StatusOK, gin.H{"message": "success", "data": responseData})
+}
+
+// MarkPlayed mark an audio message as played (blue mic icon)
+// @Summary Mark an audio message as played
+// @Description Mark an audio message as played
+// @Tags Message
+// @Accept json
+// @Produce json
+// @Param message body message_service.MarkPlayedStruct true "Mark an audio message as played"
+// @Success 200 {object} gin.H "success"
+// @Failure 400 {object} gin.H "Error on validation"
+// @Failure 500 {object} gin.H "Internal server error"
+// @Router /message/markplayed [post]
+func (m *messageHandler) MarkPlayed(ctx *gin.Context) {
+	getInstance := ctx.MustGet("instance")
+
+	instance, ok := getInstance.(*instance_model.Instance)
+	if !ok {
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "instance not found"})
+		return
+	}
+
+	var data *message_service.MarkPlayedStruct
+	err := ctx.ShouldBindBodyWithJSON(&data)
+	if err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	if data.Number == "" {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "phone number is required"})
+		return
+	}
+
+	if len(data.Id) < 1 {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "id is required"})
+		return
+	}
+
+	ts, err := m.messageService.MarkPlayed(data, instance)
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return

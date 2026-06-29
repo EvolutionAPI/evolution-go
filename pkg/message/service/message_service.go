@@ -27,6 +27,7 @@ type MessageService interface {
 	React(data *ReactStruct, instance *instance_model.Instance) (*MessageSendStruct, error)
 	ChatPresence(data *ChatPresenceStruct, instance *instance_model.Instance) (string, error)
 	MarkRead(data *MarkReadStruct, instance *instance_model.Instance) (string, error)
+	MarkPlayed(data *MarkPlayedStruct, instance *instance_model.Instance) (string, error)
 	DownloadMedia(data *DownloadMediaStruct, instance *instance_model.Instance, request *http.Request) (*dataurl.DataURL, string, error)
 	GetMessageStatus(data *MessageStatusStruct, instance *instance_model.Instance) (*message_model.Message, string, error)
 	DeleteMessageEveryone(data *MessageStruct, instance *instance_model.Instance) (string, string, error)
@@ -55,6 +56,11 @@ type ChatPresenceStruct struct {
 }
 
 type MarkReadStruct struct {
+	Id     []string `json:"id"`
+	Number string   `json:"number"`
+}
+
+type MarkPlayedStruct struct {
 	Id     []string `json:"id"`
 	Number string   `json:"number"`
 }
@@ -253,6 +259,29 @@ func (m *messageService) MarkRead(data *MarkReadStruct, instance *instance_model
 	if err != nil {
 		m.loggerWrapper.GetLogger(instance.Id).LogError("[%s] error marking message as read: %v", instance.Id, err)
 		return "", errors.New("error marking message as read")
+	}
+
+	return ts.String(), nil
+}
+
+func (m *messageService) MarkPlayed(data *MarkPlayedStruct, instance *instance_model.Instance) (string, error) {
+	client, err := m.ensureClientConnected(instance.Id)
+	if err != nil {
+		return "", err
+	}
+
+	var ts time.Time
+
+	jid, ok := utils.ParseJID(data.Number)
+	if !ok {
+		m.loggerWrapper.GetLogger(instance.Id).LogError("[%s] Error validating message fields", instance.Id)
+		return "", errors.New("invalid phone number")
+	}
+
+	err = client.MarkRead(context.Background(), data.Id, time.Now(), jid, jid, types.ReceiptTypePlayed)
+	if err != nil {
+		m.loggerWrapper.GetLogger(instance.Id).LogError("[%s] error marking message as played: %v", instance.Id, err)
+		return "", errors.New("error marking message as played")
 	}
 
 	return ts.String(), nil
