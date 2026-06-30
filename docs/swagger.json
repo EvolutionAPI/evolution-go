@@ -1936,6 +1936,52 @@
                 }
             }
         },
+        "/message/markplayed": {
+            "post": {
+                "description": "Mark an audio message as played",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Message"
+                ],
+                "summary": "Mark an audio message as played",
+                "parameters": [
+                    {
+                        "description": "Mark an audio message as played",
+                        "name": "message",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/github_com_EvolutionAPI_evolution-go_pkg_message_service.MarkPlayedStruct"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "success",
+                        "schema": {
+                            "$ref": "#/definitions/gin.H"
+                        }
+                    },
+                    "400": {
+                        "description": "Error on validation",
+                        "schema": {
+                            "$ref": "#/definitions/gin.H"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/gin.H"
+                        }
+                    }
+                }
+            }
+        },
         "/message/markread": {
             "post": {
                 "description": "Mark a message as read",
@@ -3837,6 +3883,20 @@
                     "type": "string"
                 },
                 "messageId": {
+                    "type": "string"
+                }
+            }
+        },
+        "github_com_EvolutionAPI_evolution-go_pkg_message_service.MarkPlayedStruct": {
+            "type": "object",
+            "properties": {
+                "id": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "number": {
                     "type": "string"
                 }
             }

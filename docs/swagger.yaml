@@ -234,6 +234,15 @@ definitions:
       messageId:
         type: string
     type: object
+  github_com_EvolutionAPI_evolution-go_pkg_message_service.MarkPlayedStruct:
+    properties:
+      id:
+        items:
+          type: string
+        type: array
+      number:
+        type: string
+    type: object
   github_com_EvolutionAPI_evolution-go_pkg_message_service.MarkReadStruct:
     properties:
       id:
@@ -7868,6 +7877,36 @@ paths:
           schema:
             $ref: '#/definitions/gin.H'
       summary: Edit a message
+      tags:
+      - Message
+  /message/markplayed:
+    post:
+      consumes:
+      - application/json
+      description: Mark an audio message as played
+      parameters:
+      - description: Mark an audio message as played
+        in: body
+        name: message
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_EvolutionAPI_evolution-go_pkg_message_service.MarkPlayedStruct'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: success
+          schema:
+            $ref: '#/definitions/gin.H'
+        "400":
+          description: Error on validation
+          schema:
+            $ref: '#/definitions/gin.H'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/gin.H'
+      summary: Mark an audio message as played
       tags:
       - Message
   /message/markread:
