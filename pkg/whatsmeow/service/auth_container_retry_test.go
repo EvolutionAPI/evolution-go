@@ -29,6 +29,13 @@ func TestGetAuthContainerRetryAndReuse(t *testing.T) {
 	if _, err := bad.getAuthContainer(); err == nil {
 		t.Fatal("esperava erro com diretório inexistente, veio nil")
 	}
+	// Falha não deve ser memorizada no singleton
+	sharedAuthContainerMu.Lock()
+	if sharedAuthContainer != nil {
+		sharedAuthContainerMu.Unlock()
+		t.Fatalf("failed container should not be memoized (sharedAuthContainer = %#v)", sharedAuthContainer)
+	}
+	sharedAuthContainerMu.Unlock()
 
 	// Sucesso: exPath válido com o subdiretório dbdata esperado pelo DSN.
 	goodPath := t.TempDir()
