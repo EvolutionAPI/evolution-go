@@ -649,7 +649,7 @@ Após descriptografia, o payload inclui:
 - Texto novo em `Message.protocolMessage.editedMessage` (ex.: `conversation` ou `extendedTextMessage`)
 - ID da mensagem original em `Message.protocolMessage.key.ID` (ou, antes do decrypt, em `secretEncryptedMessage.targetMessageKey.ID`)
 
-**Limitação**: o decrypt usa o `messageSecret` da mensagem original armazenado na sessão. Se a mensagem original não estiver no store (ex.: enviada antes da sessão atual), o webhook ainda chega com `secretEncryptedMessage` cifrado (sem texto em claro), mas mantém `IsEdit: true` e `messageType: "edit"` para identificar a ação.
+**Limitação**: o decrypt usa o `messageSecret` da mensagem original armazenado na sessão e deve rodar **antes** de qualquer normalização LID→PN do `Info.Sender`/`Chat`. Se o decrypt falhar, o webhook ainda chega com `IsEdit: true`, `messageType: "edit"` e `decryptFailed: true` (pode manter `secretEncryptedMessage` sem texto em claro).
 
 #### Exclusão (revoke) de mensagem
 
