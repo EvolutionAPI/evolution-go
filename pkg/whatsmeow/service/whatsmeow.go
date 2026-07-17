@@ -1238,19 +1238,38 @@ func (mycli *MyClient) myEventHandler(rawEvt interface{}) {
 
 		// Newer WhatsApp clients send edits as SecretEncryptedMessage(MESSAGE_EDIT).
 		// Decrypt before classification/marshal so the webhook includes the new text.
+		secretEditEnvelope := false
 		if enc := evt.Message.GetSecretEncryptedMessage(); enc != nil &&
 			enc.GetSecretEncType() == waE2E.SecretEncryptedMessage_MESSAGE_EDIT {
-			decrypted, err := mycli.WAClient.DecryptSecretEncryptedMessage(context.Background(), evt)
-			if err != nil {
-				mycli.loggerWrapper.GetLogger(mycli.userID).LogWarn(
-					"[%s] Failed to decrypt secret encrypted message edit (original secret may be missing): %v",
-					mycli.userID, err)
-			} else {
-				evt.Message = decrypted
-				evt.IsEdit = true
-				mycli.loggerWrapper.GetLogger(mycli.userID).LogInfo(
-					"[%s] Decrypted secret encrypted message edit for %s", mycli.userID, evt.Info.ID)
+			secretEditEnvelope = true
+			evt.IsEdit = true
+
+			client := mycli.clientPointer[mycli.userID]
+			if client == nil {
+				client = mycli.WAClient
 			}
+			if client == nil {
+				mycli.loggerWrapper.GetLogger(mycli.userID).LogWarn(
+					"[%s] No client available to decrypt secret encrypted message edit", mycli.userID)
+			} else {
+				decrypted, err := client.DecryptSecretEncryptedMessage(context.Background(), evt)
+				if err != nil {
+					mycli.loggerWrapper.GetLogger(mycli.userID).LogWarn(
+						"[%s] Failed to decrypt secret encrypted message edit (original secret may be missing): %v",
+						mycli.userID, err)
+				} else {
+					evt.Message = decrypted
+					mycli.loggerWrapper.GetLogger(mycli.userID).LogInfo(
+						"[%s] Decrypted secret encrypted message edit for %s", mycli.userID, evt.Info.ID)
+				}
+			}
+		}
+
+		// EditedMessage wrapper (legacy wire format or post-decrypt). Do not call
+		// UnwrapRaw here — it resets Message from RawMessage and would undo decrypt.
+		if evt.Message != nil && evt.Message.GetEditedMessage().GetMessage() != nil {
+			evt.Message = evt.Message.GetEditedMessage().GetMessage()
+			evt.IsEdit = true
 		}
 
 		parsedMessageType := utils.GetMessageType(evt.Message)
@@ -1259,8 +1278,7 @@ func (mycli *MyClient) myEventHandler(rawEvt interface{}) {
 			return
 		}
 
-		// Legacy plaintext edits arrive as ProtocolMessage MESSAGE_EDIT (IsEdit stays false otherwise).
-		if parsedMessageType == "edit" {
+		if parsedMessageType == "edit" || secretEditEnvelope {
 			evt.IsEdit = true
 		}
 
@@ -1299,6 +1317,13 @@ func (mycli *MyClient) myEventHandler(rawEvt interface{}) {
 			dataMap["IsRevoke"] = true
 			dataMap["messageType"] = "revoke"
 			setProtocolMessageTypeName(dataMap, "REVOKE")
+		default:
+			// Decrypt failed or plaintext not yet classified as "edit", but envelope
+			// already identified the event as an incoming message edit.
+			if secretEditEnvelope {
+				dataMap["IsEdit"] = true
+				dataMap["messageType"] = "edit"
+			}
 		}
 
 		referral := extractReferralFromMessage(evt.Message)
