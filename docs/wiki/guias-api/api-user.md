@@ -64,6 +64,7 @@ apikey: SUA-CHAVE-API
         },
         "Status": "Olá! Estou usando WhatsApp.",
         "PictureID": "abc123",
+        "PictureURL": "https://pps.whatsapp.net/v/...",
         "Devices": ["5511999999999.0:1@s.whatsapp.net"],
         "LID": "lid_string"
       }
@@ -76,12 +77,13 @@ apikey: SUA-CHAVE-API
 - `VerifiedName`: Nome verificado (empresas) ou null
 - `Status`: Recado/status do usuário
 - `PictureID`: ID da foto de perfil
+- `PictureURL`: URL da foto de perfil (preview; vazio se indisponível). Para imagem completa use `POST /user/avatar`
 - `Devices`: Lista de dispositivos conectados
 - `LID`: Local ID (se disponível)
 
 **Exemplo cURL**:
 ```bash
-curl -X POST http://localhost:4000/user/info \
+curl -X POST http://localhost:${SERVER_PORT}/user/info \
   -H "Content-Type: application/json" \
   -H "apikey: SUA-CHAVE-API" \
   -d '{
