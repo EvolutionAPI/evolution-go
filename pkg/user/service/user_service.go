@@ -335,6 +335,10 @@ func (u *userService) GetAvatar(data *GetAvatarStruct, instance *instance_model.
 	if !ok {
 		return nil, errors.New("invalid phone number")
 	}
+	// Profile picture IQ is a RAW node (Target=jid). CreateJID/ParseJID may
+	// prefix "+" which WhatsApp does not accept on this path — same class of
+	// bug as typing/receipts (see utils.CanonicalJID).
+	jid = utils.CanonicalJID(jid).ToNonAD()
 
 	u.loggerWrapper.GetLogger(instance.Id).LogInfo("[%s] Requesting avatar for JID: %s, Preview: %v", instance.Id, jid, data.Preview)
 
@@ -351,7 +355,7 @@ func (u *userService) GetAvatar(data *GetAvatarStruct, instance *instance_model.
 	})
 	if err != nil {
 		u.loggerWrapper.GetLogger(instance.Id).LogError("[%s] GetProfilePictureInfo failed: %v", instance.Id, err)
-		return nil, err
+		return nil, fmt.Errorf("get profile picture for %s: %w", jid, err)
 	}
 
 	if pic == nil {
