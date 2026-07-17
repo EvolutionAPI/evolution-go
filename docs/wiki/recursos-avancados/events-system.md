@@ -644,10 +644,23 @@ Quando um contato edita uma mensagem, o evento continua sendo `Message` (subscri
 Após descriptografia, o payload inclui:
 
 - `IsEdit: true`
+- `messageType: "edit"`
+- `Message.protocolMessage.typeName: "MESSAGE_EDIT"` (o campo numérico `type` continua presente)
 - Texto novo em `Message.protocolMessage.editedMessage` (ex.: `conversation` ou `extendedTextMessage`)
 - ID da mensagem original em `Message.protocolMessage.key.id` (ou, antes do decrypt, em `secretEncryptedMessage.targetMessageKey.id`)
 
 **Limitação**: o decrypt usa o `messageSecret` da mensagem original armazenado na sessão. Se a mensagem original não estiver no store (ex.: enviada antes da sessão atual), o webhook pode ainda chegar com `secretEncryptedMessage` cifrado e sem texto em claro.
+
+#### Exclusão (revoke) de mensagem
+
+Quando um contato apaga uma mensagem “para todos”, o evento também é `Message` (subscribe `MESSAGE`).
+
+O payload inclui:
+
+- `IsRevoke: true`
+- `messageType: "revoke"`
+- `Message.protocolMessage.typeName: "REVOKE"` (equivalente ao `type: 0` / `Info.Edit: "7"`)
+- ID da mensagem apagada em `Message.protocolMessage.key.id`
 
 ### Eventos de Grupos
 

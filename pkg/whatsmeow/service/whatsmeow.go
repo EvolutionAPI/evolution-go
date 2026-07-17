@@ -1288,6 +1288,19 @@ func (mycli *MyClient) myEventHandler(rawEvt interface{}) {
 			dataMap = make(map[string]interface{})
 		}
 
+		// Explicit action flags for edit/revoke — protocolMessage.type alone is a
+		// numeric enum (0 = REVOKE, 14 = MESSAGE_EDIT) and Info.Edit is opaque.
+		switch parsedMessageType {
+		case "edit":
+			dataMap["IsEdit"] = true
+			dataMap["messageType"] = "edit"
+			setProtocolMessageTypeName(dataMap, "MESSAGE_EDIT")
+		case "revoke":
+			dataMap["IsRevoke"] = true
+			dataMap["messageType"] = "revoke"
+			setProtocolMessageTypeName(dataMap, "REVOKE")
+		}
+
 		referral := extractReferralFromMessage(evt.Message)
 
 		if evt.Message.GetPollUpdateMessage() != nil {
@@ -2901,6 +2914,22 @@ func (w *whatsmeowService) ConfirmPasskey(instanceId string) error {
 	}
 	w.passkeyCeremony.SetConfirmed(instanceId)
 	return nil
+}
+
+// setProtocolMessageTypeName adds a human-readable protocolMessage.typeName
+// (e.g. REVOKE, MESSAGE_EDIT) without replacing the numeric type enum.
+func setProtocolMessageTypeName(dataMap map[string]interface{}, typeName string) {
+	message, ok := dataMap["Message"].(map[string]interface{})
+	if !ok {
+		return
+	}
+	pm, ok := message["protocolMessage"].(map[string]interface{})
+	if !ok {
+		return
+	}
+	pm["typeName"] = typeName
+	message["protocolMessage"] = pm
+	dataMap["Message"] = message
 }
 
 // cleanSenderID remove a parte ":numero" do sender ID para exibir apenas o remoteJid correto
