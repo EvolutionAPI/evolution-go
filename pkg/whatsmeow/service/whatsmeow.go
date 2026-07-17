@@ -1236,10 +1236,32 @@ func (mycli *MyClient) myEventHandler(rawEvt interface{}) {
 			}()
 		}
 
+		// Newer WhatsApp clients send edits as SecretEncryptedMessage(MESSAGE_EDIT).
+		// Decrypt before classification/marshal so the webhook includes the new text.
+		if enc := evt.Message.GetSecretEncryptedMessage(); enc != nil &&
+			enc.GetSecretEncType() == waE2E.SecretEncryptedMessage_MESSAGE_EDIT {
+			decrypted, err := mycli.WAClient.DecryptSecretEncryptedMessage(context.Background(), evt)
+			if err != nil {
+				mycli.loggerWrapper.GetLogger(mycli.userID).LogWarn(
+					"[%s] Failed to decrypt secret encrypted message edit (original secret may be missing): %v",
+					mycli.userID, err)
+			} else {
+				evt.Message = decrypted
+				evt.IsEdit = true
+				mycli.loggerWrapper.GetLogger(mycli.userID).LogInfo(
+					"[%s] Decrypted secret encrypted message edit for %s", mycli.userID, evt.Info.ID)
+			}
+		}
+
 		parsedMessageType := utils.GetMessageType(evt.Message)
 		if parsedMessageType == "ignore" || strings.HasPrefix(parsedMessageType, "unknown_protocol_") {
 			mycli.loggerWrapper.GetLogger(mycli.userID).LogInfo("[%s] Message ignored because it's a unknown protocol message", mycli.userID)
 			return
+		}
+
+		// Legacy plaintext edits arrive as ProtocolMessage MESSAGE_EDIT (IsEdit stays false otherwise).
+		if parsedMessageType == "edit" {
+			evt.IsEdit = true
 		}
 
 		if postMap["data"] != nil {

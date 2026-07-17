@@ -637,6 +637,18 @@ O Evolution GO usa dois níveis de classificação de eventos:
 - `Receipt` - Confirmação de leitura (`READ_RECEIPT`)
 - Reações, edições, deleções de mensagens
 
+#### Edição de mensagem recebida
+
+Quando um contato edita uma mensagem, o evento continua sendo `Message` (subscribe `MESSAGE`). Não existe categoria separada `MESSAGE_EDIT`.
+
+Após descriptografia, o payload inclui:
+
+- `IsEdit: true`
+- Texto novo em `Message.protocolMessage.editedMessage` (ex.: `conversation` ou `extendedTextMessage`)
+- ID da mensagem original em `Message.protocolMessage.key.id` (ou, antes do decrypt, em `secretEncryptedMessage.targetMessageKey.id`)
+
+**Limitação**: o decrypt usa o `messageSecret` da mensagem original armazenado na sessão. Se a mensagem original não estiver no store (ex.: enviada antes da sessão atual), o webhook pode ainda chegar com `secretEncryptedMessage` cifrado e sem texto em claro.
+
 ### Eventos de Grupos
 
 **Categoria**: `GROUP`
