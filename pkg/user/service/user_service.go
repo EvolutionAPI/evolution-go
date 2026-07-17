@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strings"
 	"time"
 
 	instance_model "github.com/evolution-foundation/evolution-go/pkg/instance/model"
@@ -13,8 +14,11 @@ import (
 	"github.com/evolution-foundation/evolution-go/pkg/utils"
 	whatsmeow_service "github.com/evolution-foundation/evolution-go/pkg/whatsmeow/service"
 	"go.mau.fi/whatsmeow"
+	"go.mau.fi/whatsmeow/appstate"
+	"go.mau.fi/whatsmeow/proto/waSyncAction"
 	"go.mau.fi/whatsmeow/types"
 	"go.mau.fi/whatsmeow/types/events"
+	"google.golang.org/protobuf/proto"
 )
 
 type UserService interface {
@@ -22,6 +26,7 @@ type UserService interface {
 	CheckUser(data *CheckUserStruct, instance *instance_model.Instance) (*CheckUserCollection, error)
 	GetAvatar(data *GetAvatarStruct, instance *instance_model.Instance) (*types.ProfilePictureInfo, error)
 	GetContacts(instance *instance_model.Instance) ([]ContactInfo, error)
+	SaveContact(data *SaveContactStruct, instance *instance_model.Instance) error
 	GetPrivacy(instance *instance_model.Instance) (types.PrivacySettings, error)
 	SetPrivacy(data *PrivacyStruct, instance *instance_model.Instance) (*types.PrivacySettings, error)
 	BlockContact(data *BlockStruct, instance *instance_model.Instance) (*types.Blocklist, error)
@@ -84,6 +89,19 @@ type GetAvatarStruct struct {
 
 type BlockStruct struct {
 	Number string `json:"number"`
+}
+
+// SaveContactStruct é o body de POST /user/savecontact.
+type SaveContactStruct struct {
+	// Número de destino (com DDI).
+	Number string `json:"number" example:"5582988898565"`
+	// Nome completo salvo para o contato.
+	FullName string `json:"fullName" example:"Fulano de Tal"`
+	// Primeiro nome (opcional). Se vazio, usa a primeira palavra de fullName.
+	FirstName string `json:"firstName,omitempty" example:"Fulano"`
+	// Se true (padrão), sincroniza com a agenda do celular primário
+	// (equivale ao toggle "Sincronizar contato com celular" do WhatsApp Web).
+	SaveOnPhone *bool `json:"saveOnPhone,omitempty"`
 }
 
 type SetProfilePictureStruct struct {
@@ -389,6 +407,75 @@ func (u *userService) GetContacts(instance *instance_model.Instance) ([]ContactI
 
 	return contactsArray, nil
 
+}
+
+// SaveContact adiciona/atualiza um contato na lista de contatos do WhatsApp da
+// instância, via app state patch (coleção critical_unblock_low, índice "contact").
+// É o mesmo mecanismo que o WhatsApp Web usa na tela "Novo contato".
+//
+// Quando SaveOnPhone=true, seta ContactAction.SaveOnPrimaryAddressbook, que faz o
+// dispositivo primário (celular) gravar o contato também na agenda do sistema —
+// equivale ao toggle "Sincronizar contato com celular".
+//
+// Requisitos: as app state keys precisam já estar sincronizadas (acontece após o
+// pareamento) e o celular primário precisa estar online para propagar a mudança.
+func (u *userService) SaveContact(data *SaveContactStruct, instance *instance_model.Instance) error {
+	client, err := u.ensureClientConnected(instance.Id)
+	if err != nil {
+		return err
+	}
+
+	jid, ok := utils.ParseJID(data.Number)
+	if !ok {
+		return errors.New("invalid phone number")
+	}
+	// Normaliza o JID removendo o '+' inicial para ficar idêntico ao padrão dos
+	// demais contatos (556284875027@s.whatsapp.net). Com o '+' o WhatsApp aceita
+	// o app state mas o dispositivo primário não grava na agenda do sistema.
+	jid.User = strings.ReplaceAll(jid.User, "+", "")
+
+	if data.FullName == "" {
+		return errors.New("fullName is required")
+	}
+
+	firstName := data.FirstName
+	if firstName == "" {
+		// Usa a primeira palavra do nome completo como fallback.
+		if idx := strings.IndexByte(data.FullName, ' '); idx > 0 {
+			firstName = data.FullName[:idx]
+		} else {
+			firstName = data.FullName
+		}
+	}
+
+	// Por padrão sincroniza com a agenda do celular (toggle do WhatsApp Web).
+	saveOnPhone := true
+	if data.SaveOnPhone != nil {
+		saveOnPhone = *data.SaveOnPhone
+	}
+
+	patch := appstate.PatchInfo{
+		Type: appstate.WAPatchCriticalUnblockLow,
+		Mutations: []appstate.MutationInfo{{
+			Index:   []string{appstate.IndexContact, jid.String()},
+			Version: 2,
+			Value: &waSyncAction.SyncActionValue{
+				ContactAction: &waSyncAction.ContactAction{
+					FullName:                 proto.String(data.FullName),
+					FirstName:                proto.String(firstName),
+					SaveOnPrimaryAddressbook: proto.Bool(saveOnPhone),
+				},
+			},
+		}},
+	}
+
+	if err := client.SendAppState(context.Background(), patch); err != nil {
+		u.loggerWrapper.GetLogger(instance.Id).LogError("[%s] Error saving contact %s: %v", instance.Id, jid.String(), err)
+		return err
+	}
+
+	u.loggerWrapper.GetLogger(instance.Id).LogInfo("[%s] Contact saved: %s (%s)", instance.Id, data.FullName, jid.String())
+	return nil
 }
 
 func (u *userService) GetPrivacy(instance *instance_model.Instance) (types.PrivacySettings, error) {
