@@ -637,6 +637,31 @@ O Evolution GO usa dois níveis de classificação de eventos:
 - `Receipt` - Confirmação de leitura (`READ_RECEIPT`)
 - Reações, edições, deleções de mensagens
 
+#### Edição de mensagem recebida
+
+Quando um contato edita uma mensagem, o evento continua sendo `Message` (subscribe `MESSAGE`). Não existe categoria separada `MESSAGE_EDIT`.
+
+Após descriptografia, o payload inclui:
+
+- `IsEdit: true`
+- `messageType: "edit"`
+- `Message.protocolMessage.typeName: "MESSAGE_EDIT"` (o campo numérico `type` continua presente)
+- Texto novo em `Message.protocolMessage.editedMessage` (ex.: `conversation` ou `extendedTextMessage`)
+- ID da mensagem original em `Message.protocolMessage.key.ID` (ou, antes do decrypt, em `secretEncryptedMessage.targetMessageKey.ID`)
+
+**Limitação**: o decrypt usa o `messageSecret` da mensagem original armazenado na sessão e deve rodar **antes** de qualquer normalização LID→PN do `Info.Sender`/`Chat`. Se o decrypt falhar, o webhook ainda chega com `IsEdit: true`, `messageType: "edit"` e `decryptFailed: true` (pode manter `secretEncryptedMessage` sem texto em claro).
+
+#### Exclusão (revoke) de mensagem
+
+Quando um contato apaga uma mensagem “para todos”, o evento também é `Message` (subscribe `MESSAGE`).
+
+O payload inclui:
+
+- `IsRevoke: true`
+- `messageType: "revoke"`
+- `Message.protocolMessage.typeName: "REVOKE"` (equivalente ao `type: 0` / `Info.Edit: "7"`)
+- ID da mensagem apagada em `Message.protocolMessage.key.ID`
+
 ### Eventos de Grupos
 
 **Categoria**: `GROUP`
