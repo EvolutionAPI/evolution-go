@@ -27,8 +27,9 @@ const clientReadyWait = 2 * time.Second
 // userInfoRequestTimeout bounds the usync IQ on POST /user/info.
 const userInfoRequestTimeout = 10 * time.Second
 
-// pictureURLEnrichTimeout is a best-effort preview fetch after usync; failures leave PictureURL empty.
-const pictureURLEnrichTimeout = 5 * time.Second
+// pictureURLEnrichBudget is the total wall-clock budget for best-effort PictureURL
+// enrichment after usync (shared across all users in the response).
+const pictureURLEnrichBudget = 5 * time.Second
 
 type UserService interface {
 	GetUser(ctx context.Context, data *CheckUserStruct, instance *instance_model.Instance) (*UserCollection, error)
@@ -181,13 +182,13 @@ func (u *userService) waitForClientReady(ctx context.Context, instanceId string,
 }
 
 func (u *userService) GetUser(ctx context.Context, data *CheckUserStruct, instance *instance_model.Instance) (*UserCollection, error) {
-	client, err := u.ensureClientConnected(instance.Id)
-	if err != nil {
-		return nil, err
-	}
-
 	if ctx == nil {
 		ctx = context.Background()
+	}
+
+	client, err := u.ensureClientConnectedCtx(ctx, instance.Id)
+	if err != nil {
+		return nil, err
 	}
 
 	var jids []types.JID
@@ -217,6 +218,9 @@ func (u *userService) GetUser(ctx context.Context, data *CheckUserStruct, instan
 	uc := new(UserCollection)
 	uc.Users = make(map[types.JID]UserInfo)
 
+	enrichDeadline := time.Now().Add(pictureURLEnrichBudget)
+	skipPictureEnrich := false
+
 	for jid, whatsmeowInfo := range resp {
 		// Consultar LID Store para obter LID associado ao JID
 		var lidStr *string
@@ -228,11 +232,23 @@ func (u *userService) GetUser(ctx context.Context, data *CheckUserStruct, instan
 		}
 
 		pictureURL := ""
-		pic, picErr := u.fetchProfilePicture(ctx, client, jid, true, pictureURLEnrichTimeout)
-		if picErr != nil {
-			u.loggerWrapper.GetLogger(instance.Id).LogWarn("[%s] Failed to enrich PictureURL for %s: %v", instance.Id, jid, picErr)
-		} else if pic != nil {
-			pictureURL = pic.URL
+		if !skipPictureEnrich && whatsmeowInfo.PictureID != "" {
+			remaining := time.Until(enrichDeadline)
+			if remaining <= 0 {
+				skipPictureEnrich = true
+				u.loggerWrapper.GetLogger(instance.Id).LogWarn("[%s] PictureURL enrich budget exhausted; skipping remaining users", instance.Id)
+			} else {
+				pic, picErr := u.fetchProfilePicture(ctx, client, jid, true, remaining)
+				if picErr != nil {
+					u.loggerWrapper.GetLogger(instance.Id).LogWarn("[%s] Failed to enrich PictureURL for %s: %v", instance.Id, jid, picErr)
+					if errors.Is(picErr, whatsmeow.ErrIQRateOverLimit) {
+						skipPictureEnrich = true
+						u.loggerWrapper.GetLogger(instance.Id).LogWarn("[%s] Stopping PictureURL enrich after rate-overlimit", instance.Id)
+					}
+				} else if pic != nil {
+					pictureURL = pic.URL
+				}
+			}
 		}
 
 		// Converter para nossa estrutura UserInfo que inclui LID

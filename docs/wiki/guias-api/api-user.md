@@ -93,7 +93,7 @@ Prefira o JID/`@lid` já gravado pela sessão. Para URL de foto confiável, use 
 - `VerifiedName`: Nome verificado (empresas) ou null
 - `Status`: Recado/status do usuário
 - `PictureID`: ID da foto de perfil
-- `PictureURL`: URL da foto de perfil (preview best-effort; vazio se indisponível ou sob rate-limit). Para imagem completa use `POST /user/avatar`
+- `PictureURL`: URL da foto de perfil (preview best-effort com budget total de ~5s; vazio se indisponível, sem `PictureID`, sob rate-limit ou budget esgotado). Para imagem completa use `POST /user/avatar`
 - `Devices`: Lista de dispositivos conectados
 - `LID`: Local ID (se disponível)
 
