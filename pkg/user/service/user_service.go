@@ -17,10 +17,14 @@ import (
 	"go.mau.fi/whatsmeow/types/events"
 )
 
+// avatarRequestTimeout bounds POST /user/avatar so clients (e.g. Chatwoot at 12s)
+// get a clear HTTP error instead of a hung connection waiting for the ~75s IQ default.
+const avatarRequestTimeout = 8 * time.Second
+
 type UserService interface {
 	GetUser(data *CheckUserStruct, instance *instance_model.Instance) (*UserCollection, error)
 	CheckUser(data *CheckUserStruct, instance *instance_model.Instance) (*CheckUserCollection, error)
-	GetAvatar(data *GetAvatarStruct, instance *instance_model.Instance) (*types.ProfilePictureInfo, error)
+	GetAvatar(ctx context.Context, data *GetAvatarStruct, instance *instance_model.Instance) (*types.ProfilePictureInfo, error)
 	GetContacts(instance *instance_model.Instance) ([]ContactInfo, error)
 	GetPrivacy(instance *instance_model.Instance) (types.PrivacySettings, error)
 	SetPrivacy(data *PrivacyStruct, instance *instance_model.Instance) (*types.PrivacySettings, error)
@@ -315,7 +319,7 @@ func (u *userService) mergeCheckUserResults(original, retry *CheckUserCollection
 	return merged
 }
 
-func (u *userService) GetAvatar(data *GetAvatarStruct, instance *instance_model.Instance) (*types.ProfilePictureInfo, error) {
+func (u *userService) GetAvatar(ctx context.Context, data *GetAvatarStruct, instance *instance_model.Instance) (*types.ProfilePictureInfo, error) {
 	client, err := u.ensureClientConnected(instance.Id)
 	if err != nil {
 		return nil, err
@@ -342,15 +346,14 @@ func (u *userService) GetAvatar(data *GetAvatarStruct, instance *instance_model.
 
 	u.loggerWrapper.GetLogger(instance.Id).LogInfo("[%s] Requesting avatar for JID: %s, Preview: %v", instance.Id, jid, data.Preview)
 
-	var pic *types.ProfilePictureInfo
-
-	// 🔒 FIX: Adicionar timeout ao contexto para evitar que a requisição trave indefinidamente
-	// Usar timeout maior que o padrão do sendIQ (75s) para dar tempo suficiente
-	ctx, cancel := context.WithTimeout(context.Background(), 80*time.Second)
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	reqCtx, cancel := context.WithTimeout(ctx, avatarRequestTimeout)
 	defer cancel()
 
 	u.loggerWrapper.GetLogger(instance.Id).LogInfo("[%s] Starting GetProfilePictureInfo request...", instance.Id)
-	pic, err = client.GetProfilePictureInfo(ctx, jid, &whatsmeow.GetProfilePictureParams{
+	pic, err := client.GetProfilePictureInfo(reqCtx, jid, &whatsmeow.GetProfilePictureParams{
 		Preview: data.Preview,
 	})
 	if err != nil {
