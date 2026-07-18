@@ -24,8 +24,14 @@ const avatarRequestTimeout = 8 * time.Second
 // clientReadyWait is the max time to wait after StartInstance before failing.
 const clientReadyWait = 2 * time.Second
 
+// userInfoRequestTimeout bounds the usync IQ on POST /user/info.
+const userInfoRequestTimeout = 10 * time.Second
+
+// pictureURLEnrichTimeout is a best-effort preview fetch after usync; failures leave PictureURL empty.
+const pictureURLEnrichTimeout = 5 * time.Second
+
 type UserService interface {
-	GetUser(data *CheckUserStruct, instance *instance_model.Instance) (*UserCollection, error)
+	GetUser(ctx context.Context, data *CheckUserStruct, instance *instance_model.Instance) (*UserCollection, error)
 	CheckUser(data *CheckUserStruct, instance *instance_model.Instance) (*CheckUserCollection, error)
 	GetAvatar(ctx context.Context, data *GetAvatarStruct, instance *instance_model.Instance) (*types.ProfilePictureInfo, error)
 	GetContacts(instance *instance_model.Instance) ([]ContactInfo, error)
@@ -174,10 +180,14 @@ func (u *userService) waitForClientReady(ctx context.Context, instanceId string,
 	}
 }
 
-func (u *userService) GetUser(data *CheckUserStruct, instance *instance_model.Instance) (*UserCollection, error) {
+func (u *userService) GetUser(ctx context.Context, data *CheckUserStruct, instance *instance_model.Instance) (*UserCollection, error) {
 	client, err := u.ensureClientConnected(instance.Id)
 	if err != nil {
 		return nil, err
+	}
+
+	if ctx == nil {
+		ctx = context.Background()
 	}
 
 	var jids []types.JID
@@ -186,10 +196,20 @@ func (u *userService) GetUser(data *CheckUserStruct, instance *instance_model.In
 		if !ok {
 			return nil, errors.New("invalid phone number")
 		}
-		// usync IQ also requires a digits-only user JID (no "+" prefix).
-		jids = append(jids, utils.CanonicalJID(jid).ToNonAD())
+		jid = utils.CanonicalJID(jid).ToNonAD()
+		// Usync is more reliable on PN JIDs; resolve @lid via store when possible.
+		if jid.Server == types.HiddenUserServer && client.Store.LIDs != nil {
+			if pn, lidErr := client.Store.LIDs.GetPNForLID(ctx, jid); lidErr == nil && !pn.IsEmpty() {
+				u.loggerWrapper.GetLogger(instance.Id).LogInfo("[%s] Resolved LID %s to PN %s for usync", instance.Id, jid, pn)
+				jid = utils.CanonicalJID(pn).ToNonAD()
+			}
+		}
+		jids = append(jids, jid)
 	}
-	resp, err := client.GetUserInfo(context.Background(), jids)
+
+	usyncCtx, cancel := context.WithTimeout(ctx, userInfoRequestTimeout)
+	defer cancel()
+	resp, err := client.GetUserInfo(usyncCtx, jids)
 	if err != nil {
 		return nil, err
 	}
@@ -201,14 +221,14 @@ func (u *userService) GetUser(data *CheckUserStruct, instance *instance_model.In
 		// Consultar LID Store para obter LID associado ao JID
 		var lidStr *string
 		if client.Store.LIDs != nil {
-			if lid, err := client.Store.LIDs.GetLIDForPN(context.TODO(), jid); err == nil && !lid.IsEmpty() {
+			if lid, err := client.Store.LIDs.GetLIDForPN(ctx, jid); err == nil && !lid.IsEmpty() {
 				lidString := fmt.Sprintf("%v", lid)
 				lidStr = &lidString
 			}
 		}
 
 		pictureURL := ""
-		pic, picErr := u.fetchProfilePicture(context.Background(), client, jid, true, 25*time.Second)
+		pic, picErr := u.fetchProfilePicture(ctx, client, jid, true, pictureURLEnrichTimeout)
 		if picErr != nil {
 			u.loggerWrapper.GetLogger(instance.Id).LogWarn("[%s] Failed to enrich PictureURL for %s: %v", instance.Id, jid, picErr)
 		} else if pic != nil {

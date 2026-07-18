@@ -54,7 +54,9 @@ type userHandler struct {
 // @Param message body user_service.CheckUserStruct true "User data"
 // @Success 200 {object} gin.H "success"
 // @Failure 400 {object} gin.H "Error on validation"
+// @Failure 429 {object} gin.H "WhatsApp rate limit"
 // @Failure 500 {object} gin.H "Internal server error"
+// @Failure 504 {object} gin.H "WhatsApp query timeout"
 // @Router /user/info [post]
 func (u *userHandler) GetUser(ctx *gin.Context) {
 	getInstance := ctx.MustGet("instance")
@@ -77,9 +79,9 @@ func (u *userHandler) GetUser(ctx *gin.Context) {
 		return
 	}
 
-	uc, err := u.userService.GetUser(data, instance)
+	uc, err := u.userService.GetUser(ctx.Request.Context(), data, instance)
 	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		writeUserWAError(ctx, err)
 		return
 	}
 
