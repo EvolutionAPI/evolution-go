@@ -37,6 +37,11 @@ func TestWriteUserWAError(t *testing.T) {
 			wantStatus: http.StatusGatewayTimeout,
 		},
 		{
+			name:       "context canceled",
+			err:        fmt.Errorf("avatar: %w", context.Canceled),
+			wantStatus: http.StatusGatewayTimeout,
+		},
+		{
 			name:       "other error",
 			err:        errors.New("no profile picture found"),
 			wantStatus: http.StatusInternalServerError,
