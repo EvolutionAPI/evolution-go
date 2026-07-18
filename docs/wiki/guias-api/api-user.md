@@ -45,7 +45,23 @@ apikey: SUA-CHAVE-API
 
 | Campo | Tipo | Obrigatório | Descrição |
 |-------|------|-------------|-----------|
-| `number` | array | ✅ Sim | Array de números a consultar |
+| `number` | array | ✅ Sim | Array de identificadores a consultar |
+
+**Query canônica (ordem recomendada):**
+
+1. `@lid` — quando conhecido (ex.: `123456789012345@lid`)
+2. PN JID — `556699956041@s.whatsapp.net` (já canônico)
+3. Dígitos — último recurso; números BR “sujos” (9º dígito extra) podem falhar ou retornar timeout rápido
+
+Prefira o JID/`@lid` já gravado pela sessão. Para URL de foto confiável, use também `POST /user/avatar` (especialmente com `@lid`).
+
+**Respostas de erro relevantes:**
+
+| HTTP | Quando |
+|------|--------|
+| 429 | WhatsApp `rate-overlimit` (faça backoff; não trate como 500 genérico) |
+| 504 | Timeout da query usync |
+| 500 | Demais falhas |
 
 **Resposta de Sucesso (200)**:
 ```json
@@ -64,6 +80,7 @@ apikey: SUA-CHAVE-API
         },
         "Status": "Olá! Estou usando WhatsApp.",
         "PictureID": "abc123",
+        "PictureURL": "https://pps.whatsapp.net/v/...",
         "Devices": ["5511999999999.0:1@s.whatsapp.net"],
         "LID": "lid_string"
       }
@@ -76,12 +93,13 @@ apikey: SUA-CHAVE-API
 - `VerifiedName`: Nome verificado (empresas) ou null
 - `Status`: Recado/status do usuário
 - `PictureID`: ID da foto de perfil
+- `PictureURL`: URL da foto de perfil (preview best-effort com budget total de ~5s; vazio se indisponível, sem `PictureID`, sob rate-limit ou budget esgotado). Para imagem completa use `POST /user/avatar`
 - `Devices`: Lista de dispositivos conectados
 - `LID`: Local ID (se disponível)
 
 **Exemplo cURL**:
 ```bash
-curl -X POST http://localhost:4000/user/info \
+curl -X POST http://localhost:${SERVER_PORT}/user/info \
   -H "Content-Type: application/json" \
   -H "apikey: SUA-CHAVE-API" \
   -d '{
@@ -179,8 +197,10 @@ Obtém a URL da foto de perfil de um usuário.
 
 | Campo | Tipo | Obrigatório | Descrição |
 |-------|------|-------------|-----------|
-| `number` | string | ✅ Sim | Número do usuário |
+| `number` | string | ✅ Sim | `@lid`, PN JID ou dígitos (mesma ordem canônica de `/user/info`) |
 | `preview` | bool | ❌ Não | Se true, retorna preview (menor resolução) |
+
+A request é limitada a ~8s. Preferir `@lid` ou PN JID canônico; dígitos ambíguos podem retornar **504** rapidamente em vez de hang longo.
 
 **Resposta de Sucesso (200)**:
 ```json
@@ -195,7 +215,14 @@ Obtém a URL da foto de perfil de um usuário.
 }
 ```
 
-**Resposta de Erro (500)**:
+**Respostas de erro**:
+
+| HTTP | Exemplo |
+|------|---------|
+| 429 | WhatsApp `rate-overlimit` |
+| 504 | Timeout da query de foto |
+| 500 | Sem foto / foto oculta / demais falhas (`no profile picture found`, …) |
+
 ```json
 {
   "error": "no profile picture found"
@@ -204,7 +231,7 @@ Obtém a URL da foto de perfil de um usuário.
 
 **Exemplo cURL**:
 ```bash
-curl -X POST http://localhost:4000/user/avatar \
+curl -X POST http://localhost:${SERVER_PORT}/user/avatar \
   -H "Content-Type: application/json" \
   -H "apikey: SUA-CHAVE-API" \
   -d '{

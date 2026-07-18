@@ -3546,8 +3546,20 @@ const docTemplate = `{
                             "$ref": "#/definitions/gin.H"
                         }
                     },
+                    "429": {
+                        "description": "WhatsApp rate limit",
+                        "schema": {
+                            "$ref": "#/definitions/gin.H"
+                        }
+                    },
                     "500": {
                         "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/gin.H"
+                        }
+                    },
+                    "504": {
+                        "description": "WhatsApp query timeout",
                         "schema": {
                             "$ref": "#/definitions/gin.H"
                         }
@@ -3742,8 +3754,20 @@ const docTemplate = `{
                             "$ref": "#/definitions/gin.H"
                         }
                     },
+                    "429": {
+                        "description": "WhatsApp rate limit",
+                        "schema": {
+                            "$ref": "#/definitions/gin.H"
+                        }
+                    },
                     "500": {
                         "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/gin.H"
+                        }
+                    },
+                    "504": {
+                        "description": "WhatsApp query timeout",
                         "schema": {
                             "$ref": "#/definitions/gin.H"
                         }
