@@ -301,6 +301,15 @@ func (w whatsmeowService) ForceUpdateJid(instanceId string, number string) error
 	return nil
 }
 
+// History-sync depth requested from the phone when a device links (DeviceProps.HistorySyncConfig).
+// Generous defaults so a newly linked device receives the full available history; tune here if
+// bandwidth/storage is a concern.
+const (
+	historyFullSyncDaysLimit   = 3650 // ~10 years
+	historyFullSyncSizeMbLimit = 2048 // 2 GB
+	historyStorageQuotaMb      = 2048 // 2 GB
+)
+
 func (w whatsmeowService) StartClient(cd *ClientData) {
 
 	w.loggerWrapper.GetLogger(cd.Instance.Id).LogInfo("Starting websocket connection to Whatsapp for user '%s'", cd.Instance.Id)
@@ -376,11 +385,12 @@ func (w whatsmeowService) StartClient(cd *ClientData) {
 	store.DeviceProps.RequireFullSync = proto.Bool(true)
 	// RequireFullSync alone still yields a shallow/uneven backfill because the phone falls back to
 	// conservative defaults. Explicitly request a deep on-link HistorySync window so newly linked
-	// devices receive the full available message history.
+	// devices receive the full available message history. Values are named constants so deployments
+	// can tune history depth / resource usage in one place.
 	store.DeviceProps.HistorySyncConfig = &waCompanionReg.DeviceProps_HistorySyncConfig{
-		FullSyncDaysLimit:   proto.Uint32(3650),
-		FullSyncSizeMbLimit: proto.Uint32(2048),
-		StorageQuotaMb:      proto.Uint32(2048),
+		FullSyncDaysLimit:   proto.Uint32(historyFullSyncDaysLimit),
+		FullSyncSizeMbLimit: proto.Uint32(historyFullSyncSizeMbLimit),
+		StorageQuotaMb:      proto.Uint32(historyStorageQuotaMb),
 	}
 
 	if w.config.WhatsappVersionMajor != 0 && w.config.WhatsappVersionMinor != 0 && w.config.WhatsappVersionPatch != 0 {

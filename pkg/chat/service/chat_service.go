@@ -21,7 +21,7 @@ type ChatService interface {
 	ChatUnarchive(data *BodyStruct, instance *instance_model.Instance) (string, error)
 	ChatMute(data *BodyStruct, instance *instance_model.Instance) (string, error)
 	ChatUnmute(data *BodyStruct, instance *instance_model.Instance) (string, error)
-	HistorySyncRequest(data *HistorySyncRequestStruct, instance *instance_model.Instance) (*whatsmeow.SendResponse, error)
+	HistorySyncRequest(ctx context.Context, data *HistorySyncRequestStruct, instance *instance_model.Instance) (*whatsmeow.SendResponse, error)
 }
 
 type chatService struct {
@@ -216,7 +216,7 @@ func (c *chatService) ChatUnmute(data *BodyStruct, instance *instance_model.Inst
 	return ts.String(), nil
 }
 
-func (c *chatService) HistorySyncRequest(data *HistorySyncRequestStruct, instance *instance_model.Instance) (*whatsmeow.SendResponse, error) {
+func (c *chatService) HistorySyncRequest(ctx context.Context, data *HistorySyncRequestStruct, instance *instance_model.Instance) (*whatsmeow.SendResponse, error) {
 	client, err := c.ensureClientConnected(instance.Id)
 	if err != nil {
 		return nil, err
@@ -239,7 +239,8 @@ func (c *chatService) HistorySyncRequest(data *HistorySyncRequestStruct, instanc
 	// messageInfo.Chat (the contact) fails with "no signal session established" and never returns
 	// history. whatsmeow's BuildHistorySyncRequest doc: "The built message can be sent using
 	// Client.SendPeerMessage." The target chat/cursor is already encoded inside histRequest.
-	res, err := client.SendPeerMessage(context.Background(), histRequest)
+	// Uses the caller's context so the request can be cancelled / time-bounded.
+	res, err := client.SendPeerMessage(ctx, histRequest)
 	if err != nil {
 		c.loggerWrapper.GetLogger(instance.Id).LogError("[%s] error history sync request: %v", instance.Id, err)
 		return nil, err
