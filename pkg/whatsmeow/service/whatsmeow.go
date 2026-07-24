@@ -374,6 +374,14 @@ func (w whatsmeowService) StartClient(cd *ClientData) {
 
 	store.DeviceProps.Os = &cd.Instance.OsName
 	store.DeviceProps.RequireFullSync = proto.Bool(true)
+	// RequireFullSync alone still yields a shallow/uneven backfill because the phone falls back to
+	// conservative defaults. Explicitly request a deep on-link HistorySync window so newly linked
+	// devices receive the full available message history.
+	store.DeviceProps.HistorySyncConfig = &waCompanionReg.DeviceProps_HistorySyncConfig{
+		FullSyncDaysLimit:   proto.Uint32(3650),
+		FullSyncSizeMbLimit: proto.Uint32(2048),
+		StorageQuotaMb:      proto.Uint32(2048),
+	}
 
 	if w.config.WhatsappVersionMajor != 0 && w.config.WhatsappVersionMinor != 0 && w.config.WhatsappVersionPatch != 0 {
 		w.loggerWrapper.GetLogger(cd.Instance.Id).LogInfo("[%s] Setting whatsapp version to %d.%d.%d", cd.Instance.Id, w.config.WhatsappVersionMajor, w.config.WhatsappVersionMinor, w.config.WhatsappVersionPatch)
