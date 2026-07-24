@@ -234,7 +234,12 @@ func (c *chatService) HistorySyncRequest(data *HistorySyncRequestStruct, instanc
 
 	histRequest := client.BuildHistorySyncRequest(&messageInfo, data.Count)
 
-	res, err := client.SendMessage(context.Background(), messageInfo.Chat, histRequest, whatsmeow.SendRequestExtra{Peer: true})
+	// On-demand history-sync requests must be sent to our OWN JID as a peer message, not to the
+	// contact. SendPeerMessage does exactly that (getOwnID().ToNonAD() + Peer:true). Sending it to
+	// messageInfo.Chat (the contact) fails with "no signal session established" and never returns
+	// history. whatsmeow's BuildHistorySyncRequest doc: "The built message can be sent using
+	// Client.SendPeerMessage." The target chat/cursor is already encoded inside histRequest.
+	res, err := client.SendPeerMessage(context.Background(), histRequest)
 	if err != nil {
 		c.loggerWrapper.GetLogger(instance.Id).LogError("[%s] error history sync request: %v", instance.Id, err)
 		return nil, err
