@@ -319,7 +319,7 @@ func (c *chatHandler) HistorySyncRequest(ctx *gin.Context) {
 		return
 	}
 
-	resp, err := c.chatService.HistorySyncRequest(data, instance)
+	resp, err := c.chatService.HistorySyncRequest(ctx.Request.Context(), data, instance)
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
