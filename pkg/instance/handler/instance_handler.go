@@ -649,9 +649,19 @@ func (h *instanceHandler) UpdateAdvancedSettings(c *gin.Context) {
 		return
 	}
 
+	// Return persisted settings (full row) so partial PUT responses stay consistent.
+	persisted, err := h.instanceService.GetAdvancedSettings(instanceId)
+	if err != nil {
+		c.JSON(http.StatusOK, gin.H{
+			"message":  "Advanced settings updated successfully",
+			"settings": settings,
+		})
+		return
+	}
+
 	c.JSON(http.StatusOK, gin.H{
 		"message":  "Advanced settings updated successfully",
-		"settings": settings,
+		"settings": persisted,
 	})
 }
 
