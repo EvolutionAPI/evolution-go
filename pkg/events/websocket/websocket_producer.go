@@ -19,17 +19,29 @@ var upgrader = websocket.Upgrader{
 	},
 }
 
+// wsConn serializa writes: gorilla/websocket permite apenas um writer concorrente.
+type wsConn struct {
+	conn    *websocket.Conn
+	writeMu sync.Mutex
+}
+
+func (w *wsConn) writeJSON(v any) error {
+	w.writeMu.Lock()
+	defer w.writeMu.Unlock()
+	return w.conn.WriteJSON(v)
+}
+
 type websocketProducer struct {
-	clients       map[string]*websocket.Conn // conexões específicas por instância
-	broadcast     []*websocket.Conn          // conexões que recebem todos os eventos
+	clients       map[string]*wsConn // conexões específicas por instância
+	broadcast     []*wsConn          // conexões que recebem todos os eventos
 	clientsMux    sync.RWMutex
 	loggerWrapper *logger_wrapper.LoggerManager
 }
 
 func NewWebsocketProducer(loggerWrapper *logger_wrapper.LoggerManager) *websocketProducer {
 	return &websocketProducer{
-		clients:       make(map[string]*websocket.Conn),
-		broadcast:     make([]*websocket.Conn, 0),
+		clients:       make(map[string]*wsConn),
+		broadcast:     make([]*wsConn, 0),
 		clientsMux:    sync.RWMutex{},
 		loggerWrapper: loggerWrapper,
 	}
@@ -72,7 +84,7 @@ func ServeWs(w http.ResponseWriter, r *http.Request, instanceId string, producer
 func (p *websocketProducer) AddBroadcastClient(conn *websocket.Conn) {
 	p.clientsMux.Lock()
 	defer p.clientsMux.Unlock()
-	p.broadcast = append(p.broadcast, conn)
+	p.broadcast = append(p.broadcast, &wsConn{conn: conn})
 	logger.LogInfo("Cliente broadcast websocket adicionado")
 }
 
@@ -80,7 +92,7 @@ func (p *websocketProducer) RemoveBroadcastClient(conn *websocket.Conn) {
 	p.clientsMux.Lock()
 	defer p.clientsMux.Unlock()
 	for i, c := range p.broadcast {
-		if c == conn {
+		if c.conn == conn {
 			p.broadcast = append(p.broadcast[:i], p.broadcast[i+1:]...)
 			break
 		}
@@ -91,7 +103,7 @@ func (p *websocketProducer) RemoveBroadcastClient(conn *websocket.Conn) {
 func (p *websocketProducer) AddClient(instanceID string, conn *websocket.Conn) {
 	p.clientsMux.Lock()
 	defer p.clientsMux.Unlock()
-	p.clients[instanceID] = conn
+	p.clients[instanceID] = &wsConn{conn: conn}
 	p.loggerWrapper.GetLogger(instanceID).LogInfo("Cliente websocket adicionado para instância: %s", instanceID)
 }
 
@@ -113,7 +125,7 @@ func (p *websocketProducer) Produce(queueName string, payload []byte, instanceID
 
 	// Envia para cliente específico da instância
 	if client, exists := p.clients[instanceID]; exists {
-		err := client.WriteJSON(message)
+		err := client.writeJSON(message)
 		if err != nil {
 			p.loggerWrapper.GetLogger(instanceID).LogError("Erro ao enviar mensagem websocket para %s: %v", instanceID, err)
 			// Não remove o cliente aqui pois estamos com o RLock
@@ -124,7 +136,7 @@ func (p *websocketProducer) Produce(queueName string, payload []byte, instanceID
 
 	// Envia para todos os clientes broadcast
 	for _, conn := range p.broadcast {
-		err := conn.WriteJSON(message)
+		err := conn.writeJSON(message)
 		if err != nil {
 			p.loggerWrapper.GetLogger(instanceID).LogError("Erro ao enviar mensagem broadcast websocket: %v", err)
 			continue
