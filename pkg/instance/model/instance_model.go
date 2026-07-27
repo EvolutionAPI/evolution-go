@@ -35,14 +35,15 @@ type Instance struct {
 	IgnoreStatus  bool   `json:"ignoreStatus" gorm:"default:false"`
 }
 
-// AdvancedSettings representa as configurações avançadas de uma instância
+// AdvancedSettings representa as configurações avançadas de uma instância.
+// Bool fields are pointers so omitted JSON keys are not written as false on PUT.
 type AdvancedSettings struct {
-	AlwaysOnline  bool   `json:"alwaysOnline"`
-	RejectCall    bool   `json:"rejectCall"`
+	AlwaysOnline  *bool  `json:"alwaysOnline"`
+	RejectCall    *bool  `json:"rejectCall"`
 	MsgRejectCall string `json:"msgRejectCall"`
-	ReadMessages  bool   `json:"readMessages"`
-	IgnoreGroups  bool   `json:"ignoreGroups"`
-	IgnoreStatus  bool   `json:"ignoreStatus"`
+	ReadMessages  *bool  `json:"readMessages"`
+	IgnoreGroups  *bool  `json:"ignoreGroups"`
+	IgnoreStatus  *bool  `json:"ignoreStatus"`
 }
 
 func (m *Instance) BeforeCreate(tx *gorm.DB) (err error) {
@@ -50,4 +51,9 @@ func (m *Instance) BeforeCreate(tx *gorm.DB) (err error) {
 		m.Id = uuid.New().String()
 	}
 	return
+}
+
+// BoolPtr returns a pointer to v (helper for AdvancedSettings responses/tests).
+func BoolPtr(v bool) *bool {
+	return &v
 }
