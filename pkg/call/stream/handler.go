@@ -49,6 +49,7 @@ func serveStream(callService call_service.CallService, instanceService instance_
 
 		b := newBridge(conn)
 		b.sendVideo = call.SendVideo
+		b.startVideo = call.StartVideo
 		call.OnEnd(func(reason string) { b.Close() })
 		call.Receive(b)
 		call.ReceiveVideo(b)

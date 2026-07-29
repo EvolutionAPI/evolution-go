@@ -26,12 +26,14 @@ type wsMessage struct {
 // VideoSink (Call.ReceiveVideo), and AudioSource (Call.Play) interfaces, so a single
 // object plugs a call's media straight into the socket in both directions.
 type bridge struct {
-	conn      *websocket.Conn
-	writeMu   sync.Mutex
-	incoming  chan []float32
-	closed    chan struct{}
-	closeOnce sync.Once
-	sendVideo func([]byte) error
+	conn           *websocket.Conn
+	writeMu        sync.Mutex
+	incoming       chan []float32
+	closed         chan struct{}
+	closeOnce      sync.Once
+	sendVideo      func([]byte) error
+	startVideo     func() error
+	startVideoOnce sync.Once
 }
 
 func newBridge(conn *websocket.Conn) *bridge {
@@ -115,6 +117,17 @@ func (b *bridge) readLoop() {
 			// Spike/experimental: outbound video was explicitly out of scope in the
 			// reviewed plan (video is inbound-only there). Added here to test
 			// screen-share/camera content actually reaching the peer.
+			//
+			// meowcaller's StartVideo doc comment: "Outbound video remains gated
+			// until the peer acknowledges the transition" -- so the upgrade must be
+			// requested before any SendVideo call has an effect. Lazily triggered on
+			// the first outbound video message so callers don't need a separate
+			// endpoint/step to remember.
+			b.startVideoOnce.Do(func() {
+				if b.startVideo != nil {
+					_ = b.startVideo()
+				}
+			})
 			if err := b.sendVideo(raw); err != nil {
 				continue
 			}
