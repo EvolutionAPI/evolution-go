@@ -102,6 +102,9 @@ type whatsmeowService struct {
 	passkeyCeremony    *ceremony.Store
 	runtimeMu          sync.Mutex
 	doneChannel        map[string]chan struct{}
+	reserveMu          sync.Mutex
+	runtimeToken       map[string]uint64
+	runtimeCounter     uint64
 	reconnectMu        sync.Mutex
 	reconnectState     map[string]*instanceReconnectState
 	authContainerOnce  sync.Once
@@ -136,6 +139,38 @@ func reconnectDelay(instanceID string, failures int) time.Duration {
 
 func canAutoReconnect(jid string) bool {
 	return strings.TrimSpace(jid) != ""
+}
+
+// reserveRuntime admits a single live runtime per instance.
+//
+// Two clients on the same instance share one killChannel and one row in the
+// database: whichever exhausts its QR cycle first tears the runtime down and
+// flags the instance as disconnected, even when the other one is paired and
+// online. Connect, ForceReconnect, StartInstance and the QR endpoint all reach
+// StartClient, so the guard belongs here rather than at each call site.
+//
+// The token makes release safe: a cleanup arriving late cannot free the
+// reservation of the runtime that already replaced it.
+func (w *whatsmeowService) reserveRuntime(instanceID string) (uint64, bool) {
+	w.reserveMu.Lock()
+	defer w.reserveMu.Unlock()
+
+	if _, active := w.runtimeToken[instanceID]; active {
+		return 0, false
+	}
+	w.runtimeCounter++
+	w.runtimeToken[instanceID] = w.runtimeCounter
+
+	return w.runtimeCounter, true
+}
+
+func (w *whatsmeowService) releaseRuntime(instanceID string, token uint64) {
+	w.reserveMu.Lock()
+	defer w.reserveMu.Unlock()
+
+	if w.runtimeToken[instanceID] == token {
+		delete(w.runtimeToken, instanceID)
+	}
 }
 
 func (w *whatsmeowService) reserveReconnect(instanceID string) (time.Duration, bool) {
@@ -424,16 +459,19 @@ func (w *whatsmeowService) deviceContainer(dbLog waLog.Logger) (*sqlstore.Contai
 
 func (w *whatsmeowService) StartClient(cd *ClientData) {
 
+	runtimeToken, reserved := w.reserveRuntime(cd.Instance.Id)
+	if !reserved {
+		w.loggerWrapper.GetLogger(cd.Instance.Id).LogInfo("[%s] Runtime already active; not starting a second client", cd.Instance.Id)
+		return
+	}
+	// Covers the paths that return before the cleanup defer below is registered.
+	// Releasing twice is harmless: the token no longer matches.
+	defer w.releaseRuntime(cd.Instance.Id, runtimeToken)
+
 	w.loggerWrapper.GetLogger(cd.Instance.Id).LogInfo("Starting websocket connection to Whatsapp for user '%s'", cd.Instance.Id)
 
 	var deviceStore *store.Device
 	var err error
-
-	if w.clientPointer[cd.Instance.Id] != nil {
-		if w.clientPointer[cd.Instance.Id].IsConnected() {
-			return
-		}
-	}
 
 	var dbLog waLog.Logger
 	if w.config.WaDebug != "" {
@@ -547,6 +585,9 @@ func (w *whatsmeowService) StartClient(cd *ClientData) {
 		if w.doneChannel[cd.Instance.Id] == done {
 			delete(w.doneChannel, cd.Instance.Id)
 		}
+		// Before closing `done`: ReconnectClient waits on it and then starts the
+		// replacement runtime, which needs the reservation to be free already.
+		w.releaseRuntime(cd.Instance.Id, runtimeToken)
 		close(done)
 		w.runtimeMu.Unlock()
 	}()
@@ -2922,6 +2963,7 @@ func NewWhatsmeowService(
 		loggerWrapper:      loggerWrapper,
 		passkeyCeremony:    ceremony.NewStore(),
 		doneChannel:        make(map[string]chan struct{}),
+		runtimeToken:       make(map[string]uint64),
 		reconnectState:     make(map[string]*instanceReconnectState),
 	}
 }
