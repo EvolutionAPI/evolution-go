@@ -2,6 +2,13 @@ definitions:
   gin.H:
     additionalProperties: {}
     type: object
+  github_com_evolution-foundation_evolution-go_pkg_call_service.AddParticipantStruct:
+    properties:
+      callId:
+        type: string
+      number:
+        type: string
+    type: object
   github_com_evolution-foundation_evolution-go_pkg_call_service.AnswerCallStruct:
     properties:
       callCreator:
@@ -9,9 +16,30 @@ definitions:
       callId:
         type: string
     type: object
+  github_com_evolution-foundation_evolution-go_pkg_call_service.DialCallStruct:
+    properties:
+      number:
+        type: string
+      video:
+        type: boolean
+    type: object
+  github_com_evolution-foundation_evolution-go_pkg_call_service.HandRaiseStruct:
+    properties:
+      callId:
+        type: string
+      raised:
+        type: boolean
+    type: object
   github_com_evolution-foundation_evolution-go_pkg_call_service.HangupCallStruct:
     properties:
       callId:
+        type: string
+    type: object
+  github_com_evolution-foundation_evolution-go_pkg_call_service.ReactCallStruct:
+    properties:
+      callId:
+        type: string
+      emoji:
         type: string
     type: object
   github_com_evolution-foundation_evolution-go_pkg_call_service.RejectCallStruct:
@@ -20,6 +48,34 @@ definitions:
         $ref: '#/definitions/types.JID'
       callId:
         type: string
+    type: object
+  github_com_evolution-foundation_evolution-go_pkg_call_service.ScreenShareStruct:
+    properties:
+      callId:
+        type: string
+      start:
+        type: boolean
+    type: object
+  github_com_evolution-foundation_evolution-go_pkg_call_service.VideoEnabledStruct:
+    properties:
+      callId:
+        type: string
+      enabled:
+        type: boolean
+    type: object
+  github_com_evolution-foundation_evolution-go_pkg_call_service.VideoOrientationStruct:
+    properties:
+      callId:
+        type: string
+      orientation:
+        type: integer
+    type: object
+  github_com_evolution-foundation_evolution-go_pkg_call_service.VideoUpgradeStruct:
+    properties:
+      callId:
+        type: string
+      start:
+        type: boolean
     type: object
   github_com_evolution-foundation_evolution-go_pkg_chat_service.BodyStruct:
     properties:
@@ -7429,6 +7485,59 @@ paths:
       summary: Answer call
       tags:
       - Call
+  /call/dial:
+    post:
+      consumes:
+      - application/json
+      description: 'Spike/experimental: places an outbound call, not part of the reviewed
+        answer-call plan'
+      parameters:
+      - description: Call data
+        in: body
+        name: message
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_evolution-foundation_evolution-go_pkg_call_service.DialCallStruct'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: success
+          schema:
+            $ref: '#/definitions/gin.H'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/gin.H'
+      summary: Place an outbound call
+      tags:
+      - Call
+  /call/handraise:
+    post:
+      consumes:
+      - application/json
+      description: 'Spike/experimental: toggles this client''s hand-raised state'
+      parameters:
+      - description: Call data
+        in: body
+        name: message
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_evolution-foundation_evolution-go_pkg_call_service.HandRaiseStruct'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: success
+          schema:
+            $ref: '#/definitions/gin.H'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/gin.H'
+      summary: Raise or lower hand in a call
+      tags:
+      - Call
   /call/hangup:
     post:
       consumes:
@@ -7455,6 +7564,59 @@ paths:
       summary: Hangup call
       tags:
       - Call
+  /call/participant/add:
+    post:
+      consumes:
+      - application/json
+      description: 'Spike/experimental: adds a participant, upgrading a 1:1 call into
+        a group call'
+      parameters:
+      - description: Call data
+        in: body
+        name: message
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_evolution-foundation_evolution-go_pkg_call_service.AddParticipantStruct'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: success
+          schema:
+            $ref: '#/definitions/gin.H'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/gin.H'
+      summary: Add a participant to an active call
+      tags:
+      - Call
+  /call/react:
+    post:
+      consumes:
+      - application/json
+      description: 'Spike/experimental: sends an emoji reaction into an active call'
+      parameters:
+      - description: Call data
+        in: body
+        name: message
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_evolution-foundation_evolution-go_pkg_call_service.ReactCallStruct'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: success
+          schema:
+            $ref: '#/definitions/gin.H'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/gin.H'
+      summary: Send a call reaction
+      tags:
+      - Call
   /call/reject:
     post:
       consumes:
@@ -7479,6 +7641,111 @@ paths:
           schema:
             $ref: '#/definitions/gin.H'
       summary: Reject call
+      tags:
+      - Call
+  /call/screenshare:
+    post:
+      consumes:
+      - application/json
+      description: 'Spike/experimental: toggles this client''s screen share state'
+      parameters:
+      - description: Call data
+        in: body
+        name: message
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_evolution-foundation_evolution-go_pkg_call_service.ScreenShareStruct'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: success
+          schema:
+            $ref: '#/definitions/gin.H'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/gin.H'
+      summary: Start or stop screen sharing in a call
+      tags:
+      - Call
+  /call/video/enabled:
+    post:
+      consumes:
+      - application/json
+      description: 'Spike/experimental: wraps Call.SetVideoEnabled'
+      parameters:
+      - description: Call data
+        in: body
+        name: message
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_evolution-foundation_evolution-go_pkg_call_service.VideoEnabledStruct'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: success
+          schema:
+            $ref: '#/definitions/gin.H'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/gin.H'
+      summary: Mute or unmute outbound video without renegotiating the upgrade
+      tags:
+      - Call
+  /call/video/orientation:
+    post:
+      consumes:
+      - application/json
+      description: 'Spike/experimental: wraps Call.SetVideoOrientation (0-3 quarter
+        turns clockwise)'
+      parameters:
+      - description: Call data
+        in: body
+        name: message
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_evolution-foundation_evolution-go_pkg_call_service.VideoOrientationStruct'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: success
+          schema:
+            $ref: '#/definitions/gin.H'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/gin.H'
+      summary: Announce this client's camera orientation
+      tags:
+      - Call
+  /call/video/upgrade:
+    post:
+      consumes:
+      - application/json
+      description: 'Spike/experimental: requests an audio<->video upgrade (Call.StartVideo/StopVideo)'
+      parameters:
+      - description: Call data
+        in: body
+        name: message
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_evolution-foundation_evolution-go_pkg_call_service.VideoUpgradeStruct'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: success
+          schema:
+            $ref: '#/definitions/gin.H'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/gin.H'
+      summary: Start or stop sending outbound video mid-call
       tags:
       - Call
   /chat/archive:

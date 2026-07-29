@@ -55,6 +55,86 @@ const docTemplate = `{
                 }
             }
         },
+        "/call/dial": {
+            "post": {
+                "description": "Spike/experimental: places an outbound call, not part of the reviewed answer-call plan",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Call"
+                ],
+                "summary": "Place an outbound call",
+                "parameters": [
+                    {
+                        "description": "Call data",
+                        "name": "message",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/github_com_evolution-foundation_evolution-go_pkg_call_service.DialCallStruct"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "success",
+                        "schema": {
+                            "$ref": "#/definitions/gin.H"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/gin.H"
+                        }
+                    }
+                }
+            }
+        },
+        "/call/handraise": {
+            "post": {
+                "description": "Spike/experimental: toggles this client's hand-raised state",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Call"
+                ],
+                "summary": "Raise or lower hand in a call",
+                "parameters": [
+                    {
+                        "description": "Call data",
+                        "name": "message",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/github_com_evolution-foundation_evolution-go_pkg_call_service.HandRaiseStruct"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "success",
+                        "schema": {
+                            "$ref": "#/definitions/gin.H"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/gin.H"
+                        }
+                    }
+                }
+            }
+        },
         "/call/hangup": {
             "post": {
                 "description": "Hangup an active call",
@@ -95,6 +175,86 @@ const docTemplate = `{
                 }
             }
         },
+        "/call/participant/add": {
+            "post": {
+                "description": "Spike/experimental: adds a participant, upgrading a 1:1 call into a group call",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Call"
+                ],
+                "summary": "Add a participant to an active call",
+                "parameters": [
+                    {
+                        "description": "Call data",
+                        "name": "message",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/github_com_evolution-foundation_evolution-go_pkg_call_service.AddParticipantStruct"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "success",
+                        "schema": {
+                            "$ref": "#/definitions/gin.H"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/gin.H"
+                        }
+                    }
+                }
+            }
+        },
+        "/call/react": {
+            "post": {
+                "description": "Spike/experimental: sends an emoji reaction into an active call",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Call"
+                ],
+                "summary": "Send a call reaction",
+                "parameters": [
+                    {
+                        "description": "Call data",
+                        "name": "message",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/github_com_evolution-foundation_evolution-go_pkg_call_service.ReactCallStruct"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "success",
+                        "schema": {
+                            "$ref": "#/definitions/gin.H"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/gin.H"
+                        }
+                    }
+                }
+            }
+        },
         "/call/reject": {
             "post": {
                 "description": "Reject call",
@@ -116,6 +276,166 @@ const docTemplate = `{
                         "required": true,
                         "schema": {
                             "$ref": "#/definitions/github_com_evolution-foundation_evolution-go_pkg_call_service.RejectCallStruct"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "success",
+                        "schema": {
+                            "$ref": "#/definitions/gin.H"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/gin.H"
+                        }
+                    }
+                }
+            }
+        },
+        "/call/screenshare": {
+            "post": {
+                "description": "Spike/experimental: toggles this client's screen share state",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Call"
+                ],
+                "summary": "Start or stop screen sharing in a call",
+                "parameters": [
+                    {
+                        "description": "Call data",
+                        "name": "message",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/github_com_evolution-foundation_evolution-go_pkg_call_service.ScreenShareStruct"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "success",
+                        "schema": {
+                            "$ref": "#/definitions/gin.H"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/gin.H"
+                        }
+                    }
+                }
+            }
+        },
+        "/call/video/enabled": {
+            "post": {
+                "description": "Spike/experimental: wraps Call.SetVideoEnabled",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Call"
+                ],
+                "summary": "Mute or unmute outbound video without renegotiating the upgrade",
+                "parameters": [
+                    {
+                        "description": "Call data",
+                        "name": "message",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/github_com_evolution-foundation_evolution-go_pkg_call_service.VideoEnabledStruct"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "success",
+                        "schema": {
+                            "$ref": "#/definitions/gin.H"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/gin.H"
+                        }
+                    }
+                }
+            }
+        },
+        "/call/video/orientation": {
+            "post": {
+                "description": "Spike/experimental: wraps Call.SetVideoOrientation (0-3 quarter turns clockwise)",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Call"
+                ],
+                "summary": "Announce this client's camera orientation",
+                "parameters": [
+                    {
+                        "description": "Call data",
+                        "name": "message",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/github_com_evolution-foundation_evolution-go_pkg_call_service.VideoOrientationStruct"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "success",
+                        "schema": {
+                            "$ref": "#/definitions/gin.H"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/gin.H"
+                        }
+                    }
+                }
+            }
+        },
+        "/call/video/upgrade": {
+            "post": {
+                "description": "Spike/experimental: requests an audio\u003c-\u003evideo upgrade (Call.StartVideo/StopVideo)",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Call"
+                ],
+                "summary": "Start or stop sending outbound video mid-call",
+                "parameters": [
+                    {
+                        "description": "Call data",
+                        "name": "message",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/github_com_evolution-foundation_evolution-go_pkg_call_service.VideoUpgradeStruct"
                         }
                     }
                 ],
@@ -4005,6 +4325,17 @@ const docTemplate = `{
             "type": "object",
             "additionalProperties": {}
         },
+        "github_com_evolution-foundation_evolution-go_pkg_call_service.AddParticipantStruct": {
+            "type": "object",
+            "properties": {
+                "callId": {
+                    "type": "string"
+                },
+                "number": {
+                    "type": "string"
+                }
+            }
+        },
         "github_com_evolution-foundation_evolution-go_pkg_call_service.AnswerCallStruct": {
             "type": "object",
             "properties": {
@@ -4016,10 +4347,43 @@ const docTemplate = `{
                 }
             }
         },
+        "github_com_evolution-foundation_evolution-go_pkg_call_service.DialCallStruct": {
+            "type": "object",
+            "properties": {
+                "number": {
+                    "type": "string"
+                },
+                "video": {
+                    "type": "boolean"
+                }
+            }
+        },
+        "github_com_evolution-foundation_evolution-go_pkg_call_service.HandRaiseStruct": {
+            "type": "object",
+            "properties": {
+                "callId": {
+                    "type": "string"
+                },
+                "raised": {
+                    "type": "boolean"
+                }
+            }
+        },
         "github_com_evolution-foundation_evolution-go_pkg_call_service.HangupCallStruct": {
             "type": "object",
             "properties": {
                 "callId": {
+                    "type": "string"
+                }
+            }
+        },
+        "github_com_evolution-foundation_evolution-go_pkg_call_service.ReactCallStruct": {
+            "type": "object",
+            "properties": {
+                "callId": {
+                    "type": "string"
+                },
+                "emoji": {
                     "type": "string"
                 }
             }
@@ -4032,6 +4396,50 @@ const docTemplate = `{
                 },
                 "callId": {
                     "type": "string"
+                }
+            }
+        },
+        "github_com_evolution-foundation_evolution-go_pkg_call_service.ScreenShareStruct": {
+            "type": "object",
+            "properties": {
+                "callId": {
+                    "type": "string"
+                },
+                "start": {
+                    "type": "boolean"
+                }
+            }
+        },
+        "github_com_evolution-foundation_evolution-go_pkg_call_service.VideoEnabledStruct": {
+            "type": "object",
+            "properties": {
+                "callId": {
+                    "type": "string"
+                },
+                "enabled": {
+                    "type": "boolean"
+                }
+            }
+        },
+        "github_com_evolution-foundation_evolution-go_pkg_call_service.VideoOrientationStruct": {
+            "type": "object",
+            "properties": {
+                "callId": {
+                    "type": "string"
+                },
+                "orientation": {
+                    "type": "integer"
+                }
+            }
+        },
+        "github_com_evolution-foundation_evolution-go_pkg_call_service.VideoUpgradeStruct": {
+            "type": "object",
+            "properties": {
+                "callId": {
+                    "type": "string"
+                },
+                "start": {
+                    "type": "boolean"
                 }
             }
         },
