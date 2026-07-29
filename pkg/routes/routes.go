@@ -201,6 +201,9 @@ func (r *Routes) AssignRoutes(eng *gin.Engine) {
 			routes.POST("/participant/add", r.jidValidationMiddleware.ValidateNumberField(), r.callHandler.AddParticipant)
 			routes.POST("/screenshare", r.callHandler.ScreenShareCall)
 			routes.POST("/handraise", r.callHandler.HandRaiseCall)
+			routes.POST("/video/upgrade", r.callHandler.VideoUpgradeCall)
+			routes.POST("/video/enabled", r.callHandler.VideoEnabledCall)
+			routes.POST("/video/orientation", r.callHandler.VideoOrientationCall)
 		}
 	}
 	routes = eng.Group("/community")

@@ -17,6 +17,9 @@ type CallHandler interface {
 	AddParticipant(ctx *gin.Context)
 	ScreenShareCall(ctx *gin.Context)
 	HandRaiseCall(ctx *gin.Context)
+	VideoUpgradeCall(ctx *gin.Context)
+	VideoEnabledCall(ctx *gin.Context)
+	VideoOrientationCall(ctx *gin.Context)
 }
 
 type callHandler struct {
@@ -295,6 +298,111 @@ func (g *callHandler) HandRaiseCall(ctx *gin.Context) {
 	}
 
 	err = g.callService.HandRaiseCall(data, instance)
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	ctx.JSON(http.StatusOK, gin.H{"message": "success"})
+}
+
+// Toggle video upgrade
+// @Summary Start or stop sending outbound video mid-call
+// @Description Spike/experimental: requests an audio<->video upgrade (Call.StartVideo/StopVideo)
+// @Tags Call
+// @Accept json
+// @Produce json
+// @Param message body call_service.VideoUpgradeStruct true "Call data"
+// @Success 200 {object} gin.H "success"
+// @Failure 500 {object} gin.H "Internal server error"
+// @Router /call/video/upgrade [post]
+func (g *callHandler) VideoUpgradeCall(ctx *gin.Context) {
+	getInstance := ctx.MustGet("instance")
+
+	instance, ok := getInstance.(*instance_model.Instance)
+	if !ok {
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "instance not found"})
+		return
+	}
+
+	var data *call_service.VideoUpgradeStruct
+	err := ctx.ShouldBindBodyWithJSON(&data)
+	if err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	err = g.callService.VideoUpgradeCall(data, instance)
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	ctx.JSON(http.StatusOK, gin.H{"message": "success"})
+}
+
+// Toggle video enabled
+// @Summary Mute or unmute outbound video without renegotiating the upgrade
+// @Description Spike/experimental: wraps Call.SetVideoEnabled
+// @Tags Call
+// @Accept json
+// @Produce json
+// @Param message body call_service.VideoEnabledStruct true "Call data"
+// @Success 200 {object} gin.H "success"
+// @Failure 500 {object} gin.H "Internal server error"
+// @Router /call/video/enabled [post]
+func (g *callHandler) VideoEnabledCall(ctx *gin.Context) {
+	getInstance := ctx.MustGet("instance")
+
+	instance, ok := getInstance.(*instance_model.Instance)
+	if !ok {
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "instance not found"})
+		return
+	}
+
+	var data *call_service.VideoEnabledStruct
+	err := ctx.ShouldBindBodyWithJSON(&data)
+	if err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	err = g.callService.VideoEnabledCall(data, instance)
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	ctx.JSON(http.StatusOK, gin.H{"message": "success"})
+}
+
+// Set video orientation
+// @Summary Announce this client's camera orientation
+// @Description Spike/experimental: wraps Call.SetVideoOrientation (0-3 quarter turns clockwise)
+// @Tags Call
+// @Accept json
+// @Produce json
+// @Param message body call_service.VideoOrientationStruct true "Call data"
+// @Success 200 {object} gin.H "success"
+// @Failure 500 {object} gin.H "Internal server error"
+// @Router /call/video/orientation [post]
+func (g *callHandler) VideoOrientationCall(ctx *gin.Context) {
+	getInstance := ctx.MustGet("instance")
+
+	instance, ok := getInstance.(*instance_model.Instance)
+	if !ok {
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "instance not found"})
+		return
+	}
+
+	var data *call_service.VideoOrientationStruct
+	err := ctx.ShouldBindBodyWithJSON(&data)
+	if err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	err = g.callService.VideoOrientationCall(data, instance)
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return

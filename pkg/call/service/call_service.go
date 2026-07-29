@@ -25,6 +25,9 @@ type CallService interface {
 	AddParticipant(data *AddParticipantStruct, instance *instance_model.Instance) error
 	ScreenShareCall(data *ScreenShareStruct, instance *instance_model.Instance) error
 	HandRaiseCall(data *HandRaiseStruct, instance *instance_model.Instance) error
+	VideoUpgradeCall(data *VideoUpgradeStruct, instance *instance_model.Instance) error
+	VideoEnabledCall(data *VideoEnabledStruct, instance *instance_model.Instance) error
+	VideoOrientationCall(data *VideoOrientationStruct, instance *instance_model.Instance) error
 }
 
 type callService struct {
@@ -78,6 +81,24 @@ type ScreenShareStruct struct {
 type HandRaiseStruct struct {
 	CallID string `json:"callId"`
 	Raised bool   `json:"raised"`
+}
+
+// VideoUpgradeStruct requests turning this client's camera on or off mid-call.
+// Start=true calls Call.StartVideo (audio->video upgrade, gated until the peer
+// acknowledges); Start=false calls Call.StopVideo (drop outbound video, keep audio).
+type VideoUpgradeStruct struct {
+	CallID string `json:"callId"`
+	Start  bool   `json:"start"`
+}
+
+type VideoEnabledStruct struct {
+	CallID  string `json:"callId"`
+	Enabled bool   `json:"enabled"`
+}
+
+type VideoOrientationStruct struct {
+	CallID      string `json:"callId"`
+	Orientation int    `json:"orientation"`
 }
 
 func (c *callService) RejectCall(data *RejectCallStruct, instance *instance_model.Instance) error {
@@ -219,6 +240,48 @@ func (c *callService) HandRaiseCall(data *HandRaiseStruct, instance *instance_mo
 	}
 	if err := call.SetHandRaised(data.Raised); err != nil {
 		logger.LogError("[%s] error setting call hand-raise state: %v", instance.Id, err)
+		return err
+	}
+	return nil
+}
+
+func (c *callService) VideoUpgradeCall(data *VideoUpgradeStruct, instance *instance_model.Instance) error {
+	call, ok := c.callRegistry.Get(instance.Id, data.CallID)
+	if !ok {
+		return errors.New("no active call with that id")
+	}
+	var err error
+	if data.Start {
+		err = call.StartVideo()
+	} else {
+		err = call.StopVideo()
+	}
+	if err != nil {
+		logger.LogError("[%s] error toggling call video upgrade: %v", instance.Id, err)
+		return err
+	}
+	return nil
+}
+
+func (c *callService) VideoEnabledCall(data *VideoEnabledStruct, instance *instance_model.Instance) error {
+	call, ok := c.callRegistry.Get(instance.Id, data.CallID)
+	if !ok {
+		return errors.New("no active call with that id")
+	}
+	if err := call.SetVideoEnabled(data.Enabled); err != nil {
+		logger.LogError("[%s] error setting call video enabled state: %v", instance.Id, err)
+		return err
+	}
+	return nil
+}
+
+func (c *callService) VideoOrientationCall(data *VideoOrientationStruct, instance *instance_model.Instance) error {
+	call, ok := c.callRegistry.Get(instance.Id, data.CallID)
+	if !ok {
+		return errors.New("no active call with that id")
+	}
+	if err := call.SetVideoOrientation(data.Orientation); err != nil {
+		logger.LogError("[%s] error setting call video orientation: %v", instance.Id, err)
 		return err
 	}
 	return nil
