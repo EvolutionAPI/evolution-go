@@ -258,7 +258,7 @@ func (i instances) Connect(data *ConnectStruct, instance *instance_model.Instanc
 	if !isInstanceRunning {
 		i.loggerWrapper.GetLogger(instance.Id).LogInfo("[%s] Starting new client instance", instance.Id)
 
-		i.killChannel[instance.Id] = make(chan bool)
+		i.killChannel[instance.Id] = make(chan bool, 1)
 
 		clientData := &whatsmeow_service.ClientData{
 			Instance:      instance,
@@ -411,21 +411,40 @@ func (i instances) Status(instance *instance_model.Instance) (*StatusStruct, err
 	}, nil
 }
 
+// ErrSessionAlreadyLoggedIn is returned when a QR code is requested for an
+// instance that is already paired and online.
+var ErrSessionAlreadyLoggedIn = errors.New("session already logged in")
+
+// qrNeedsNewRuntime decides whether a QR request may start a client.
+//
+// A paired, logged-in instance must never get a second runtime: the two clients
+// share a killChannel, so the spare one exhausts its QR cycle and tears down the
+// live session, which then shows up as a disconnected instance holding an open
+// WhatsApp socket. A client that exists but is not logged in is already in its
+// QR cycle and is reused.
+func qrNeedsNewRuntime(clientExists, loggedIn bool) (bool, error) {
+	if loggedIn {
+		return false, ErrSessionAlreadyLoggedIn
+	}
+
+	return !clientExists, nil
+}
+
 func (i instances) GetQr(instance *instance_model.Instance) (*QrcodeStruct, error) {
 	logger := i.loggerWrapper.GetLogger(instance.Id)
 	client := i.clientPointer[instance.Id]
 
-	// Se não há cliente ou o cliente está logado, precisamos iniciar um novo cliente
-	if client == nil || client.IsLoggedIn() {
-		if client != nil && client.IsLoggedIn() {
-			logger.LogInfo("[%s] Client is logged in, starting new instance for QR code", instance.Id)
-		} else {
-			logger.LogInfo("[%s] No client found, starting new instance for QR code", instance.Id)
-		}
+	startRuntime, err := qrNeedsNewRuntime(client != nil, client != nil && client.IsLoggedIn())
+	if err != nil {
+		logger.LogInfo("[%s] QR requested for a logged-in session; keeping the current runtime", instance.Id)
+		return nil, err
+	}
+
+	if startRuntime {
+		logger.LogInfo("[%s] No client found, starting new instance for QR code", instance.Id)
 
 		// Iniciar nova instância para gerar QR code
-		err := i.whatsmeowService.StartInstance(instance.Id)
-		if err != nil {
+		if err = i.whatsmeowService.StartInstance(instance.Id); err != nil {
 			logger.LogError("[%s] Failed to start instance: %v", instance.Id, err)
 			return nil, fmt.Errorf("failed to start instance: %w", err)
 		}
@@ -437,7 +456,7 @@ func (i instances) GetQr(instance *instance_model.Instance) (*QrcodeStruct, erro
 		// Verificar novamente se há cliente
 		client = i.clientPointer[instance.Id]
 		if client != nil && client.IsLoggedIn() {
-			return nil, fmt.Errorf("session already logged in")
+			return nil, ErrSessionAlreadyLoggedIn
 		}
 	} else if !client.IsConnected() {
 		// Se o cliente existe mas não está conectado, pode estar aguardando QR code
@@ -445,7 +464,7 @@ func (i instances) GetQr(instance *instance_model.Instance) (*QrcodeStruct, erro
 	}
 
 	// Buscar instância atualizada do banco para pegar o QR code mais recente
-	instance, err := i.instanceRepository.GetInstanceByID(instance.Id)
+	instance, err = i.instanceRepository.GetInstanceByID(instance.Id)
 	if err != nil {
 		return nil, err
 	}
@@ -713,7 +732,7 @@ func (i instances) ForceReconnect(instanceId string, number string) error {
 
 	subscribedEvents := strings.Split(instance.Events, ",")
 
-	i.killChannel[instance.Id] = make(chan bool)
+	i.killChannel[instance.Id] = make(chan bool, 1)
 
 	clientData := &whatsmeow_service.ClientData{
 		Instance:      instance,
