@@ -31,6 +31,7 @@ type bridge struct {
 	incoming  chan []float32
 	closed    chan struct{}
 	closeOnce sync.Once
+	sendVideo func([]byte) error
 }
 
 func newBridge(conn *websocket.Conn) *bridge {
@@ -105,6 +106,19 @@ func (b *bridge) readLoop() {
 		if err := b.conn.ReadJSON(&msg); err != nil {
 			b.Close()
 			return
+		}
+		if msg.Event == "video" && msg.Track == "outbound" {
+			raw, err := base64.StdEncoding.DecodeString(msg.Payload)
+			if err != nil || b.sendVideo == nil {
+				continue
+			}
+			// Spike/experimental: outbound video was explicitly out of scope in the
+			// reviewed plan (video is inbound-only there). Added here to test
+			// screen-share/camera content actually reaching the peer.
+			if err := b.sendVideo(raw); err != nil {
+				continue
+			}
+			continue
 		}
 		if msg.Event != "media" || msg.Track != "outbound" {
 			continue
