@@ -15,6 +15,7 @@ require (
 	github.com/minio/minio-go/v7 v7.0.80
 	github.com/nats-io/nats.go v1.39.0
 	github.com/patrickmn/go-cache v2.1.0+incompatible
+	github.com/purpshell/meowcaller v0.0.0-20260726180203-6d9b7b2c1807
 	github.com/rabbitmq/amqp091-go v1.10.0
 	github.com/skip2/go-qrcode v0.0.0-20200617195104-da1b6568686e
 	github.com/swaggo/files v1.0.1
@@ -84,7 +85,6 @@ require (
 	github.com/pion/randutil v0.1.0 // indirect
 	github.com/pion/sctp v1.9.4 // indirect
 	github.com/pion/transport/v4 v4.0.1 // indirect
-	github.com/purpshell/meowcaller v0.0.0-20260726180203-6d9b7b2c1807 // indirect
 	github.com/remyoudompheng/bigfft v0.0.0-20230129092748-24d4a6f8daec // indirect
 	github.com/rogpeppe/go-internal v1.12.0 // indirect
 	github.com/rs/xid v1.6.0 // indirect
