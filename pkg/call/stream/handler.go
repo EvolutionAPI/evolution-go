@@ -49,7 +49,13 @@ func serveStream(callService call_service.CallService, instanceService instance_
 
 		b := newBridge(conn)
 		b.sendVideo = call.SendVideo
-		b.startVideo = call.StartVideo
+		// StartVideo requests an audio->video upgrade. Calling it on a call that
+		// already has video (declared in the original offer) doesn't just no-op --
+		// live testing showed it can drop the call entirely. Only wire it up when
+		// there's an actual upgrade to request.
+		if !call.IsVideo() {
+			b.startVideo = call.StartVideo
+		}
 		call.OnEnd(func(reason string) { b.Close() })
 		call.Receive(b)
 		call.ReceiveVideo(b)
