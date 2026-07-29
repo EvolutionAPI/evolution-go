@@ -12,6 +12,7 @@ type CallHandler interface {
 	RejectCall(ctx *gin.Context)
 	AnswerCall(ctx *gin.Context)
 	HangupCall(ctx *gin.Context)
+	DialCall(ctx *gin.Context)
 }
 
 type callHandler struct {
@@ -121,6 +122,41 @@ func (g *callHandler) HangupCall(ctx *gin.Context) {
 	}
 
 	ctx.JSON(http.StatusOK, gin.H{"message": "success"})
+}
+
+// Dial call
+// @Summary Place an outbound call
+// @Description Spike/experimental: places an outbound call, not part of the reviewed answer-call plan
+// @Tags Call
+// @Accept json
+// @Produce json
+// @Param message body call_service.DialCallStruct true "Call data"
+// @Success 200 {object} gin.H "success"
+// @Failure 500 {object} gin.H "Internal server error"
+// @Router /call/dial [post]
+func (g *callHandler) DialCall(ctx *gin.Context) {
+	getInstance := ctx.MustGet("instance")
+
+	instance, ok := getInstance.(*instance_model.Instance)
+	if !ok {
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "instance not found"})
+		return
+	}
+
+	var data *call_service.DialCallStruct
+	err := ctx.ShouldBindBodyWithJSON(&data)
+	if err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	call, err := g.callService.DialCall(data, instance)
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	ctx.JSON(http.StatusOK, gin.H{"message": "success", "callId": call.ID()})
 }
 
 func NewCallHandler(

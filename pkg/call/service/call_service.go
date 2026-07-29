@@ -1,6 +1,7 @@
 package call_service
 
 import (
+	"context"
 	"errors"
 
 	call_registry "github.com/evolution-foundation/evolution-go/pkg/call/registry"
@@ -18,6 +19,7 @@ type CallService interface {
 	AnswerCall(data *AnswerCallStruct, instance *instance_model.Instance) (*meowcaller.Call, error)
 	HangupCall(data *HangupCallStruct, instance *instance_model.Instance) error
 	GetActiveCall(instanceId, callId string) (*meowcaller.Call, error)
+	DialCall(data *DialCallStruct, instance *instance_model.Instance) (*meowcaller.Call, error)
 }
 
 type callService struct {
@@ -39,6 +41,15 @@ type AnswerCallStruct struct {
 
 type HangupCallStruct struct {
 	CallID string `json:"callId"`
+}
+
+// DialCallStruct is a spike/experimental addition, outside the reviewed
+// answer-call plan: it places an OUTBOUND call rather than answering an
+// inbound one. Number accepts anything meowcaller.Client.Call accepts (a
+// phone number, a phone JID, or an @lid JID).
+type DialCallStruct struct {
+	Number string `json:"number"`
+	Video  bool   `json:"video"`
 }
 
 func (c *callService) RejectCall(data *RejectCallStruct, instance *instance_model.Instance) error {
@@ -96,6 +107,25 @@ func (c *callService) GetActiveCall(instanceId, callId string) (*meowcaller.Call
 	if !ok {
 		return nil, errors.New("no active call with that id")
 	}
+	return call, nil
+}
+
+// DialCall places an outbound call and registers it so /call/stream and
+// /call/hangup can act on it just like an answered inbound call.
+func (c *callService) DialCall(data *DialCallStruct, instance *instance_model.Instance) (*meowcaller.Call, error) {
+	meowcallerClient, err := c.whatsmeowService.GetMeowcallerClient(instance.Id)
+	if err != nil {
+		return nil, err
+	}
+
+	call, err := meowcallerClient.CallWithOptions(context.Background(), data.Number, meowcaller.CallOptions{Video: data.Video})
+	if err != nil {
+		logger.LogError("[%s] error dialing call: %v", instance.Id, err)
+		return nil, err
+	}
+
+	c.callRegistry.Store(instance.Id, call)
+
 	return call, nil
 }
 

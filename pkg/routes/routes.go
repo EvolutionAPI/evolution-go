@@ -196,6 +196,7 @@ func (r *Routes) AssignRoutes(eng *gin.Engine) {
 			routes.POST("/reject", r.jidValidationMiddleware.ValidateNumberField(), r.callHandler.RejectCall)
 			routes.POST("/answer", r.jidValidationMiddleware.ValidateNumberField(), r.callHandler.AnswerCall)
 			routes.POST("/hangup", r.callHandler.HangupCall)
+			routes.POST("/dial", r.callHandler.DialCall)
 		}
 	}
 	routes = eng.Group("/community")

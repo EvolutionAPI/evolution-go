@@ -65,6 +65,11 @@ type WhatsmeowService interface {
 	UpdateInstanceAdvancedSettings(instanceId string) error
 	GetPollService() poll_service.PollService // NOVO: Acesso ao serviço de polls
 
+	// GetMeowcallerClient returns the per-instance meowcaller client used to place
+	// and answer WhatsApp calls. Returns an error if the instance has no active
+	// meowcaller client (i.e. its whatsmeow client was never started).
+	GetMeowcallerClient(instanceId string) (*meowcaller.Client, error)
+
 	// Passkey (WebAuthn) pairing bridge — read by the public ceremony endpoint,
 	// written by the whatsmeow event goroutine.
 	PasskeyCeremonyStore() *ceremony.Store
@@ -2855,6 +2860,16 @@ func NewWhatsmeowService(
 // GetPollService retorna o serviço de polls (evita dupla inicialização)
 func (w *whatsmeowService) GetPollService() poll_service.PollService {
 	return w.pollService
+}
+
+// GetMeowcallerClient returns the meowcaller client for instanceId, if its
+// whatsmeow client has been started.
+func (w *whatsmeowService) GetMeowcallerClient(instanceId string) (*meowcaller.Client, error) {
+	client, ok := w.meowcallerPointer[instanceId]
+	if !ok || client == nil {
+		return nil, fmt.Errorf("no active meowcaller client for instance %s", instanceId)
+	}
+	return client, nil
 }
 
 // PasskeyCeremonyStore exposes the shared ceremony store so the public HTTP
