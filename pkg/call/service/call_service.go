@@ -63,15 +63,14 @@ func (c *callService) AnswerCall(data *AnswerCallStruct, instance *instance_mode
 		return nil, errors.New("no pending call with that id")
 	}
 
+	// Answer negotiates media for whatever the offer already declared (audio, or
+	// audio+video if the call started as a video call) — no separate step needed.
+	// AcceptVideo is for a different case entirely: accepting a peer's request to
+	// upgrade an in-progress audio call to video (Call.StartVideo on their side),
+	// which isn't wired up here.
 	if err := call.Answer(); err != nil {
 		logger.LogError("[%s] error answering call: %v", instance.Id, err)
 		return nil, err
-	}
-
-	if call.IsVideo() {
-		if err := call.AcceptVideo(); err != nil {
-			c.loggerWrapper.GetLogger(instance.Id).LogError("[%s] answered call but failed to accept video: %v", instance.Id, err)
-		}
 	}
 
 	return call, nil
