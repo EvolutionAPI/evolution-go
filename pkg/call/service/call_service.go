@@ -3,6 +3,7 @@ package call_service
 import (
 	"context"
 	"errors"
+	"time"
 
 	call_registry "github.com/evolution-foundation/evolution-go/pkg/call/registry"
 	instance_model "github.com/evolution-foundation/evolution-go/pkg/instance/model"
@@ -173,11 +174,24 @@ func (c *callService) AddParticipant(data *AddParticipantStruct, instance *insta
 	if !ok {
 		return errors.New("no active call with that id")
 	}
-	if err := call.AddParticipant(context.Background(), data.Number); err != nil {
-		logger.LogError("[%s] error adding call participant: %v", instance.Id, err)
-		return err
+	// Spike/experimental: live testing showed the usync lookup AddParticipant does
+	// internally reliably times out while a call is already active (it works fine
+	// with no call in progress), even for numbers resolved moments earlier in the
+	// same session. Retrying with a short backoff to see whether it's transient
+	// network contention rather than a hard block.
+	var err error
+	for attempt := 1; attempt <= 3; attempt++ {
+		err = call.AddParticipant(context.Background(), data.Number)
+		if err == nil {
+			return nil
+		}
+		c.loggerWrapper.GetLogger(instance.Id).LogError("[%s] add participant attempt %d/3 failed: %v", instance.Id, attempt, err)
+		if attempt < 3 {
+			time.Sleep(2 * time.Second)
+		}
 	}
-	return nil
+	logger.LogError("[%s] error adding call participant after 3 attempts: %v", instance.Id, err)
+	return err
 }
 
 func (c *callService) ScreenShareCall(data *ScreenShareStruct, instance *instance_model.Instance) error {
