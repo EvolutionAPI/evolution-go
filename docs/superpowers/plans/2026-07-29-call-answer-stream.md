@@ -34,14 +34,29 @@ cd /home/rarosh/projetos/evolution-go
 go get github.com/purpshell/meowcaller@latest
 ```
 
-- [ ] **Step 2: Tidy and verify the whatsmeow bump didn't break anything**
+- [ ] **Step 2: Verify the whatsmeow bump didn't break anything**
+
+**Do NOT run `go mod tidy` in this task.** No `.go` file imports `meowcaller` yet — that
+starts in Task 3 — and `go mod tidy` removes `require` entries for modules nothing in
+the module actually imports. Run it now and it will silently delete the line `go get`
+just added, and `go build ./...` will still pass (nothing references the module, so its
+absence doesn't break compilation) — meaning a clean build here is not proof the
+dependency is actually present. Confirm it explicitly instead:
 
 ```bash
-go mod tidy
+grep meowcaller go.mod
+```
+
+Expected: one line, `github.com/purpshell/meowcaller v0.0.0-...`. If it's not there, the
+`go get` in Step 1 didn't take — re-run it and check again before moving on.
+
+```bash
 go build ./...
 ```
 
 Expected: exits 0. If it fails, the failures will be in `pkg/whatsmeow/service/whatsmeow.go` from whatsmeow API drift between the pinned versions (2026-06-30 → 2026-07-22) — read the compiler errors, they'll name the exact symbols that moved; fix those call sites before continuing (do not downgrade whatsmeow back down, meowcaller requires the newer floor).
+
+(Task 8 Step 6-7, once `meowcaller` is actually imported by real code, is the right time to run `go mod tidy` — it will no longer have anything unused to strip.)
 
 - [ ] **Step 3: Commit**
 
@@ -1095,7 +1110,19 @@ Add right after it:
 
 (`instanceService` is already constructed a few lines above this point in the same function.)
 
-- [ ] **Step 6: Build**
+- [ ] **Step 6: Tidy modules now that `meowcaller` is actually imported, then build**
+
+This is the first point in the plan where real code imports `meowcaller` (Tasks 3, 4,
+and 7 all added imports of it), so `go mod tidy` is now safe to run — it has something
+to keep. Task 1 deliberately skipped this step for exactly that reason.
+
+```bash
+go mod tidy
+grep meowcaller go.mod
+```
+
+Expected: the `grep` still shows the `github.com/purpshell/meowcaller` line (confirming
+`tidy` kept it now that it's actually used).
 
 ```bash
 go build ./...
