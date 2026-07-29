@@ -20,6 +20,10 @@ type CallService interface {
 	HangupCall(data *HangupCallStruct, instance *instance_model.Instance) error
 	GetActiveCall(instanceId, callId string) (*meowcaller.Call, error)
 	DialCall(data *DialCallStruct, instance *instance_model.Instance) (*meowcaller.Call, error)
+	ReactCall(data *ReactCallStruct, instance *instance_model.Instance) error
+	AddParticipant(data *AddParticipantStruct, instance *instance_model.Instance) error
+	ScreenShareCall(data *ScreenShareStruct, instance *instance_model.Instance) error
+	HandRaiseCall(data *HandRaiseStruct, instance *instance_model.Instance) error
 }
 
 type callService struct {
@@ -50,6 +54,29 @@ type HangupCallStruct struct {
 type DialCallStruct struct {
 	Number string `json:"number"`
 	Video  bool   `json:"video"`
+}
+
+// The following structs are all spike/experimental additions, outside the reviewed
+// answer-call plan, for call-control features requested during live manual testing.
+
+type ReactCallStruct struct {
+	CallID string `json:"callId"`
+	Emoji  string `json:"emoji"`
+}
+
+type AddParticipantStruct struct {
+	CallID string `json:"callId"`
+	Number string `json:"number"`
+}
+
+type ScreenShareStruct struct {
+	CallID string `json:"callId"`
+	Start  bool   `json:"start"`
+}
+
+type HandRaiseStruct struct {
+	CallID string `json:"callId"`
+	Raised bool   `json:"raised"`
 }
 
 func (c *callService) RejectCall(data *RejectCallStruct, instance *instance_model.Instance) error {
@@ -127,6 +154,60 @@ func (c *callService) DialCall(data *DialCallStruct, instance *instance_model.In
 	c.callRegistry.Store(instance.Id, call)
 
 	return call, nil
+}
+
+func (c *callService) ReactCall(data *ReactCallStruct, instance *instance_model.Instance) error {
+	call, ok := c.callRegistry.Get(instance.Id, data.CallID)
+	if !ok {
+		return errors.New("no active call with that id")
+	}
+	if err := call.SendReaction(data.Emoji); err != nil {
+		logger.LogError("[%s] error sending call reaction: %v", instance.Id, err)
+		return err
+	}
+	return nil
+}
+
+func (c *callService) AddParticipant(data *AddParticipantStruct, instance *instance_model.Instance) error {
+	call, ok := c.callRegistry.Get(instance.Id, data.CallID)
+	if !ok {
+		return errors.New("no active call with that id")
+	}
+	if err := call.AddParticipant(context.Background(), data.Number); err != nil {
+		logger.LogError("[%s] error adding call participant: %v", instance.Id, err)
+		return err
+	}
+	return nil
+}
+
+func (c *callService) ScreenShareCall(data *ScreenShareStruct, instance *instance_model.Instance) error {
+	call, ok := c.callRegistry.Get(instance.Id, data.CallID)
+	if !ok {
+		return errors.New("no active call with that id")
+	}
+	var err error
+	if data.Start {
+		err = call.StartScreenShare(nil)
+	} else {
+		err = call.StopScreenShare()
+	}
+	if err != nil {
+		logger.LogError("[%s] error toggling call screen share: %v", instance.Id, err)
+		return err
+	}
+	return nil
+}
+
+func (c *callService) HandRaiseCall(data *HandRaiseStruct, instance *instance_model.Instance) error {
+	call, ok := c.callRegistry.Get(instance.Id, data.CallID)
+	if !ok {
+		return errors.New("no active call with that id")
+	}
+	if err := call.SetHandRaised(data.Raised); err != nil {
+		logger.LogError("[%s] error setting call hand-raise state: %v", instance.Id, err)
+		return err
+	}
+	return nil
 }
 
 func NewCallService(

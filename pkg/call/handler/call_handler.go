@@ -13,6 +13,10 @@ type CallHandler interface {
 	AnswerCall(ctx *gin.Context)
 	HangupCall(ctx *gin.Context)
 	DialCall(ctx *gin.Context)
+	ReactCall(ctx *gin.Context)
+	AddParticipant(ctx *gin.Context)
+	ScreenShareCall(ctx *gin.Context)
+	HandRaiseCall(ctx *gin.Context)
 }
 
 type callHandler struct {
@@ -157,6 +161,146 @@ func (g *callHandler) DialCall(ctx *gin.Context) {
 	}
 
 	ctx.JSON(http.StatusOK, gin.H{"message": "success", "callId": call.ID()})
+}
+
+// React to a call
+// @Summary Send a call reaction
+// @Description Spike/experimental: sends an emoji reaction into an active call
+// @Tags Call
+// @Accept json
+// @Produce json
+// @Param message body call_service.ReactCallStruct true "Call data"
+// @Success 200 {object} gin.H "success"
+// @Failure 500 {object} gin.H "Internal server error"
+// @Router /call/react [post]
+func (g *callHandler) ReactCall(ctx *gin.Context) {
+	getInstance := ctx.MustGet("instance")
+
+	instance, ok := getInstance.(*instance_model.Instance)
+	if !ok {
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "instance not found"})
+		return
+	}
+
+	var data *call_service.ReactCallStruct
+	err := ctx.ShouldBindBodyWithJSON(&data)
+	if err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	err = g.callService.ReactCall(data, instance)
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	ctx.JSON(http.StatusOK, gin.H{"message": "success"})
+}
+
+// Add participant to a call
+// @Summary Add a participant to an active call
+// @Description Spike/experimental: adds a participant, upgrading a 1:1 call into a group call
+// @Tags Call
+// @Accept json
+// @Produce json
+// @Param message body call_service.AddParticipantStruct true "Call data"
+// @Success 200 {object} gin.H "success"
+// @Failure 500 {object} gin.H "Internal server error"
+// @Router /call/participant/add [post]
+func (g *callHandler) AddParticipant(ctx *gin.Context) {
+	getInstance := ctx.MustGet("instance")
+
+	instance, ok := getInstance.(*instance_model.Instance)
+	if !ok {
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "instance not found"})
+		return
+	}
+
+	var data *call_service.AddParticipantStruct
+	err := ctx.ShouldBindBodyWithJSON(&data)
+	if err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	err = g.callService.AddParticipant(data, instance)
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	ctx.JSON(http.StatusOK, gin.H{"message": "success"})
+}
+
+// Toggle screen share
+// @Summary Start or stop screen sharing in a call
+// @Description Spike/experimental: toggles this client's screen share state
+// @Tags Call
+// @Accept json
+// @Produce json
+// @Param message body call_service.ScreenShareStruct true "Call data"
+// @Success 200 {object} gin.H "success"
+// @Failure 500 {object} gin.H "Internal server error"
+// @Router /call/screenshare [post]
+func (g *callHandler) ScreenShareCall(ctx *gin.Context) {
+	getInstance := ctx.MustGet("instance")
+
+	instance, ok := getInstance.(*instance_model.Instance)
+	if !ok {
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "instance not found"})
+		return
+	}
+
+	var data *call_service.ScreenShareStruct
+	err := ctx.ShouldBindBodyWithJSON(&data)
+	if err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	err = g.callService.ScreenShareCall(data, instance)
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	ctx.JSON(http.StatusOK, gin.H{"message": "success"})
+}
+
+// Toggle hand raise
+// @Summary Raise or lower hand in a call
+// @Description Spike/experimental: toggles this client's hand-raised state
+// @Tags Call
+// @Accept json
+// @Produce json
+// @Param message body call_service.HandRaiseStruct true "Call data"
+// @Success 200 {object} gin.H "success"
+// @Failure 500 {object} gin.H "Internal server error"
+// @Router /call/handraise [post]
+func (g *callHandler) HandRaiseCall(ctx *gin.Context) {
+	getInstance := ctx.MustGet("instance")
+
+	instance, ok := getInstance.(*instance_model.Instance)
+	if !ok {
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "instance not found"})
+		return
+	}
+
+	var data *call_service.HandRaiseStruct
+	err := ctx.ShouldBindBodyWithJSON(&data)
+	if err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	err = g.callService.HandRaiseCall(data, instance)
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	ctx.JSON(http.StatusOK, gin.H{"message": "success"})
 }
 
 func NewCallHandler(
