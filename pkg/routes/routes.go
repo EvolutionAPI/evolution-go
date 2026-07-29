@@ -194,6 +194,8 @@ func (r *Routes) AssignRoutes(eng *gin.Engine) {
 		routes.Use(r.authMiddleware.Auth)
 		{
 			routes.POST("/reject", r.jidValidationMiddleware.ValidateNumberField(), r.callHandler.RejectCall)
+			routes.POST("/answer", r.jidValidationMiddleware.ValidateNumberField(), r.callHandler.AnswerCall)
+			routes.POST("/hangup", r.callHandler.HangupCall)
 		}
 	}
 	routes = eng.Group("/community")
