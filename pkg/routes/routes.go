@@ -194,6 +194,16 @@ func (r *Routes) AssignRoutes(eng *gin.Engine) {
 		routes.Use(r.authMiddleware.Auth)
 		{
 			routes.POST("/reject", r.jidValidationMiddleware.ValidateNumberField(), r.callHandler.RejectCall)
+			routes.POST("/answer", r.jidValidationMiddleware.ValidateNumberField(), r.callHandler.AnswerCall)
+			routes.POST("/hangup", r.callHandler.HangupCall)
+			routes.POST("/dial", r.callHandler.DialCall)
+			routes.POST("/react", r.callHandler.ReactCall)
+			routes.POST("/participant/add", r.jidValidationMiddleware.ValidateNumberField(), r.callHandler.AddParticipant)
+			routes.POST("/screenshare", r.callHandler.ScreenShareCall)
+			routes.POST("/handraise", r.callHandler.HandRaiseCall)
+			routes.POST("/video/upgrade", r.callHandler.VideoUpgradeCall)
+			routes.POST("/video/enabled", r.callHandler.VideoEnabledCall)
+			routes.POST("/video/orientation", r.callHandler.VideoOrientationCall)
 		}
 	}
 	routes = eng.Group("/community")

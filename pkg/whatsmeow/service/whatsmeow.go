@@ -23,6 +23,7 @@ import (
 
 	_ "github.com/lib/pq"
 	"github.com/patrickmn/go-cache"
+	"github.com/purpshell/meowcaller"
 	"github.com/skip2/go-qrcode"
 	"go.mau.fi/whatsmeow"
 	"go.mau.fi/whatsmeow/appstate"
@@ -34,6 +35,7 @@ import (
 	"go.mau.fi/whatsmeow/types/events"
 	waLog "go.mau.fi/whatsmeow/util/log"
 
+	call_registry "github.com/evolution-foundation/evolution-go/pkg/call/registry"
 	"github.com/evolution-foundation/evolution-go/pkg/config"
 	producer_interfaces "github.com/evolution-foundation/evolution-go/pkg/events/interfaces"
 	instance_model "github.com/evolution-foundation/evolution-go/pkg/instance/model"
@@ -63,6 +65,11 @@ type WhatsmeowService interface {
 	UpdateInstanceAdvancedSettings(instanceId string) error
 	GetPollService() poll_service.PollService // NOVO: Acesso ao serviço de polls
 
+	// GetMeowcallerClient returns the per-instance meowcaller client used to place
+	// and answer WhatsApp calls. Returns an error if the instance has no active
+	// meowcaller client (i.e. its whatsmeow client was never started).
+	GetMeowcallerClient(instanceId string) (*meowcaller.Client, error)
+
 	// Passkey (WebAuthn) pairing bridge — read by the public ceremony endpoint,
 	// written by the whatsmeow event goroutine.
 	PasskeyCeremonyStore() *ceremony.Store
@@ -86,6 +93,8 @@ type whatsmeowService struct {
 	killChannel        map[string](chan bool)
 	userInfoCache      *cache.Cache
 	clientPointer      map[string]*whatsmeow.Client
+	meowcallerPointer  map[string]*meowcaller.Client
+	callRegistry       *call_registry.CallRegistry
 	myClientPointer    map[string]*MyClient
 	rabbitmqProducer   producer_interfaces.Producer
 	webhookProducer    producer_interfaces.Producer
@@ -413,6 +422,16 @@ func (w whatsmeowService) StartClient(cd *ClientData) {
 	client := whatsmeow.NewClient(deviceStore, clientLog)
 
 	w.clientPointer[cd.Instance.Id] = client
+
+	// meowcaller.NewClient must run before client.Connect() — it installs the raw
+	// <call> stanza adapter, and doing so after Connect() is a documented race.
+	meowcallerClient := meowcaller.NewClient(client)
+	w.meowcallerPointer[cd.Instance.Id] = meowcallerClient
+	instanceID := cd.Instance.Id
+	meowcallerClient.OnIncomingCall(func(call *meowcaller.Call) {
+		w.loggerWrapper.GetLogger(instanceID).LogInfo("[%s] meowcaller captured incoming call %s from %s", instanceID, call.ID(), call.Peer().String())
+		w.callRegistry.Store(instanceID, call)
+	})
 
 	if cd.IsProxy {
 		var proxyConfig ProxyConfig
@@ -1940,6 +1959,7 @@ func (mycli *MyClient) myEventHandler(rawEvt interface{}) {
 		doWebhook = true
 		postMap["event"] = "CallTerminate"
 		mycli.loggerWrapper.GetLogger(mycli.userID).LogInfo("[%s] Got call terminate %+v", mycli.userID, evt)
+		mycli.service.(*whatsmeowService).callRegistry.Delete(evt.CallID)
 	case *events.CallOfferNotice:
 		doWebhook = true
 		postMap["event"] = "CallOfferNotice"
@@ -2805,6 +2825,7 @@ func NewWhatsmeowService(
 	exPath string,
 	mediaStorage storage_interfaces.MediaStorage,
 	natsProducer producer_interfaces.Producer,
+	callRegistry *call_registry.CallRegistry,
 	loggerWrapper *logger_wrapper.LoggerManager,
 ) WhatsmeowService {
 	// Inicializar PollService de forma segura
@@ -2820,6 +2841,8 @@ func NewWhatsmeowService(
 		killChannel:        killChannel,
 		userInfoCache:      cache.New(5*time.Minute, 10*time.Minute),
 		clientPointer:      clientPointer,
+		meowcallerPointer:  make(map[string]*meowcaller.Client),
+		callRegistry:       callRegistry,
 		myClientPointer:    make(map[string]*MyClient),
 		rabbitmqProducer:   rabbitmqProducer,
 		webhookProducer:    webhookProducer,
@@ -2837,6 +2860,16 @@ func NewWhatsmeowService(
 // GetPollService retorna o serviço de polls (evita dupla inicialização)
 func (w *whatsmeowService) GetPollService() poll_service.PollService {
 	return w.pollService
+}
+
+// GetMeowcallerClient returns the meowcaller client for instanceId, if its
+// whatsmeow client has been started.
+func (w *whatsmeowService) GetMeowcallerClient(instanceId string) (*meowcaller.Client, error) {
+	client, ok := w.meowcallerPointer[instanceId]
+	if !ok || client == nil {
+		return nil, fmt.Errorf("no active meowcaller client for instance %s", instanceId)
+	}
+	return client, nil
 }
 
 // PasskeyCeremonyStore exposes the shared ceremony store so the public HTTP
