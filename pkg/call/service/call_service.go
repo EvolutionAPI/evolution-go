@@ -79,8 +79,8 @@ func (c *callService) ensureClientConnected(instanceID string) (*whatsmeow.Clien
 		return nil, errors.New("client disconnected")
 	}
 
-	// Calls and messaging share the same authenticated client. The public runtime
-	// tracks state while the private incoming registry holds non-serializable keys.
+	// Calls and messaging share the same authenticated client. Public state and
+	// private call negotiation are attached idempotently to that client.
 	c.coordinator.Attach(instanceID, client)
 
 	c.loggerWrapper.GetLogger(instanceID).LogInfo("[%s] Client successfully validated - Connected: %v", instanceID, client.IsConnected())
@@ -105,24 +105,47 @@ func (c *callService) StartCall(data *StartCallStruct, instance *instance_model.
 	ctx, cancel := context.WithTimeout(context.Background(), signalingTimeout)
 	defer cancel()
 
-	driver := call_driver.NewSignalingDriver(client)
-	callID, resolvedPeer, err := driver.Start(ctx, peer, data.Video)
+	result, err := call_driver.NewSignalingDriver(client).Start(ctx, peer, data.Video)
 	if err != nil {
+		return call_runtime.Call{}, err
+	}
+	defer result.Wipe()
+
+	if err := c.coordinator.StoreOutgoing(
+		instance.Id,
+		result.CallID,
+		result.CallKey,
+		result.Peer,
+		result.Creator,
+		data.Video,
+		result.RelayData,
+	); err != nil {
 		return call_runtime.Call{}, err
 	}
 
 	runtime := c.coordinator.RuntimeFor(instance.Id, client)
 	video := data.Video
 	runtime.Transition(
-		callID,
-		resolvedPeer.String(),
+		result.CallID,
+		result.Peer.String(),
 		call_runtime.DirectionOutgoing,
 		call_runtime.StateRinging,
 		&video,
 		"",
 	)
-	call, _ := runtime.Call(callID)
-	c.loggerWrapper.GetLogger(instance.Id).LogInfo("[%s] Call offer sent - CallID: %s, Peer: %s, Video: %v", instance.Id, callID, resolvedPeer.String(), data.Video)
+	call, _ := runtime.Call(result.CallID)
+	relayCount := 0
+	if result.RelayData != nil {
+		relayCount = len(result.RelayData.Endpoints)
+	}
+	c.loggerWrapper.GetLogger(instance.Id).LogInfo(
+		"[%s] Call offer sent - CallID: %s, Peer: %s, Video: %v, Relays: %d",
+		instance.Id,
+		result.CallID,
+		result.Peer.String(),
+		data.Video,
+		relayCount,
+	)
 	return call, nil
 }
 
@@ -168,6 +191,7 @@ func (c *callService) TerminateCall(callID string, instance *instance_model.Inst
 		return call_runtime.Call{}, fmt.Errorf("call %s not found", callID)
 	}
 	if call.State == call_runtime.StateEnded || call.State == call_runtime.StateFailed {
+		c.coordinator.RemovePrivate(instance.Id, callID)
 		return call, nil
 	}
 
@@ -188,6 +212,7 @@ func (c *callService) TerminateCall(callID string, instance *instance_model.Inst
 		}
 	}
 
+	c.coordinator.RemovePrivate(instance.Id, callID)
 	runtime.Transition(callID, "", "", call_runtime.StateEnded, nil, "user_ended")
 	call, _ = runtime.Call(callID)
 	return call, nil
@@ -204,7 +229,7 @@ func (c *callService) RejectCall(data *RejectCallStruct, instance *instance_mode
 		return err
 	}
 
-	c.coordinator.RemoveIncoming(instance.Id, data.CallID)
+	c.coordinator.RemovePrivate(instance.Id, data.CallID)
 	runtime := c.coordinator.RuntimeFor(instance.Id, client)
 	runtime.Transition(data.CallID, data.CallCreator.String(), call_runtime.DirectionIncoming, call_runtime.StateEnded, nil, "rejected")
 	return nil
