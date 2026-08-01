@@ -26,6 +26,7 @@ type AudioRegistryOptions struct {
 	SilenceTick    time.Duration
 	SilenceAfter   time.Duration
 	DisableSilence bool
+	Jitter         JitterBufferOptions
 }
 
 func DefaultAudioRegistryOptions() AudioRegistryOptions {
@@ -34,6 +35,7 @@ func DefaultAudioRegistryOptions() AudioRegistryOptions {
 		CodecOptions: DefaultCodecOptions,
 		SilenceTick:  60 * time.Millisecond,
 		SilenceAfter: 120 * time.Millisecond,
+		Jitter:       DefaultJitterBufferOptions(),
 	}
 }
 
@@ -44,6 +46,8 @@ type audioSession struct {
 	callID     string
 	codec      Codec
 	sender     EncodedAudioSender
+	onPCM      func([]float32)
+	jitter     *JitterBuffer
 
 	encodeBuffer []float32
 	encodePos    int
@@ -58,12 +62,13 @@ type audioSession struct {
 	stopOnce     sync.Once
 }
 
-func newAudioSession(instanceID, callID string, codec Codec, sender EncodedAudioSender, options AudioRegistryOptions) *audioSession {
+func newAudioSession(instanceID, callID string, codec Codec, sender EncodedAudioSender, onPCM func([]float32), options AudioRegistryOptions) *audioSession {
 	session := &audioSession{
 		instanceID:   instanceID,
 		callID:       callID,
 		codec:        codec,
 		sender:       sender,
+		onPCM:        onPCM,
 		encodeBuffer: make([]float32, codec.FrameSize()),
 		marker:       true,
 		lastCapture:  time.Now(),
@@ -72,6 +77,7 @@ func newAudioSession(instanceID, callID string, codec Codec, sender EncodedAudio
 		stopCh:       make(chan struct{}),
 		doneCh:       make(chan struct{}),
 	}
+	session.jitter = NewJitterBuffer(&options.Jitter, session.handleJitterFrame)
 	if options.DisableSilence || options.SilenceTick <= 0 || options.SilenceAfter <= 0 {
 		close(session.doneCh)
 	} else {
@@ -119,20 +125,58 @@ func (s *audioSession) feedPCM(pcm []float32) error {
 	return nil
 }
 
-func (s *audioSession) handleRTP(packet *RTPPacket) ([]float32, error) {
+func (s *audioSession) handleRTP(packet *RTPPacket) error {
 	if s == nil || packet == nil || packet.Header == nil {
-		return nil, ErrAudioSessionNotReady
+		return ErrAudioSessionNotReady
 	}
 	s.mu.Lock()
-	defer s.mu.Unlock()
+	if s.closed || s.codec == nil || s.jitter == nil {
+		s.mu.Unlock()
+		return ErrAudioSessionNotReady
+	}
+	jitter := s.jitter
+	s.mu.Unlock()
+	return jitter.Push(packet)
+}
+
+func (s *audioSession) handleJitterFrame(frame JitterFrame) {
+	if s == nil {
+		return
+	}
+	s.mu.Lock()
 	if s.closed || s.codec == nil {
-		return nil, ErrAudioSessionNotReady
+		s.mu.Unlock()
+		return
 	}
-	decoded, err := s.codec.Decode(packet.Payload)
+	payload := frame.Payload
+	if frame.Concealed {
+		payload = nil
+	}
+	decoded, err := s.codec.Decode(payload)
 	if err != nil {
-		return nil, fmt.Errorf("decode MLow payload: %w", err)
+		s.mu.Unlock()
+		return
 	}
-	return NormalizeFrame(decoded, s.codec.FrameSize()), nil
+	pcm := NormalizeFrame(decoded, s.codec.FrameSize())
+	callback := s.onPCM
+	s.mu.Unlock()
+	defer zeroFloat32(pcm)
+	if callback != nil {
+		callback(append([]float32(nil), pcm...))
+	}
+}
+
+func (s *audioSession) jitterStats() JitterBufferStats {
+	if s == nil {
+		return JitterBufferStats{}
+	}
+	s.mu.Lock()
+	jitter := s.jitter
+	s.mu.Unlock()
+	if jitter == nil {
+		return JitterBufferStats{}
+	}
+	return jitter.Stats()
 }
 
 func (s *audioSession) encodeAndSendLocked(frame []float32) error {
@@ -186,19 +230,31 @@ func (s *audioSession) close() {
 	<-s.doneCh
 
 	s.mu.Lock()
-	if !s.closed {
-		s.closed = true
-		if s.codec != nil {
-			s.codec.Close()
-		}
-		zeroFloat32(s.encodeBuffer)
-		s.codec = nil
-		s.sender = nil
-		s.encodeBuffer = nil
-		s.encodePos = 0
-		s.marker = false
-		s.lastCapture = time.Time{}
+	if s.closed {
+		s.mu.Unlock()
+		return
 	}
+	s.closed = true
+	jitter := s.jitter
+	s.jitter = nil
+	s.mu.Unlock()
+
+	if jitter != nil {
+		jitter.Close()
+	}
+
+	s.mu.Lock()
+	if s.codec != nil {
+		s.codec.Close()
+	}
+	zeroFloat32(s.encodeBuffer)
+	s.codec = nil
+	s.sender = nil
+	s.onPCM = nil
+	s.encodeBuffer = nil
+	s.encodePos = 0
+	s.marker = false
+	s.lastCapture = time.Time{}
 	s.mu.Unlock()
 }
 
@@ -216,8 +272,9 @@ func sanitizePCMSample(sample float32) float32 {
 	return sample
 }
 
-// AudioRegistry owns one codec and PCM accumulator per call. It is independent
-// from HTTP and device APIs so browser, native and test bridges can reuse it.
+// AudioRegistry owns one codec, jitter buffer and PCM accumulator per call. It
+// is independent from HTTP and device APIs so browser, native and test bridges
+// can reuse it.
 type AudioRegistry struct {
 	mu sync.RWMutex
 
@@ -239,6 +296,19 @@ func NewAudioRegistry(sender EncodedAudioSender, options *AudioRegistryOptions) 
 		}
 		if resolved.SilenceAfter == 0 {
 			resolved.SilenceAfter = 120 * time.Millisecond
+		}
+		jitterDefaults := DefaultJitterBufferOptions()
+		if resolved.Jitter.FrameDuration <= 0 {
+			resolved.Jitter.FrameDuration = jitterDefaults.FrameDuration
+		}
+		if resolved.Jitter.InitialDelayPackets <= 0 {
+			resolved.Jitter.InitialDelayPackets = jitterDefaults.InitialDelayPackets
+		}
+		if resolved.Jitter.MaxPackets <= 0 {
+			resolved.Jitter.MaxPackets = jitterDefaults.MaxPackets
+		}
+		if resolved.Jitter.MaxConcealmentPackets <= 0 {
+			resolved.Jitter.MaxConcealmentPackets = jitterDefaults.MaxConcealmentPackets
 		}
 	}
 	return &AudioRegistry{
@@ -276,7 +346,9 @@ func (r *AudioRegistry) Prepare(instanceID, callID string) error {
 	if err != nil {
 		return fmt.Errorf("create MLow codec: %w", err)
 	}
-	candidate := newAudioSession(instanceID, callID, codec, r.sender, r.options)
+	candidate := newAudioSession(instanceID, callID, codec, r.sender, func(pcm []float32) {
+		r.emitPCM(instanceID, callID, pcm)
+	}, r.options)
 
 	r.mu.Lock()
 	calls := r.sessions[instanceID]
@@ -307,19 +379,28 @@ func (r *AudioRegistry) HandleRTP(instanceID, callID string, packet *RTPPacket) 
 	if err != nil {
 		return err
 	}
-	pcm, err := session.handleRTP(packet)
-	if err != nil {
-		return err
+	err = session.handleRTP(packet)
+	if errors.Is(err, ErrJitterDuplicatePacket) || errors.Is(err, ErrJitterLatePacket) {
+		return nil
 	}
-	defer zeroFloat32(pcm)
+	return err
+}
 
+func (r *AudioRegistry) emitPCM(instanceID, callID string, pcm []float32) {
 	r.mu.RLock()
 	callback := r.onPCM
 	r.mu.RUnlock()
 	if callback != nil {
 		callback(instanceID, callID, append([]float32(nil), pcm...))
 	}
-	return nil
+}
+
+func (r *AudioRegistry) JitterStats(instanceID, callID string) (JitterBufferStats, bool) {
+	session, err := r.session(instanceID, callID, false)
+	if err != nil {
+		return JitterBufferStats{}, false
+	}
+	return session.jitterStats(), true
 }
 
 func (r *AudioRegistry) session(instanceID, callID string, lazy bool) (*audioSession, error) {
