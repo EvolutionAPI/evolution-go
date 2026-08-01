@@ -1,11 +1,13 @@
 name: Apply call lifecycle hooks
 
 on:
-  push:
+  pull_request:
     branches:
-      - dev/astracalls-integration
+      - main
     paths:
       - .github/workflows/apply-call-lifecycle.yml
+      - tools/apply_call_lifecycle.py
+      - pkg/call/lifecycle/coordinator.go
 
 permissions:
   contents: write
