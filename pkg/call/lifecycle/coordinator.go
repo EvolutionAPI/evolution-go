@@ -1,5 +1,5 @@
-// Package lifecycle coordinates call state and private negotiation material
-// for each Evolution WhatsApp client.
+// Package lifecycle coordinates call state, private negotiation material and
+// experimental media relays for each Evolution WhatsApp client.
 package lifecycle
 
 import (
@@ -9,6 +9,7 @@ import (
 	call_runtime "github.com/evolution-foundation/evolution-go/pkg/call/runtime"
 	"github.com/evolution-foundation/evolution-go/pkg/call/voip/core"
 	call_incoming "github.com/evolution-foundation/evolution-go/pkg/call/voip/incoming"
+	call_media "github.com/evolution-foundation/evolution-go/pkg/call/voip/media"
 	"go.mau.fi/whatsmeow"
 	"go.mau.fi/whatsmeow/types"
 )
@@ -19,15 +20,24 @@ type Coordinator struct {
 	mu              sync.RWMutex
 	runtimes        *call_runtime.Registry
 	incoming        *call_incoming.Registry
+	relays          *call_media.RelayRegistry
 	incomingEnabled map[string]bool
 }
 
 func NewCoordinator() *Coordinator {
-	return &Coordinator{
+	incoming := call_incoming.NewRegistry()
+	coordinator := &Coordinator{
 		runtimes:        call_runtime.NewRegistry(),
-		incoming:        call_incoming.NewRegistry(),
+		incoming:        incoming,
 		incomingEnabled: make(map[string]bool),
 	}
+	coordinator.relays = call_media.NewRelayRegistry(incoming, nil, nil)
+	coordinator.relays.SetOnConnected(func(instanceID, callID string) {
+		if runtime, ok := coordinator.runtimes.Get(instanceID); ok {
+			runtime.Transition(callID, "", "", call_runtime.StateActive, nil, "")
+		}
+	})
+	return coordinator
 }
 
 // AttachClient is called by the WhatsApp client lifecycle. Public call state is
@@ -44,9 +54,11 @@ func (c *Coordinator) AttachClient(instanceID string, client *whatsmeow.Client, 
 
 	c.runtimes.Attach(instanceID, client)
 	c.incoming.Attach(instanceID, client, prepareIncoming)
+	c.relays.Attach(instanceID, client)
 }
 
-// DetachClient removes handlers, configuration and private call keys.
+// DetachClient removes handlers, relay connections, configuration and private
+// call keys before the WhatsApp client is discarded.
 func (c *Coordinator) DetachClient(instanceID string) {
 	if c == nil || instanceID == "" {
 		return
@@ -54,6 +66,7 @@ func (c *Coordinator) DetachClient(instanceID string) {
 	c.mu.Lock()
 	delete(c.incomingEnabled, instanceID)
 	c.mu.Unlock()
+	c.relays.Close(instanceID)
 	c.runtimes.Remove(instanceID)
 	c.incoming.Close(instanceID)
 }
@@ -73,6 +86,7 @@ func (c *Coordinator) Attach(instanceID string, client *whatsmeow.Client) {
 		prepareIncoming = true
 	}
 	c.incoming.Attach(instanceID, client, prepareIncoming)
+	c.relays.Attach(instanceID, client)
 }
 
 func (c *Coordinator) Detach(instanceID string) {
@@ -102,8 +116,8 @@ func (c *Coordinator) StoreOutgoing(instanceID, callID string, callKey []byte, p
 	return c.incoming.StoreOutgoing(instanceID, callID, callKey, peer, creator, video, relayData)
 }
 
-// RelayData returns a defensive copy for the future SCTP transport manager.
-// The caller owns the copy and must call core.ZeroRelayData after use.
+// RelayData returns a defensive copy. The caller owns the copy and must call
+// core.ZeroRelayData after use.
 func (c *Coordinator) RelayData(instanceID, callID string) (*core.RelayData, bool) {
 	if c == nil {
 		return nil, false
@@ -112,14 +126,22 @@ func (c *Coordinator) RelayData(instanceID, callID string) (*core.RelayData, boo
 }
 
 func (c *Coordinator) AcceptIncoming(ctx context.Context, instanceID, callID string) error {
-	return c.incoming.Accept(ctx, instanceID, callID)
+	if err := c.incoming.Accept(ctx, instanceID, callID); err != nil {
+		return err
+	}
+	return c.relays.Start(instanceID, callID)
 }
 
 func (c *Coordinator) TerminateIncoming(ctx context.Context, instanceID, callID string) error {
-	return c.incoming.Terminate(ctx, instanceID, callID)
+	if err := c.incoming.Terminate(ctx, instanceID, callID); err != nil {
+		return err
+	}
+	c.relays.Remove(instanceID, callID)
+	return nil
 }
 
 func (c *Coordinator) RemovePrivate(instanceID, callID string) {
+	c.relays.Remove(instanceID, callID)
 	c.incoming.Remove(instanceID, callID)
 }
 
