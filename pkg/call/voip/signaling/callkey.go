@@ -3,12 +3,16 @@
 package signaling
 
 import (
+	"context"
 	"crypto/rand"
 	"encoding/hex"
 	"fmt"
 	"strings"
 
+	"github.com/evolution-foundation/evolution-go/pkg/call/voip/core"
+	waBinary "go.mau.fi/whatsmeow/binary"
 	"go.mau.fi/whatsmeow/proto/waE2E"
+	"go.mau.fi/whatsmeow/types"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -45,6 +49,23 @@ func DecodeCallKeyPlaintext(plaintext []byte) ([]byte, error) {
 	key := message.GetCall().GetCallKey()
 	if len(key) != 32 {
 		return nil, fmt.Errorf("invalid call key: expected 32 bytes, got %d", len(key))
+	}
+	return key, nil
+}
+
+// DecryptCallKeyInNode finds the encrypted call key in an incoming offer and
+// decrypts it through the currently authenticated whatsmeow Signal session.
+func DecryptCallKeyInNode(ctx context.Context, socket core.VoipSocket, inner *waBinary.Node, peer types.JID) ([]byte, error) {
+	encrypted := findEncryptedCallKeyNode(inner)
+	if encrypted == nil {
+		return nil, fmt.Errorf("incoming call offer does not contain an encrypted call key")
+	}
+	key, err := socket.DecryptCallKey(ctx, peer, encrypted)
+	if err != nil {
+		return nil, fmt.Errorf("decrypt incoming call key: %w", err)
+	}
+	if len(key) != 32 {
+		return nil, fmt.Errorf("invalid decrypted call key length: %d", len(key))
 	}
 	return key, nil
 }
