@@ -1,4 +1,4 @@
-// Package lifecycle coordinates call state and private incoming-call material
+// Package lifecycle coordinates call state and private negotiation material
 // for each Evolution WhatsApp client.
 package lifecycle
 
@@ -7,8 +7,10 @@ import (
 	"sync"
 
 	call_runtime "github.com/evolution-foundation/evolution-go/pkg/call/runtime"
+	"github.com/evolution-foundation/evolution-go/pkg/call/voip/core"
 	call_incoming "github.com/evolution-foundation/evolution-go/pkg/call/voip/incoming"
 	"go.mau.fi/whatsmeow"
+	"go.mau.fi/whatsmeow/types"
 )
 
 // Coordinator owns the call registries shared by the WhatsApp lifecycle and
@@ -29,8 +31,8 @@ func NewCoordinator() *Coordinator {
 }
 
 // AttachClient is called by the WhatsApp client lifecycle. Public call state is
-// always monitored, while private offer preparation is disabled for instances
-// configured to reject incoming calls automatically.
+// always monitored. Private outgoing negotiation remains available even when
+// incoming offer preparation is disabled by automatic rejection settings.
 func (c *Coordinator) AttachClient(instanceID string, client *whatsmeow.Client, prepareIncoming bool) {
 	if c == nil || instanceID == "" || client == nil {
 		return
@@ -41,11 +43,7 @@ func (c *Coordinator) AttachClient(instanceID string, client *whatsmeow.Client, 
 	c.mu.Unlock()
 
 	c.runtimes.Attach(instanceID, client)
-	if prepareIncoming {
-		c.incoming.Attach(instanceID, client)
-	} else {
-		c.incoming.Close(instanceID)
-	}
+	c.incoming.Attach(instanceID, client, prepareIncoming)
 }
 
 // DetachClient removes handlers, configuration and private call keys.
@@ -71,9 +69,10 @@ func (c *Coordinator) Attach(instanceID string, client *whatsmeow.Client) {
 	c.mu.RLock()
 	prepareIncoming, configured := c.incomingEnabled[instanceID]
 	c.mu.RUnlock()
-	if !configured || prepareIncoming {
-		c.incoming.Attach(instanceID, client)
+	if !configured {
+		prepareIncoming = true
 	}
+	c.incoming.Attach(instanceID, client, prepareIncoming)
 }
 
 func (c *Coordinator) Detach(instanceID string) {
@@ -96,6 +95,22 @@ func (c *Coordinator) RuntimeFor(instanceID string, client *whatsmeow.Client) *c
 	return runtime
 }
 
+func (c *Coordinator) StoreOutgoing(instanceID, callID string, callKey []byte, peer, creator types.JID, video bool, relayData *core.RelayData) error {
+	if c == nil {
+		return nil
+	}
+	return c.incoming.StoreOutgoing(instanceID, callID, callKey, peer, creator, video, relayData)
+}
+
+// RelayData returns a defensive copy for the future SCTP transport manager.
+// The caller owns the copy and must call core.ZeroRelayData after use.
+func (c *Coordinator) RelayData(instanceID, callID string) (*core.RelayData, bool) {
+	if c == nil {
+		return nil, false
+	}
+	return c.incoming.RelayData(instanceID, callID)
+}
+
 func (c *Coordinator) AcceptIncoming(ctx context.Context, instanceID, callID string) error {
 	return c.incoming.Accept(ctx, instanceID, callID)
 }
@@ -104,6 +119,12 @@ func (c *Coordinator) TerminateIncoming(ctx context.Context, instanceID, callID 
 	return c.incoming.Terminate(ctx, instanceID, callID)
 }
 
-func (c *Coordinator) RemoveIncoming(instanceID, callID string) {
+func (c *Coordinator) RemovePrivate(instanceID, callID string) {
 	c.incoming.Remove(instanceID, callID)
+}
+
+// RemoveIncoming is kept as a compatibility alias while call-service code is
+// migrated to direction-neutral private negotiation storage.
+func (c *Coordinator) RemoveIncoming(instanceID, callID string) {
+	c.RemovePrivate(instanceID, callID)
 }
