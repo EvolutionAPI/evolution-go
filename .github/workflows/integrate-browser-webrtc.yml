@@ -1,0 +1,44 @@
+name: Integrate browser WebRTC PCM
+
+on:
+  push:
+    branches:
+      - dev/astracalls-integration
+    paths:
+      - tools/integrate_browser_webrtc.py
+      - .github/workflows/integrate-browser-webrtc.yml
+
+permissions:
+  contents: write
+
+jobs:
+  integrate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout integration branch
+        uses: actions/checkout@v4
+        with:
+          ref: dev/astracalls-integration
+          fetch-depth: 0
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+      - name: Apply browser bridge migration
+        run: python3 tools/integrate_browser_webrtc.py
+      - name: Format implementation
+        run: gofmt -w pkg/call/voip/browser pkg/call/lifecycle/coordinator.go pkg/call/voip/media/relay_registry.go pkg/call/service/call_service.go pkg/call/handler/call_handler.go pkg/routes/routes.go
+      - name: Test default call build
+        run: go test -race ./pkg/call/...
+      - name: Test experimental Pion build
+        run: go test -race -tags=voip_pion ./pkg/call/...
+      - name: Commit browser bridge
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "feat(call): add authenticated browser WebRTC PCM bridge"
+          git push origin HEAD:dev/astracalls-integration
