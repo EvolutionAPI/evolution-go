@@ -10,6 +10,7 @@ import (
 
 type CallHandler interface {
 	StartCall(ctx *gin.Context)
+	AcceptCall(ctx *gin.Context)
 	TerminateCall(ctx *gin.Context)
 	RejectCall(ctx *gin.Context)
 	Status(ctx *gin.Context)
@@ -62,6 +63,35 @@ func (g *callHandler) StartCall(ctx *gin.Context) {
 		return
 	}
 	ctx.JSON(http.StatusCreated, call)
+}
+
+// Accept call
+// @Summary Accept an incoming WhatsApp call
+// @Description Sends preaccept and accept signaling for a prepared incoming call. Audio transport is not implemented yet.
+// @Tags Call
+// @Produce json
+// @Param callId path string true "Call ID"
+// @Success 200 {object} gin.H "Call accepted"
+// @Failure 400 {object} gin.H "Invalid request"
+// @Failure 500 {object} gin.H "Call signaling failed"
+// @Router /call/{callId}/accept [post]
+func (g *callHandler) AcceptCall(ctx *gin.Context) {
+	instance, ok := instanceFromContext(ctx)
+	if !ok {
+		return
+	}
+	callID := ctx.Param("callId")
+	if callID == "" {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "callId is required"})
+		return
+	}
+
+	call, err := g.callService.AcceptCall(callID, instance)
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	ctx.JSON(http.StatusOK, call)
 }
 
 // Terminate call
