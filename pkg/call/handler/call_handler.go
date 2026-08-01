@@ -57,7 +57,7 @@ func (g *callHandler) RejectCall(ctx *gin.Context) {
 // @Description Returns the VoIP runtime attached to the authenticated Evolution instance
 // @Tags Call
 // @Produce json
-// @Success 200 {object} call_runtime.Snapshot
+// @Success 200 {object} gin.H "VoIP runtime status"
 // @Failure 500 {object} gin.H "Internal server error"
 // @Router /call/status [get]
 func (g *callHandler) Status(ctx *gin.Context) {
