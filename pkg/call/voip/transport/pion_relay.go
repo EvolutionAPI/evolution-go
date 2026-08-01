@@ -265,15 +265,15 @@ func (m *PionRelayTransport) connectToRelay(connection *pionRelayConnection) err
 }
 
 var (
-	relaySetupPattern       = regexp.MustCompile(`a=setup:actpass`)
-	relayUfragLinePattern   = regexp.MustCompile(`a=ice-ufrag:[^\r\n]+`)
-	relayPasswordPattern    = regexp.MustCompile(`a=ice-pwd:[^\r\n]+`)
-	relayFingerprintPattern = regexp.MustCompile(`a=fingerprint:[^\r\n]+`)
-	relayMaxMessagePattern  = regexp.MustCompile(`a=max-message-size:[^\r\n]+`)
-	relayICEOptionsPattern  = regexp.MustCompile(`a=ice-options:[^\r\n]+\r?\n`)
-	relayCandidatePattern   = regexp.MustCompile(`a=candidate:[^\r\n]+\r?\n`)
+	relaySetupPattern        = regexp.MustCompile(`a=setup:actpass`)
+	relayUfragLinePattern    = regexp.MustCompile(`a=ice-ufrag:[^\r\n]+`)
+	relayPasswordPattern     = regexp.MustCompile(`a=ice-pwd:[^\r\n]+`)
+	relayFingerprintPattern  = regexp.MustCompile(`a=fingerprint:[^\r\n]+`)
+	relayMaxMessagePattern   = regexp.MustCompile(`a=max-message-size:[^\r\n]+`)
+	relayICEOptionsPattern   = regexp.MustCompile(`a=ice-options:[^\r\n]+\r?\n`)
+	relayCandidatePattern    = regexp.MustCompile(`a=candidate:[^\r\n]+\r?\n`)
 	relayEndCandidatePattern = regexp.MustCompile(`a=end-of-candidates\r?\n?`)
-	relayUfragPattern       = regexp.MustCompile(`a=ice-ufrag:([^\r\n]+)`)
+	relayUfragPattern        = regexp.MustCompile(`a=ice-ufrag:([^\r\n]+)`)
 )
 
 func modifySDPForRelay(sdp string, info RelayConfig) string {
