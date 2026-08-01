@@ -4,6 +4,7 @@ package lifecycle
 
 import (
 	"context"
+	"errors"
 	"sync"
 
 	call_runtime "github.com/evolution-foundation/evolution-go/pkg/call/runtime"
@@ -21,20 +22,32 @@ type Coordinator struct {
 	runtimes        *call_runtime.Registry
 	incoming        *call_incoming.Registry
 	relays          *call_media.RelayRegistry
+	packets         *call_media.PacketRegistry
 	incomingEnabled map[string]bool
 }
 
 func NewCoordinator() *Coordinator {
 	incoming := call_incoming.NewRegistry()
+	packets := call_media.NewPacketRegistry(incoming)
 	coordinator := &Coordinator{
 		runtimes:        call_runtime.NewRegistry(),
 		incoming:        incoming,
+		packets:         packets,
 		incomingEnabled: make(map[string]bool),
 	}
 	coordinator.relays = call_media.NewRelayRegistry(incoming, nil, nil)
 	coordinator.relays.SetOnConnected(func(instanceID, callID string) {
+		if err := coordinator.packets.Prepare(instanceID, callID); err != nil {
+			return
+		}
 		if runtime, ok := coordinator.runtimes.Get(instanceID); ok {
 			runtime.Transition(callID, "", "", call_runtime.StateActive, nil, "")
+		}
+	})
+	coordinator.relays.SetOnPacket(func(instanceID, callID string, packet []byte) {
+		err := coordinator.packets.Handle(instanceID, callID, packet)
+		if errors.Is(err, call_media.ErrNonRTPFrame) || errors.Is(err, call_media.ErrPacketSessionNotReady) {
+			return
 		}
 	})
 	return coordinator
@@ -54,11 +67,12 @@ func (c *Coordinator) AttachClient(instanceID string, client *whatsmeow.Client, 
 
 	c.runtimes.Attach(instanceID, client)
 	c.incoming.Attach(instanceID, client, prepareIncoming)
+	c.packets.Attach(instanceID, client)
 	c.relays.Attach(instanceID, client)
 }
 
-// DetachClient removes handlers, relay connections, configuration and private
-// call keys before the WhatsApp client is discarded.
+// DetachClient removes handlers, relay connections, packet contexts,
+// configuration and private call keys before the WhatsApp client is discarded.
 func (c *Coordinator) DetachClient(instanceID string) {
 	if c == nil || instanceID == "" {
 		return
@@ -67,6 +81,7 @@ func (c *Coordinator) DetachClient(instanceID string) {
 	delete(c.incomingEnabled, instanceID)
 	c.mu.Unlock()
 	c.relays.Close(instanceID)
+	c.packets.Close(instanceID)
 	c.runtimes.Remove(instanceID)
 	c.incoming.Close(instanceID)
 }
@@ -86,6 +101,7 @@ func (c *Coordinator) Attach(instanceID string, client *whatsmeow.Client) {
 		prepareIncoming = true
 	}
 	c.incoming.Attach(instanceID, client, prepareIncoming)
+	c.packets.Attach(instanceID, client)
 	c.relays.Attach(instanceID, client)
 }
 
@@ -138,11 +154,34 @@ func (c *Coordinator) TerminateIncoming(ctx context.Context, instanceID, callID 
 		return err
 	}
 	c.relays.Remove(instanceID, callID)
+	c.packets.Remove(instanceID, callID)
 	return nil
+}
+
+// SendOpus protects one encoded Opus frame as SRTP and broadcasts it through
+// the currently connected WhatsApp relays. It is an internal media boundary;
+// no HTTP endpoint exposes raw audio frames in this milestone.
+func (c *Coordinator) SendOpus(instanceID, callID string, payload []byte, durationSamples uint32, marker bool) error {
+	if c == nil {
+		return call_media.ErrPacketSessionNotReady
+	}
+	protected, err := c.packets.ProtectOpus(instanceID, callID, payload, durationSamples, marker)
+	if err != nil {
+		return err
+	}
+	defer wipe(protected)
+	return c.relays.Broadcast(instanceID, callID, protected)
+}
+
+func (c *Coordinator) SetOnRTP(callback func(instanceID, callID string, packet *call_media.RTPPacket)) {
+	if c != nil {
+		c.packets.SetOnRTP(callback)
+	}
 }
 
 func (c *Coordinator) RemovePrivate(instanceID, callID string) {
 	c.relays.Remove(instanceID, callID)
+	c.packets.Remove(instanceID, callID)
 	c.incoming.Remove(instanceID, callID)
 }
 
@@ -150,4 +189,10 @@ func (c *Coordinator) RemovePrivate(instanceID, callID string) {
 // migrated to direction-neutral private negotiation storage.
 func (c *Coordinator) RemoveIncoming(instanceID, callID string) {
 	c.RemovePrivate(instanceID, callID)
+}
+
+func wipe(value []byte) {
+	for index := range value {
+		value[index] = 0
+	}
 }
