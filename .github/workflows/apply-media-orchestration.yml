@@ -5,6 +5,7 @@ on:
     paths:
       - .github/workflows/apply-media-orchestration.yml
       - tools/apply_media_orchestration.py
+      - tools/fix_runtime_media_test.py
       - pkg/call/**
 
 permissions:
@@ -29,13 +30,16 @@ jobs:
           cache: true
 
       - name: Apply orchestration migration
-        run: python3 tools/apply_media_orchestration.py
+        run: |
+          python3 tools/apply_media_orchestration.py
+          python3 tools/fix_runtime_media_test.py
 
       - name: Format call implementation
         run: |
           gofmt -w \
             pkg/call/lifecycle/coordinator.go \
             pkg/call/runtime/runtime.go \
+            pkg/call/runtime/runtime_test.go \
             pkg/call/voip/incoming/relay_bridge.go \
             pkg/call/voip/media/relay_registry.go \
             pkg/call/voip/media/relay_registry_test.go \
