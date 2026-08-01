@@ -18,7 +18,7 @@ permissions:
 jobs:
   test-call-module:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
 
     steps:
       - name: Checkout
@@ -33,5 +33,8 @@ jobs:
       - name: Download dependencies
         run: go mod download
 
-      - name: Test call packages
+      - name: Test default call build
         run: go test -race ./pkg/call/...
+
+      - name: Test experimental Pion relay build
+        run: go test -race -tags=voip_pion ./pkg/call/...
