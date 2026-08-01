@@ -9,6 +9,7 @@ import (
 	"sync"
 	"time"
 
+	call_state "github.com/evolution-foundation/evolution-go/pkg/call/voip/call"
 	"github.com/evolution-foundation/evolution-go/pkg/call/voip/core"
 	"github.com/evolution-foundation/evolution-go/pkg/call/voip/signaling"
 	"github.com/evolution-foundation/evolution-go/pkg/call/voip/wa"
@@ -26,6 +27,7 @@ type callMaterial struct {
 	creator   types.JID
 	video     bool
 	relayData *core.RelayData
+	state     *call_state.Info
 }
 
 type session struct {
@@ -71,17 +73,25 @@ func (s *session) handleEvent(rawEvent interface{}) {
 		prepareIncoming := s.prepareIncoming
 		s.mu.RUnlock()
 		if prepareIncoming {
-			// Decrypting the Signal payload and sending preaccept must not block
-			// the main Evolution event dispatcher.
 			go s.prepareOffer(event)
 		}
 	case *events.CallAccept:
+		_ = s.transition(event.CallID, call_state.Transition{Type: call_state.TransitionRemoteAccepted})
 		s.captureRelays(event.CallID, event.Data)
 	case *events.CallTransport:
 		s.captureRelays(event.CallID, event.Data)
 	case *events.CallReject:
+		_ = s.transition(event.CallID, call_state.Transition{
+			Type:   call_state.TransitionRemoteRejected,
+			Reason: core.EndCallReasonDeclined,
+		})
 		s.remove(event.CallID)
 	case *events.CallTerminate:
+		reason := core.EndCallReason(event.Reason)
+		if reason == "" {
+			reason = core.EndCallReasonUnknown
+		}
+		_ = s.transition(event.CallID, call_state.Transition{Type: call_state.TransitionTerminated, Reason: reason})
 		s.remove(event.CallID)
 	case *events.Disconnected:
 		s.clear()
@@ -128,19 +138,22 @@ func (s *session) prepareOffer(event *events.CallOffer) {
 		return
 	}
 
+	video := signaling.NodeContainsVideo(event.Data)
+	mediaType := core.CallMediaTypeAudio
+	if video {
+		mediaType = core.CallMediaTypeVideo
+	}
 	material := &callMaterial{
 		callKey:   append([]byte(nil), callKey...),
 		peer:      peer,
 		creator:   creator,
-		video:     signaling.NodeContainsVideo(event.Data),
+		video:     video,
 		relayData: relayDataFromNode(event.Data),
+		state:     call_state.NewIncoming(event.CallID, peer.String(), creator.String(), mediaType),
 	}
 	zeroBytes(callKey)
 	s.store(event.CallID, material)
 
-	// WhatsApp expects preaccept before the user explicitly accepts the call.
-	// A send failure does not expose or discard the key; the accept endpoint will
-	// still return the concrete signaling error if the session is unhealthy.
 	_ = socket.SendNode(ctx, signaling.BuildPreacceptStanza(peer, event.CallID, creator))
 }
 
@@ -148,12 +161,19 @@ func (s *session) storeOutgoing(callID string, callKey []byte, peer, creator typ
 	if callID == "" || len(callKey) == 0 || peer.IsEmpty() || creator.IsEmpty() {
 		return
 	}
+	mediaType := core.CallMediaTypeAudio
+	if video {
+		mediaType = core.CallMediaTypeVideo
+	}
+	state := call_state.NewOutgoing(callID, peer.String(), creator.String(), mediaType)
+	_ = state.Apply(call_state.Transition{Type: call_state.TransitionOfferSent})
 	s.store(callID, &callMaterial{
 		callKey:   append([]byte(nil), callKey...),
 		peer:      peer,
 		creator:   creator,
 		video:     video,
 		relayData: core.CloneRelayData(relayData),
+		state:     state,
 	})
 }
 
@@ -183,6 +203,9 @@ func (s *session) accept(ctx context.Context, callID string) error {
 		return fmt.Errorf("incoming call %s is not ready to accept", callID)
 	}
 	defer zeroMaterial(material)
+	if material.state == nil || !material.state.CanAccept() {
+		return fmt.Errorf("incoming call %s cannot be accepted in its current state", callID)
+	}
 
 	s.mu.RLock()
 	client := s.client
@@ -207,7 +230,7 @@ func (s *session) accept(ctx context.Context, callID string) error {
 	if err := socket.SendNode(ctx, node); err != nil {
 		return fmt.Errorf("send call accept: %w", err)
 	}
-	return nil
+	return s.transition(callID, call_state.Transition{Type: call_state.TransitionLocalAccepted})
 }
 
 func (s *session) terminate(ctx context.Context, callID string) error {
@@ -228,8 +251,22 @@ func (s *session) terminate(ctx context.Context, callID string) error {
 	if err := wa.NewSocket(client).SendNode(ctx, node); err != nil {
 		return fmt.Errorf("send call terminate: %w", err)
 	}
+	_ = s.transition(callID, call_state.Transition{
+		Type:   call_state.TransitionTerminated,
+		Reason: core.EndCallReasonUserEnded,
+	})
 	s.remove(callID)
 	return nil
+}
+
+func (s *session) transition(callID string, transition call_state.Transition) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	material := s.materials[callID]
+	if material == nil || material.state == nil {
+		return fmt.Errorf("call %s has no private state", callID)
+	}
+	return material.state.Apply(transition)
 }
 
 func (s *session) store(callID string, material *callMaterial) {
@@ -240,6 +277,9 @@ func (s *session) store(callID string, material *callMaterial) {
 	if previous := s.materials[callID]; previous != nil {
 		if material.relayData == nil {
 			material.relayData = core.CloneRelayData(previous.relayData)
+		}
+		if material.state == nil {
+			material.state = previous.state.Clone()
 		}
 		zeroMaterial(previous)
 	}
@@ -260,6 +300,7 @@ func (s *session) copyMaterial(callID string) (*callMaterial, bool) {
 		creator:   material.creator,
 		video:     material.video,
 		relayData: core.CloneRelayData(material.relayData),
+		state:     material.state.Clone(),
 	}
 	s.mu.RUnlock()
 	return copyValue, true
@@ -275,6 +316,18 @@ func (s *session) relayData(callID string) (*core.RelayData, bool) {
 	data := core.CloneRelayData(material.relayData)
 	s.mu.RUnlock()
 	return data, true
+}
+
+func (s *session) state(callID string) (*call_state.Info, bool) {
+	s.mu.RLock()
+	material := s.materials[callID]
+	if material == nil || material.state == nil {
+		s.mu.RUnlock()
+		return nil, false
+	}
+	state := material.state.Clone()
+	s.mu.RUnlock()
+	return state, true
 }
 
 func (s *session) remove(callID string) {
@@ -345,6 +398,7 @@ func zeroMaterial(material *callMaterial) {
 	material.peer = types.JID{}
 	material.creator = types.JID{}
 	material.relayData = nil
+	material.state = nil
 }
 
 func zeroBytes(value []byte) {
@@ -363,9 +417,6 @@ func NewRegistry() *Registry {
 	return &Registry{sessions: make(map[string]*session)}
 }
 
-// Attach installs an isolated call handler on the same authenticated client used
-// by messaging. Reattaching the same pointer is idempotent. prepareIncoming may
-// be disabled for instances configured to reject calls automatically.
 func (r *Registry) Attach(instanceID string, client *whatsmeow.Client, prepareIncoming ...bool) {
 	if instanceID == "" || client == nil {
 		return
@@ -415,6 +466,16 @@ func (r *Registry) RelayData(instanceID, callID string) (*core.RelayData, bool) 
 		return nil, false
 	}
 	return s.relayData(callID)
+}
+
+func (r *Registry) State(instanceID, callID string) (*call_state.Info, bool) {
+	r.mu.RLock()
+	s := r.sessions[instanceID]
+	r.mu.RUnlock()
+	if s == nil {
+		return nil, false
+	}
+	return s.state(callID)
 }
 
 func (r *Registry) Accept(ctx context.Context, instanceID, callID string) error {
