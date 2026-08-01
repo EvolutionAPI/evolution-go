@@ -195,6 +195,7 @@ func (r *Routes) AssignRoutes(eng *gin.Engine) {
 		{
 			routes.GET("/status", r.callHandler.Status)
 			routes.POST("/start", r.callHandler.StartCall)
+			routes.POST("/:callId/accept", r.callHandler.AcceptCall)
 			routes.DELETE("/:callId", r.callHandler.TerminateCall)
 			routes.POST("/reject", r.jidValidationMiddleware.ValidateNumberField(), r.callHandler.RejectCall)
 		}
