@@ -29,9 +29,3 @@ func (m *SRTPKeyingMaterial) Wipe() {
 	m.MasterKey = nil
 	m.MasterSalt = nil
 }
-
-func zeroBytes(value []byte) {
-	for index := range value {
-		value[index] = 0
-	}
-}
