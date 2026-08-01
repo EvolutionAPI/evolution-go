@@ -123,7 +123,7 @@ O módulo de sinalização reconhece os dois formatos encontrados nas respostas 
 - candidatos com atributos diretos, como `ip`, `port`, `token`, `relay-id` e `c2r-rtt`;
 - respostas estruturadas `te2`, com tokens binários, `auth_token`, participantes, UUID, PIDs, HBH key, protocolo e endereço codificado em seis bytes.
 
-Os candidatos são ordenados pelo menor RTT. Nesta etapa eles ainda não são usados para abrir a conexão SCTP.
+Os candidatos são ordenados pelo menor RTT. Os tokens binários são copiados para buffers próprios e esses dados não fazem parte dos snapshots públicos. Nesta etapa eles ainda não são usados para abrir a conexão SCTP.
 
 ## Limitações atuais
 
