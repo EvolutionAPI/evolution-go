@@ -194,6 +194,8 @@ func (r *Routes) AssignRoutes(eng *gin.Engine) {
 		routes.Use(r.authMiddleware.Auth)
 		{
 			routes.GET("/status", r.callHandler.Status)
+			routes.POST("/start", r.callHandler.StartCall)
+			routes.DELETE("/:callId", r.callHandler.TerminateCall)
 			routes.POST("/reject", r.jidValidationMiddleware.ValidateNumberField(), r.callHandler.RejectCall)
 		}
 	}
