@@ -3,6 +3,7 @@ package transport
 import (
 	"bytes"
 	"encoding/binary"
+	"hash/crc32"
 	"strings"
 	"testing"
 )
@@ -58,7 +59,7 @@ func TestSTUNBindingFingerprint(t *testing.T) {
 		t.Fatalf("expected fingerprint last, got %s", last.TypeName)
 	}
 	fingerprintStart := len(message) - 8
-	want := crc32Checksum(message[:fingerprintStart]) ^ stunFingerprintXOR
+	want := crc32.ChecksumIEEE(message[:fingerprintStart]) ^ stunFingerprintXOR
 	got := binary.BigEndian.Uint32(message[len(message)-4:])
 	if got != want {
 		t.Fatalf("fingerprint mismatch: got=%08x want=%08x", got, want)
@@ -124,8 +125,4 @@ func TestParseSTUNRejectsTruncatedMessage(t *testing.T) {
 	if ParseSTUNResponse(message) != nil {
 		t.Fatal("expected truncated STUN message to be rejected")
 	}
-}
-
-func crc32Checksum(value []byte) uint32 {
-	return crc32.ChecksumIEEE(value)
 }
