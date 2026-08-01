@@ -10,8 +10,9 @@ import (
 )
 
 type fakeSocket struct {
-	own     types.JID
-	devices []types.JID
+	own          types.JID
+	devices      []types.JID
+	decryptedKey []byte
 }
 
 func (f *fakeSocket) OwnPN() types.JID { return f.own }
@@ -27,11 +28,23 @@ func (f *fakeSocket) GetUSyncDevices(context.Context, []types.JID) ([]types.JID,
 	return f.devices, nil
 }
 func (f *fakeSocket) AssertSessions(context.Context, []types.JID, bool) error { return nil }
-func (f *fakeSocket) CreateParticipantNodes(context.Context, []types.JID, []byte, waBinary.Attrs) ([]waBinary.Node, bool, error) {
-	return []waBinary.Node{{Tag: "to", Attrs: waBinary.Attrs{"jid": f.devices[0]}}}, true, nil
+func (f *fakeSocket) CreateParticipantNodes(_ context.Context, devices []types.JID, _ []byte, _ waBinary.Attrs) ([]waBinary.Node, bool, error) {
+	device := types.JID{}
+	if len(devices) > 0 {
+		device = devices[0]
+	}
+	return []waBinary.Node{{
+		Tag:   "to",
+		Attrs: waBinary.Attrs{"jid": device},
+		Content: []waBinary.Node{{
+			Tag:     "enc",
+			Attrs:   waBinary.Attrs{"type": "msg"},
+			Content: []byte{1, 2, 3},
+		}},
+	}}, true, nil
 }
 func (f *fakeSocket) DecryptCallKey(context.Context, types.JID, *waBinary.Node) ([]byte, error) {
-	return nil, nil
+	return append([]byte(nil), f.decryptedKey...), nil
 }
 func (f *fakeSocket) GetTCToken(context.Context, types.JID) ([]byte, error) { return nil, nil }
 func (f *fakeSocket) ResolveLIDForPN(_ context.Context, jid types.JID) types.JID { return jid }
@@ -98,5 +111,84 @@ func TestBuildOfferRequiresDevices(t *testing.T) {
 	peer := types.NewJID("5511999999999", types.DefaultUserServer)
 	if _, err := BuildOfferStanza(context.Background(), socket, "CALL-123", make([]byte, 32), peer, false); err == nil {
 		t.Fatal("BuildOfferStanza() expected error when no peer devices are available")
+	}
+}
+
+func TestBuildPreacceptStanza(t *testing.T) {
+	peer := types.NewJID("5511999999999", types.DefaultUserServer)
+	creator := types.NewJID("5511999999999", types.HiddenUserServer)
+	node := BuildPreacceptStanza(peer, "CALL-IN", creator)
+	children := wanode.NodeChildren(&node)
+	if len(children) != 1 || children[0].Tag != "preaccept" {
+		t.Fatalf("unexpected preaccept node: %#v", children)
+	}
+	if wanode.AttrString(children[0].Attrs, "call-id") != "CALL-IN" {
+		t.Fatalf("unexpected call id: %s", wanode.AttrString(children[0].Attrs, "call-id"))
+	}
+}
+
+func TestBuildAcceptStanza(t *testing.T) {
+	own := types.NewJID("5511000000000", types.DefaultUserServer)
+	peer := types.NewJID("5511999999999", types.DefaultUserServer)
+	creator := types.NewJID("5511999999999", types.HiddenUserServer)
+	socket := &fakeSocket{own: own, devices: []types.JID{creator}}
+
+	node, err := BuildAcceptStanza(context.Background(), socket, "CALL-IN", make([]byte, 32), peer, creator, true)
+	if err != nil {
+		t.Fatalf("BuildAcceptStanza() error = %v", err)
+	}
+	children := wanode.NodeChildren(&node)
+	if len(children) != 1 || children[0].Tag != "accept" {
+		t.Fatalf("unexpected accept node: %#v", children)
+	}
+	var encrypted, video bool
+	for _, child := range wanode.NodeChildren(&children[0]) {
+		if child.Tag == "enc" {
+			encrypted = true
+		}
+		if child.Tag == "video" {
+			video = true
+		}
+	}
+	if !encrypted || !video {
+		t.Fatalf("accept missing nodes: encrypted=%v video=%v", encrypted, video)
+	}
+}
+
+func TestDecryptCallKeyInNode(t *testing.T) {
+	peer := types.NewJID("5511999999999", types.DefaultUserServer)
+	key := make([]byte, 32)
+	for index := range key {
+		key[index] = byte(index + 1)
+	}
+	socket := &fakeSocket{decryptedKey: key}
+	offer := &waBinary.Node{
+		Tag: "offer",
+		Content: []waBinary.Node{{
+			Tag: "destination",
+			Content: []waBinary.Node{{
+				Tag: "to",
+				Content: []waBinary.Node{{
+					Tag:     "enc",
+					Attrs:   waBinary.Attrs{"type": "msg"},
+					Content: []byte{9},
+				}},
+			}},
+		}},
+	}
+
+	decrypted, err := DecryptCallKeyInNode(context.Background(), socket, offer, peer)
+	if err != nil {
+		t.Fatalf("DecryptCallKeyInNode() error = %v", err)
+	}
+	if len(decrypted) != 32 || decrypted[31] != 32 {
+		t.Fatalf("unexpected decrypted key: %v", decrypted)
+	}
+}
+
+func TestNodeContainsVideo(t *testing.T) {
+	offer := &waBinary.Node{Tag: "offer", Content: []waBinary.Node{{Tag: "video"}}}
+	if !NodeContainsVideo(offer) {
+		t.Fatal("expected video offer to be detected")
 	}
 }
