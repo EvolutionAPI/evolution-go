@@ -244,6 +244,13 @@ func (b *JitterBuffer) dequeue(now time.Time) (JitterFrame, bool) {
 		return frame, true
 	}
 
+	// Only conceal a gap when a later packet proves that an expected sequence
+	// number is missing. At end-of-stream there is no future packet, so playout
+	// pauses instead of fabricating trailing audio or blocking teardown callbacks.
+	if len(b.packets) == 0 || b.highestSequence < b.nextSequence {
+		return JitterFrame{}, false
+	}
+
 	sequence := uint16(b.nextSequence)
 	timestamp := b.estimatedTimestampLocked()
 	b.nextSequence++
