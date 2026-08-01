@@ -172,19 +172,22 @@ func (c *callService) TerminateCall(callID string, instance *instance_model.Inst
 	if call.State == call_runtime.StateEnded || call.State == call_runtime.StateFailed {
 		return call, nil
 	}
-	if call.Direction != call_runtime.DirectionOutgoing {
-		return call_runtime.Call{}, fmt.Errorf("terminating incoming calls will be enabled with the full CallManager port")
-	}
-
-	peer, err := types.ParseJID(call.Peer)
-	if err != nil || peer.IsEmpty() {
-		return call_runtime.Call{}, fmt.Errorf("invalid call peer: %s", call.Peer)
-	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), signalingTimeout)
 	defer cancel()
-	if err := call_driver.NewSignalingDriver(client).EndOutgoing(ctx, callID, peer); err != nil {
-		return call_runtime.Call{}, err
+
+	if call.Direction == call_runtime.DirectionIncoming {
+		if err := c.incomingRegistry.Terminate(ctx, instance.Id, callID); err != nil {
+			return call_runtime.Call{}, err
+		}
+	} else {
+		peer, parseErr := types.ParseJID(call.Peer)
+		if parseErr != nil || peer.IsEmpty() {
+			return call_runtime.Call{}, fmt.Errorf("invalid call peer: %s", call.Peer)
+		}
+		if err := call_driver.NewSignalingDriver(client).EndOutgoing(ctx, callID, peer); err != nil {
+			return call_runtime.Call{}, err
+		}
 	}
 
 	runtime.Transition(callID, "", "", call_runtime.StateEnded, nil, "user_ended")
