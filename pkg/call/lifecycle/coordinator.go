@@ -18,11 +18,15 @@ import (
 // Coordinator owns the call registries shared by the WhatsApp lifecycle and
 // the HTTP call service. It is safe for concurrent use.
 type Coordinator struct {
-	mu              sync.RWMutex
-	runtimes        *call_runtime.Registry
-	incoming        *call_incoming.Registry
-	relays          *call_media.RelayRegistry
-	packets         *call_media.PacketRegistry
+	mu sync.RWMutex
+
+	runtimes *call_runtime.Registry
+	incoming *call_incoming.Registry
+	relays   *call_media.RelayRegistry
+	packets  *call_media.PacketRegistry
+	audio    *call_media.AudioRegistry
+	onRTP    func(instanceID, callID string, packet *call_media.RTPPacket)
+
 	incomingEnabled map[string]bool
 }
 
@@ -35,13 +39,29 @@ func NewCoordinator() *Coordinator {
 		packets:         packets,
 		incomingEnabled: make(map[string]bool),
 	}
+	coordinator.audio = call_media.NewAudioRegistry(func(instanceID, callID string, payload []byte, durationSamples uint32, marker bool) error {
+		return coordinator.SendOpus(instanceID, callID, payload, durationSamples, marker)
+	}, nil)
 	coordinator.relays = call_media.NewRelayRegistry(incoming, nil, nil)
 	coordinator.relays.SetOnConnected(func(instanceID, callID string) {
 		if err := coordinator.packets.Prepare(instanceID, callID); err != nil {
 			return
 		}
+		if err := coordinator.audio.Prepare(instanceID, callID); err != nil {
+			coordinator.packets.Remove(instanceID, callID)
+			return
+		}
 		if runtime, ok := coordinator.runtimes.Get(instanceID); ok {
 			runtime.Transition(callID, "", "", call_runtime.StateActive, nil, "")
+		}
+	})
+	coordinator.packets.SetOnRTP(func(instanceID, callID string, packet *call_media.RTPPacket) {
+		_ = coordinator.audio.HandleRTP(instanceID, callID, packet)
+		coordinator.mu.RLock()
+		callback := coordinator.onRTP
+		coordinator.mu.RUnlock()
+		if callback != nil {
+			callback(instanceID, callID, packet)
 		}
 	})
 	coordinator.relays.SetOnPacket(func(instanceID, callID string, packet []byte) {
@@ -71,8 +91,8 @@ func (c *Coordinator) AttachClient(instanceID string, client *whatsmeow.Client, 
 	c.relays.Attach(instanceID, client)
 }
 
-// DetachClient removes handlers, relay connections, packet contexts,
-// configuration and private call keys before the WhatsApp client is discarded.
+// DetachClient removes handlers, relay connections, codec sessions, packet
+// contexts, configuration and private call keys before the client is discarded.
 func (c *Coordinator) DetachClient(instanceID string) {
 	if c == nil || instanceID == "" {
 		return
@@ -81,6 +101,7 @@ func (c *Coordinator) DetachClient(instanceID string) {
 	delete(c.incomingEnabled, instanceID)
 	c.mu.Unlock()
 	c.relays.Close(instanceID)
+	c.audio.Close(instanceID)
 	c.packets.Close(instanceID)
 	c.runtimes.Remove(instanceID)
 	c.incoming.Close(instanceID)
@@ -154,13 +175,30 @@ func (c *Coordinator) TerminateIncoming(ctx context.Context, instanceID, callID 
 		return err
 	}
 	c.relays.Remove(instanceID, callID)
+	c.audio.Remove(instanceID, callID)
 	c.packets.Remove(instanceID, callID)
 	return nil
 }
 
-// SendOpus protects one encoded Opus frame as SRTP and broadcasts it through
-// the currently connected WhatsApp relays. It is an internal media boundary;
-// no HTTP endpoint exposes raw audio frames in this milestone.
+// FeedPCM accepts mono float PCM at 16 kHz. Samples may arrive in arbitrary
+// chunk sizes; the audio registry accumulates complete 960-sample MLow frames.
+func (c *Coordinator) FeedPCM(instanceID, callID string, pcm []float32) error {
+	if c == nil {
+		return call_media.ErrAudioSessionNotReady
+	}
+	return c.audio.FeedPCM(instanceID, callID, pcm)
+}
+
+// SetOnPCM registers the internal decoded-audio sink used by a future WebRTC,
+// native playback or test bridge. The callback receives an owned PCM copy.
+func (c *Coordinator) SetOnPCM(callback func(instanceID, callID string, pcm []float32)) {
+	if c != nil {
+		c.audio.SetOnPCM(callback)
+	}
+}
+
+// SendOpus protects one encoded MLow/Opus-compatible frame as SRTP and
+// broadcasts it through the currently connected WhatsApp relays.
 func (c *Coordinator) SendOpus(instanceID, callID string, payload []byte, durationSamples uint32, marker bool) error {
 	if c == nil {
 		return call_media.ErrPacketSessionNotReady
@@ -173,14 +211,20 @@ func (c *Coordinator) SendOpus(instanceID, callID string, payload []byte, durati
 	return c.relays.Broadcast(instanceID, callID, protected)
 }
 
+// SetOnRTP keeps the low-level authenticated RTP observation hook while the
+// internal decoder remains permanently connected.
 func (c *Coordinator) SetOnRTP(callback func(instanceID, callID string, packet *call_media.RTPPacket)) {
-	if c != nil {
-		c.packets.SetOnRTP(callback)
+	if c == nil {
+		return
 	}
+	c.mu.Lock()
+	c.onRTP = callback
+	c.mu.Unlock()
 }
 
 func (c *Coordinator) RemovePrivate(instanceID, callID string) {
 	c.relays.Remove(instanceID, callID)
+	c.audio.Remove(instanceID, callID)
 	c.packets.Remove(instanceID, callID)
 	c.incoming.Remove(instanceID, callID)
 }
