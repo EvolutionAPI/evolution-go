@@ -2,7 +2,7 @@
 
 Esta branch adiciona a integração experimental WaCalls/AstraCalls ao Evolution Go.
 
-> **Estado atual:** a sinalização é real e permite iniciar, receber, aceitar, rejeitar e encerrar chamadas no nível do protocolo. Os metadados de relay já são interpretados, mas o transporte de áudio/WebRTC/SRTP ainda não foi conectado. Não use em produção.
+> **Estado atual:** a sinalização é real e permite iniciar, receber, aceitar, rejeitar e encerrar chamadas no nível do protocolo. Chaves e metadados de relay já são associados ao estado privado de cada chamada, mas o transporte de áudio/WebRTC/SRTP ainda não foi conectado. Não use em produção.
 
 Todas as rotas usam a autenticação normal da instância do Evolution.
 
@@ -12,7 +12,7 @@ Todas as rotas usam a autenticação normal da instância do Evolution.
 GET /call/status
 ```
 
-Os monitores de chamada agora são anexados automaticamente quando o Evolution cria o `whatsmeow.Client`. Durante reconexão, logout ou remoção da instância, os handlers anteriores são removidos e o material privado é apagado antes que o novo cliente seja registrado. Não é mais necessário chamar `/call/status` para ativar o monitoramento.
+Os monitores de chamada são anexados automaticamente quando o Evolution cria o `whatsmeow.Client`. Durante reconexão, logout ou remoção da instância, os handlers anteriores são removidos e o material privado é apagado antes que o novo cliente seja registrado. Não é necessário chamar `/call/status` para ativar o monitoramento.
 
 Exemplo de resposta:
 
@@ -26,7 +26,7 @@ Exemplo de resposta:
 
 Chaves de chamada, JIDs internos de dispositivos, tokens de relay e outros dados privados não fazem parte dessa resposta. Eles ficam somente em memória e são apagados quando a chamada termina, é rejeitada ou a sessão é desconectada.
 
-Instâncias configuradas com rejeição automática continuam rastreando o estado público da chamada, mas não descriptografam a chave recebida nem enviam `preaccept`.
+Instâncias configuradas com rejeição automática continuam rastreando o estado público da chamada. Elas não descriptografam ofertas recebidas nem enviam `preaccept`, mas continuam podendo iniciar chamadas e armazenar sua negociação privada de saída.
 
 ## Iniciar uma chamada
 
@@ -43,7 +43,9 @@ apikey: INSTANCE_TOKEN
 }
 ```
 
-A resposta HTTP `201` contém o `id` da chamada e o estado inicial `ringing`.
+A oferta é enviada como uma consulta do protocolo. Quando o ACK contém relays estruturados, a chave gerada, os participantes e os candidatos são copiados para o registro privado da chamada antes de o resultado transitório ser sobrescrito.
+
+A resposta HTTP `201` contém somente o estado público:
 
 ```json
 {
@@ -87,7 +89,7 @@ DELETE /call/{callId}
 apikey: INSTANCE_TOKEN
 ```
 
-A rota envia `terminate` tanto para chamadas realizadas quanto para chamadas recebidas cujo material privado ainda está disponível em memória. Em seguida, o runtime muda o estado para `ended` e apaga a chave da chamada recebida.
+A rota envia `terminate` para chamadas realizadas e recebidas. Em seguida, o runtime muda o estado público para `ended` e remove a chave e os dados privados da chamada.
 
 ## Rejeitar uma chamada recebida
 
@@ -108,28 +110,49 @@ apikey: INSTANCE_TOKEN
 
 ## Estados rastreados
 
+O snapshot público usa:
+
 - `ringing`
 - `connecting`
 - `active`
 - `ended`
 - `failed`
 
-O runtime escuta `CallOffer`, `CallOfferNotice`, `CallPreAccept`, `CallAccept`, `CallTransport`, `CallReject`, `CallTerminate`, `Disconnected` e `LoggedOut` no mesmo cliente utilizado pela mensageria.
+Internamente, a negociação também usa uma máquina de estados estrita com:
 
-## Relay já interpretado
+- `initiating`
+- `ringing`
+- `incoming_ringing`
+- `connecting`
+- `active`
+- `on_hold`
+- `ended`
+
+Transições inválidas, como marcar mídia conectada antes do aceite ou aceitar remotamente uma chamada recebida, são rejeitadas sem alterar o estado.
+
+## Relay e transporte
 
 O módulo de sinalização reconhece os dois formatos encontrados nas respostas do WhatsApp:
 
 - candidatos com atributos diretos, como `ip`, `port`, `token`, `relay-id` e `c2r-rtt`;
 - respostas estruturadas `te2`, com tokens binários, `auth_token`, participantes, UUID, PIDs, HBH key, protocolo e endereço codificado em seis bytes.
 
-Os candidatos são ordenados pelo menor RTT. Os tokens binários são copiados para buffers próprios e esses dados não fazem parte dos snapshots públicos. Nesta etapa eles ainda não são usados para abrir a conexão SCTP.
+Os candidatos são ordenados pelo menor RTT e associados ao material privado pelo `callId`. Atualizações posteriores recebidas em `CallTransport` substituem os candidatos anteriores sem apagar a chave da chamada.
+
+O pacote `pkg/call/voip/transport` define o contrato usado pelo futuro gerenciador SCTP. Ele:
+
+- converte somente candidatos UDP utilizáveis;
+- aplica a porta padrão do relay;
+- remove duplicados;
+- copia tokens binários para buffers independentes;
+- oferece limpeza explícita desses buffers;
+- usa um transportador desativado por padrão que falha de forma segura sem abrir sockets.
 
 ## Limitações atuais
 
 - sem áudio bidirecional;
 - sem WebRTC para navegador;
-- sem conexão SCTP com os relays;
+- o contrato SCTP existe, mas a implementação Pion ainda não está habilitada;
 - sem RTP ou SRTP;
 - aceitar a sinalização não estabelece o caminho de mídia;
 - as chaves ficam somente em memória e não sobrevivem a reinícios;
