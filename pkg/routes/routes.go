@@ -217,7 +217,7 @@ func (r *Routes) AssignRoutes(eng *gin.Engine) {
 		routes.Use(r.authMiddleware.Auth)
 		{
 			routes.POST("/chat", r.jidValidationMiddleware.ValidateNumberField(), r.labelHandler.ChatLabel)
-			routes.POST("/message", r.messageHandler.MessageLabel)
+			routes.POST("/message", r.labelHandler.MessageLabel)
 			routes.POST("/edit", r.labelHandler.EditLabel)
 			routes.GET("/list", r.labelHandler.GetLabels)
 		}
@@ -226,7 +226,7 @@ func (r *Routes) AssignRoutes(eng *gin.Engine) {
 	{
 		routes.Use(r.authMiddleware.Auth)
 		{
-			routes.POST("/chat", r.jidValidationMiddleware.ValidateNumberField(), r.labelHandler.ChatUnlabel)
+			routes.POST("/chat", r.jidValidationMiddleware.ValidateNumberField(), r.chatHandler.ChatUnlabel)
 			routes.POST("/message", r.labelHandler.MessageUnlabel)
 		}
 	}
@@ -235,19 +235,23 @@ func (r *Routes) AssignRoutes(eng *gin.Engine) {
 		routes.Use(r.authMiddleware.Auth)
 		{
 			routes.POST("/create", r.newsletterHandler.CreateNewsletter)
-			routes.GET("/list", r.newsletterHandler.ListNewsletters)
-			routes.POST("/info", r.newsletterHandler.GetNewsletterInfo)
-			routes.POST("/follow", r.newsletterHandler.FollowNewsletter)
-			routes.POST("/unfollow", r.newsletterHandler.UnfollowNewsletter)
+			routes.GET("/list", r.newsletterHandler.ListNewsletter)
+			routes.POST("/info", r.jidValidationMiddleware.ValidateJIDFields("newsletterId"), r.newsletterHandler.GetNewsletter)
+			routes.POST("/link", r.jidValidationMiddleware.ValidateJIDFields("newsletterId"), r.newsletterHandler.GetNewsletterInvite)
+			routes.POST("/subscribe", r.jidValidationMiddleware.ValidateJIDFields("newsletterId"), r.newsletterHandler.SubscribeNewsletter)
+			routes.POST("/messages", r.jidValidationMiddleware.ValidateJIDFields("newsletterId"), r.newsletterHandler.GetNewsletterMessages)
 		}
 	}
-	routes = eng.Group("/poll")
+
+	// NOVO: Rotas de Enquetes (Polls)
+	routes = eng.Group("/polls")
 	{
 		routes.Use(r.authMiddleware.Auth)
 		{
 			routes.GET("/:pollMessageId/results", r.pollHandler.GetPollResults)
 		}
 	}
+
 }
 
 func NewRouter(
