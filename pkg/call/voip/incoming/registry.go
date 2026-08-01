@@ -43,6 +43,12 @@ func newSession(client *whatsmeow.Client) *session {
 	return s
 }
 
+func (s *session) usesClient(client *whatsmeow.Client) bool {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return s.client == client && client != nil
+}
+
 func (s *session) handleEvent(rawEvent interface{}) {
 	switch event := rawEvent.(type) {
 	case *events.CallOffer:
@@ -92,6 +98,10 @@ func (s *session) prepareOffer(event *events.CallOffer) {
 	if err != nil || len(callKey) != 32 {
 		return
 	}
+	if !s.usesClient(client) {
+		zeroBytes(callKey)
+		return
+	}
 
 	secret := &callSecret{
 		callKey: append([]byte(nil), callKey...),
@@ -99,6 +109,7 @@ func (s *session) prepareOffer(event *events.CallOffer) {
 		creator: creator,
 		video:   signaling.NodeContainsVideo(event.Data),
 	}
+	zeroBytes(callKey)
 	s.store(event.CallID, secret)
 
 	// WhatsApp expects preaccept before the user explicitly accepts the call.
@@ -137,6 +148,28 @@ func (s *session) accept(ctx context.Context, callID string) error {
 	if err := socket.SendNode(ctx, node); err != nil {
 		return fmt.Errorf("send call accept: %w", err)
 	}
+	return nil
+}
+
+func (s *session) terminate(ctx context.Context, callID string) error {
+	secret, ok := s.copySecret(callID)
+	if !ok {
+		return fmt.Errorf("incoming call %s has no private signaling material", callID)
+	}
+	defer zeroBytes(secret.callKey)
+
+	s.mu.RLock()
+	client := s.client
+	s.mu.RUnlock()
+	if client == nil {
+		return fmt.Errorf("incoming call session is detached")
+	}
+
+	node := signaling.BuildTerminateStanza(secret.peer, callID, secret.creator)
+	if err := wa.NewSocket(client).SendNode(ctx, node); err != nil {
+		return fmt.Errorf("send incoming call terminate: %w", err)
+	}
+	s.remove(callID)
 	return nil
 }
 
@@ -228,7 +261,7 @@ func (r *Registry) Attach(instanceID string, client *whatsmeow.Client) {
 
 	r.mu.RLock()
 	current := r.sessions[instanceID]
-	if current != nil && current.client == client {
+	if current != nil && current.usesClient(client) {
 		r.mu.RUnlock()
 		return
 	}
@@ -254,6 +287,16 @@ func (r *Registry) Accept(ctx context.Context, instanceID, callID string) error 
 		return fmt.Errorf("incoming call runtime is not attached for instance %s", instanceID)
 	}
 	return s.accept(ctx, callID)
+}
+
+func (r *Registry) Terminate(ctx context.Context, instanceID, callID string) error {
+	r.mu.RLock()
+	s := r.sessions[instanceID]
+	r.mu.RUnlock()
+	if s == nil {
+		return fmt.Errorf("incoming call runtime is not attached for instance %s", instanceID)
+	}
+	return s.terminate(ctx, callID)
 }
 
 func (r *Registry) Remove(instanceID, callID string) {
