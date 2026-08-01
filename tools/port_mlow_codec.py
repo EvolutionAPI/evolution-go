@@ -31,8 +31,11 @@ with tempfile.TemporaryDirectory(prefix="wacalls-mlow-") as tmp:
 
     source_dir = checkout / "internal/voip/media/mlow"
     sources = sorted(path for path in source_dir.glob("*.go") if not path.name.endswith("_test.go"))
+    assets = sorted(source_dir.glob("*.bin"))
     if len(sources) < 20:
         raise RuntimeError(f"expected the complete MLow implementation, found only {len(sources)} files")
+    if len(assets) < 3:
+        raise RuntimeError(f"expected embedded MLow tables, found only {len(assets)} binary assets")
 
     shutil.rmtree(TARGET, ignore_errors=True)
     TARGET.mkdir(parents=True, exist_ok=True)
@@ -41,6 +44,8 @@ with tempfile.TemporaryDirectory(prefix="wacalls-mlow-") as tmp:
         if "package mlow" not in source:
             raise RuntimeError(f"unexpected package in {source_path}")
         (TARGET / source_path.name).write_text(add_license_header(source), encoding="utf-8")
+    for asset_path in assets:
+        shutil.copy2(asset_path, TARGET / asset_path.name)
 
 codec = '''// Portions are derived from JotaDev66/WaCalls under the MIT license in ../LICENSE-WACALLS.
 package media
