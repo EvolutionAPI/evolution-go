@@ -4,6 +4,7 @@ package lifecycle
 
 import (
 	"context"
+	"sync"
 
 	call_runtime "github.com/evolution-foundation/evolution-go/pkg/call/runtime"
 	call_incoming "github.com/evolution-foundation/evolution-go/pkg/call/voip/incoming"
@@ -13,35 +14,70 @@ import (
 // Coordinator owns the call registries shared by the WhatsApp lifecycle and
 // the HTTP call service. It is safe for concurrent use.
 type Coordinator struct {
-	runtimes *call_runtime.Registry
-	incoming *call_incoming.Registry
+	mu              sync.RWMutex
+	runtimes        *call_runtime.Registry
+	incoming        *call_incoming.Registry
+	incomingEnabled map[string]bool
 }
 
 func NewCoordinator() *Coordinator {
 	return &Coordinator{
-		runtimes: call_runtime.NewRegistry(),
-		incoming: call_incoming.NewRegistry(),
+		runtimes:        call_runtime.NewRegistry(),
+		incoming:        call_incoming.NewRegistry(),
+		incomingEnabled: make(map[string]bool),
 	}
 }
 
-// Attach installs both call event handlers on the authenticated client. The
-// operation is idempotent for the same instance/client pair and replaces old
-// handlers when whatsmeow creates a new client during reconnect.
+// AttachClient is called by the WhatsApp client lifecycle. Public call state is
+// always monitored, while private offer preparation is disabled for instances
+// configured to reject incoming calls automatically.
+func (c *Coordinator) AttachClient(instanceID string, client *whatsmeow.Client, prepareIncoming bool) {
+	if c == nil || instanceID == "" || client == nil {
+		return
+	}
+
+	c.mu.Lock()
+	c.incomingEnabled[instanceID] = prepareIncoming
+	c.mu.Unlock()
+
+	c.runtimes.Attach(instanceID, client)
+	if prepareIncoming {
+		c.incoming.Attach(instanceID, client)
+	} else {
+		c.incoming.Close(instanceID)
+	}
+}
+
+// DetachClient removes handlers, configuration and private call keys.
+func (c *Coordinator) DetachClient(instanceID string) {
+	if c == nil || instanceID == "" {
+		return
+	}
+	c.mu.Lock()
+	delete(c.incomingEnabled, instanceID)
+	c.mu.Unlock()
+	c.runtimes.Remove(instanceID)
+	c.incoming.Close(instanceID)
+}
+
+// Attach keeps call-service operations idempotent without overriding the
+// automatic-rejection policy configured by AttachClient.
 func (c *Coordinator) Attach(instanceID string, client *whatsmeow.Client) {
 	if c == nil || instanceID == "" || client == nil {
 		return
 	}
 	c.runtimes.Attach(instanceID, client)
-	c.incoming.Attach(instanceID, client)
+
+	c.mu.RLock()
+	prepareIncoming, configured := c.incomingEnabled[instanceID]
+	c.mu.RUnlock()
+	if !configured || prepareIncoming {
+		c.incoming.Attach(instanceID, client)
+	}
 }
 
-// Detach removes handlers and erases private call keys for an instance.
 func (c *Coordinator) Detach(instanceID string) {
-	if c == nil || instanceID == "" {
-		return
-	}
-	c.runtimes.Remove(instanceID)
-	c.incoming.Close(instanceID)
+	c.DetachClient(instanceID)
 }
 
 func (c *Coordinator) Runtime(instanceID string) (*call_runtime.Runtime, bool) {
