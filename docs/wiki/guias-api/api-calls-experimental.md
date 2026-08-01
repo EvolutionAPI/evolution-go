@@ -2,7 +2,7 @@
 
 Esta branch adiciona a integração experimental WaCalls/AstraCalls ao Evolution Go.
 
-> **Estado atual:** a sinalização é real e permite iniciar, receber, aceitar, rejeitar e encerrar chamadas no nível do protocolo. A variante `voip_pion` negocia DataChannels com os relays e processa pacotes RTP/SRTP autenticados. Ainda não há áudio reproduzível porque codecs, PCM e a ponte WebRTC não foram conectados. Não use em produção.
+> **Estado atual:** a sinalização é real e permite iniciar, receber, aceitar, rejeitar e encerrar chamadas no nível do protocolo. A variante `voip_pion` negocia DataChannels com os relays, processa RTP/SRTP autenticado e possui codec MLow com entrada e saída PCM internas. Ainda não há áudio audível para o usuário porque microfone, reprodução e ponte WebRTC não foram conectados. Não use em produção.
 
 Todas as rotas usam a autenticação normal da instância do Evolution.
 
@@ -12,7 +12,7 @@ Todas as rotas usam a autenticação normal da instância do Evolution.
 GET /call/status
 ```
 
-Os monitores são anexados automaticamente quando o Evolution cria o `whatsmeow.Client`. Durante reconexão, logout ou remoção da instância, handlers, DataChannels, sessões RTP/SRTP e material privado são removidos antes que o novo cliente seja registrado. Não é necessário chamar `/call/status` para ativar o monitoramento.
+Os monitores são anexados automaticamente quando o Evolution cria o `whatsmeow.Client`. Durante reconexão, logout ou remoção da instância, handlers, DataChannels, sessões RTP/SRTP, codecs e material privado são removidos antes que o novo cliente seja registrado. Não é necessário chamar `/call/status` para ativar o monitoramento.
 
 Exemplo de resposta:
 
@@ -24,7 +24,7 @@ Exemplo de resposta:
 }
 ```
 
-Chaves de chamada, JIDs internos de dispositivos, chaves SRTP, tokens de relay e outros dados privados não fazem parte dessa resposta. Eles ficam somente em memória e são apagados quando a chamada termina, é rejeitada ou a sessão é desconectada.
+Chaves de chamada, JIDs internos de dispositivos, chaves SRTP, tokens de relay e buffers PCM não fazem parte dessa resposta. Eles ficam somente em memória e são apagados quando a chamada termina, é rejeitada ou a sessão é desconectada.
 
 Instâncias configuradas com rejeição automática continuam rastreando o estado público da chamada. Elas não descriptografam ofertas recebidas nem enviam `preaccept`, mas continuam podendo iniciar chamadas e armazenar sua negociação privada de saída.
 
@@ -80,7 +80,7 @@ O runtime descriptografa a chave recebida usando a sessão Signal já autenticad
 }
 ```
 
-`CallAccept` não marca a chamada como `active` sozinho. Na variante Pion, `active` é publicado somente depois que o DataChannel abre e a sessão RTP/SRTP por chamada é criada com sucesso.
+`CallAccept` não marca a chamada como `active` sozinho. Na variante Pion, `active` é publicado somente depois que o DataChannel abre e as sessões RTP/SRTP e MLow são criadas com sucesso.
 
 Se a preparação criptográfica do evento ainda não terminou, a API retorna um erro informando que a chamada ainda não está pronta para aceite.
 
@@ -91,7 +91,7 @@ DELETE /call/{callId}
 apikey: INSTANCE_TOKEN
 ```
 
-A rota envia `terminate` para chamadas realizadas e recebidas. Em seguida, o runtime muda o estado público para `ended` e remove chave, candidatos, DataChannels, contextos RTP/SRTP e demais dados privados da chamada.
+A rota envia `terminate` para chamadas realizadas e recebidas. Em seguida, o runtime muda o estado público para `ended` e remove chave, candidatos, DataChannels, contextos RTP/SRTP, codec, buffers PCM e demais dados privados da chamada.
 
 ## Rejeitar uma chamada recebida
 
@@ -155,7 +155,7 @@ A implementação experimental Pion inclui:
 
 ## RTP e SRTP
 
-O caminho de pacotes agora inclui:
+O caminho de pacotes inclui:
 
 - RTP versão 2 com CSRC, extensões e padding validados;
 - gerador concorrente de sequência e timestamp para payload type `120`;
@@ -168,13 +168,47 @@ O caminho de pacotes agora inclui:
 - janela antirreplay de 64 pacotes;
 - suporte a pacotes autenticados fora de ordem dentro da janela;
 - rejeição de reutilização do índice SRTP no envio;
-- validação do SSRC remoto e do payload type Opus;
+- validação do SSRC remoto e do payload type de áudio;
 - sessão independente por `callId`;
 - limpeza sincronizada durante término, rejeição, logout ou reconexão.
 
-O `Coordinator` já possui uma fronteira interna para proteger um frame Opus e transmiti-lo pelos relays. Ela ainda não é exposta em HTTP porque falta conectar encoder/decoder e PCM.
+## Codec MLow e PCM
 
-A build padrão continua usando um transportador sem rede. Para compilar a variante experimental:
+O codec MLow em Go puro foi portado da revisão MIT fixada `edeb31f0427aba896639db503153b777a405eccf` do WaCalls. O runtime não depende de CGO ou de uma instalação externa de `libopus` para essa etapa.
+
+O pipeline interno agora:
+
+- aceita PCM mono `float32` em 16 kHz;
+- aceita chunks de tamanho arbitrário;
+- acumula frames completos de 960 amostras, equivalentes a 60 ms;
+- substitui `NaN` e infinito por silêncio;
+- limita amplitudes ao intervalo `[-1, 1]`;
+- codifica MLow e envia o payload pelo RTP/SRTP existente;
+- preserva o marker RTP no primeiro frame transmitido;
+- envia frames de silêncio quando a captura fica inativa;
+- decodifica payloads recebidos para blocos PCM de 960 amostras;
+- entrega uma cópia do PCM a um callback interno;
+- serializa encoder e decoder por chamada;
+- espera envios em andamento antes do teardown.
+
+As fronteiras internas disponíveis no `Coordinator` são:
+
+- `FeedPCM(instanceID, callID, pcm)` para PCM mono/16 kHz;
+- `SetOnPCM(callback)` para receber PCM decodificado;
+- `SetOnRTP(callback)` para observação autenticada de baixo nível;
+- `SendOpus(...)` para o caminho codificado já existente.
+
+Essas funções ainda não são rotas HTTP. Expor áudio bruto sem autenticação de mídia, limite de fluxo e controle de sessão aumentaria a superfície de ataque.
+
+## Build experimental
+
+A build padrão continua usando um transportador sem rede:
+
+```bash
+go build ./cmd/evolution-go
+```
+
+Para compilar a variante com relay Pion:
 
 ```bash
 go build -tags=voip_pion ./cmd/evolution-go
@@ -189,11 +223,12 @@ go test -race -tags=voip_pion ./pkg/call/...
 
 ## Limitações atuais
 
-- sem áudio bidirecional reproduzível;
-- sem encoder/decoder Opus ou MLow conectado ao runtime;
-- sem captura e reprodução PCM;
-- sem WebRTC para navegador;
-- o caminho interno de envio Opus ainda não possui endpoint público;
+- sem captura real de microfone;
+- sem reprodução em alto-falante;
+- sem ponte WebRTC para navegador;
+- sem resampling automático para fontes que não sejam mono/16 kHz;
+- sem jitter buffer adaptativo ou concealment coordenado por perda de RTP;
+- sem endpoint ou protocolo público de streaming de áudio;
 - a conexão real com um relay WhatsApp ainda precisa ser validada de ponta a ponta com uma conta conectada;
-- as chaves ficam somente em memória e não sobrevivem a reinícios;
+- as chaves e sessões ficam somente em memória e não sobrevivem a reinícios;
 - API e formatos podem mudar enquanto o PR estiver em rascunho.
