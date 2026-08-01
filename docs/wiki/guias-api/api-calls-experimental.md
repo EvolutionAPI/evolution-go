@@ -2,7 +2,7 @@
 
 Esta branch adiciona a integração experimental WaCalls/AstraCalls ao Evolution Go.
 
-> **Estado atual:** a sinalização é real e permite iniciar, receber, aceitar, rejeitar e encerrar chamadas no nível do protocolo. Chaves e metadados de relay já são associados ao estado privado de cada chamada, mas o transporte de áudio/WebRTC/SRTP ainda não foi conectado. Não use em produção.
+> **Estado atual:** a sinalização é real e permite iniciar, receber, aceitar, rejeitar e encerrar chamadas no nível do protocolo. A variante experimental também consegue negociar DataChannels com os relays usando Pion. RTP/SRTP e áudio ainda não foram conectados. Não use em produção.
 
 Todas as rotas usam a autenticação normal da instância do Evolution.
 
@@ -12,7 +12,7 @@ Todas as rotas usam a autenticação normal da instância do Evolution.
 GET /call/status
 ```
 
-Os monitores de chamada são anexados automaticamente quando o Evolution cria o `whatsmeow.Client`. Durante reconexão, logout ou remoção da instância, os handlers anteriores são removidos e o material privado é apagado antes que o novo cliente seja registrado. Não é necessário chamar `/call/status` para ativar o monitoramento.
+Os monitores de chamada são anexados automaticamente quando o Evolution cria o `whatsmeow.Client`. Durante reconexão, logout ou remoção da instância, handlers, DataChannels e material privado são removidos antes que o novo cliente seja registrado. Não é necessário chamar `/call/status` para ativar o monitoramento.
 
 Exemplo de resposta:
 
@@ -80,6 +80,8 @@ O runtime descriptografa a chave recebida usando a sessão Signal já autenticad
 }
 ```
 
+`CallAccept` não marca mais a chamada como `active` sozinho. Na variante Pion, `active` é publicado somente depois que um DataChannel de relay abre e o callback `media_connected` é aplicado.
+
 Se a preparação criptográfica do evento ainda não terminou, a API retorna um erro informando que a chamada ainda não está pronta para aceite.
 
 ## Encerrar uma chamada
@@ -89,7 +91,7 @@ DELETE /call/{callId}
 apikey: INSTANCE_TOKEN
 ```
 
-A rota envia `terminate` para chamadas realizadas e recebidas. Em seguida, o runtime muda o estado público para `ended` e remove a chave e os dados privados da chamada.
+A rota envia `terminate` para chamadas realizadas e recebidas. Em seguida, o runtime muda o estado público para `ended` e remove chave, candidatos, DataChannels e demais dados privados da chamada.
 
 ## Rejeitar uma chamada recebida
 
@@ -118,7 +120,7 @@ O snapshot público usa:
 - `ended`
 - `failed`
 
-Internamente, a negociação também usa uma máquina de estados estrita com:
+Internamente, a negociação usa uma máquina de estados estrita com:
 
 - `initiating`
 - `ringing`
@@ -130,7 +132,7 @@ Internamente, a negociação também usa uma máquina de estados estrita com:
 
 Transições inválidas, como marcar mídia conectada antes do aceite ou aceitar remotamente uma chamada recebida, são rejeitadas sem alterar o estado.
 
-## Relay e transporte
+## Relay e transporte Pion
 
 O módulo de sinalização reconhece os dois formatos encontrados nas respostas do WhatsApp:
 
@@ -139,21 +141,38 @@ O módulo de sinalização reconhece os dois formatos encontrados nas respostas 
 
 Os candidatos são ordenados pelo menor RTT e associados ao material privado pelo `callId`. Atualizações posteriores recebidas em `CallTransport` substituem os candidatos anteriores sem apagar a chave da chamada.
 
-O pacote `pkg/call/voip/transport` define o contrato usado pelo futuro gerenciador SCTP. Ele:
+A implementação experimental Pion inclui:
 
-- converte somente candidatos UDP utilizáveis;
-- aplica a porta padrão do relay;
-- remove duplicados;
-- copia tokens binários para buffers independentes;
-- oferece limpeza explícita desses buffers;
-- usa um transportador desativado por padrão que falha de forma segura sem abrir sockets.
+- PeerConnection e DataChannel `wa-web-call` por relay;
+- transformação do SDP para credenciais e fingerprint do relay;
+- registro STUN com subscriptions de SSRC;
+- requisição de allocation;
+- tentativas adicionais de registro;
+- keepalive proprietário do WhatsApp;
+- broadcast e recebimento de frames do DataChannel;
+- timeout, fechamento e limpeza de buffers;
+- SSRC determinístico derivado de `callId` e JID do dispositivo.
+
+A build padrão continua usando um transportador sem rede. Para compilar a variante experimental:
+
+```bash
+go build -tags=voip_pion ./cmd/evolution-go
+```
+
+O workflow do PR testa permanentemente as duas variantes:
+
+```bash
+go test -race ./pkg/call/...
+go test -race -tags=voip_pion ./pkg/call/...
+```
 
 ## Limitações atuais
 
 - sem áudio bidirecional;
+- os frames recebidos pelo DataChannel ainda não são processados por uma sessão RTP/SRTP;
+- sem derivação e instalação das chaves SRTP;
+- sem codecs Opus ou MLow conectados ao runtime;
 - sem WebRTC para navegador;
-- o contrato SCTP existe, mas a implementação Pion ainda não está habilitada;
-- sem RTP ou SRTP;
-- aceitar a sinalização não estabelece o caminho de mídia;
+- a conexão real com um relay WhatsApp ainda precisa ser validada de ponta a ponta com uma conta conectada;
 - as chaves ficam somente em memória e não sobrevivem a reinícios;
 - API e formatos podem mudar enquanto o PR estiver em rascunho.
