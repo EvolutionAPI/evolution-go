@@ -6,6 +6,7 @@ on:
       - dev/astracalls-integration
   pull_request:
     paths:
+      - "cmd/evolution-go/main.go"
       - "pkg/call/**"
       - "pkg/routes/routes.go"
       - "go.mod"
@@ -18,7 +19,7 @@ permissions:
 jobs:
   test-call-module:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
 
     steps:
       - name: Checkout
@@ -38,3 +39,9 @@ jobs:
 
       - name: Test experimental Pion relay build
         run: go test -race -tags=voip_pion ./pkg/call/...
+
+      - name: Build default server
+        run: go build -o /tmp/evolution-go-default ./cmd/evolution-go
+
+      - name: Build experimental Pion server
+        run: go build -tags=voip_pion -o /tmp/evolution-go-pion ./cmd/evolution-go
