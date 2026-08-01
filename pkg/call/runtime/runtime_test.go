@@ -3,6 +3,10 @@ package call_runtime
 import (
 	"testing"
 	"time"
+
+	waBinary "go.mau.fi/whatsmeow/binary"
+	"go.mau.fi/whatsmeow/types"
+	"go.mau.fi/whatsmeow/types/events"
 )
 
 func TestRegistryAttachReusesRuntime(t *testing.T) {
@@ -49,6 +53,122 @@ func TestRuntimeUpsertPreservesCreatedAt(t *testing.T) {
 	}
 	if call.UpdatedAt.IsZero() {
 		t.Fatal("expected updatedAt to be populated")
+	}
+}
+
+func TestRuntimeTransitionPreservesCapturedMetadata(t *testing.T) {
+	runtime := New("instance-1", nil)
+	video := true
+
+	runtime.Transition(
+		"call-1",
+		"5511999999999@s.whatsapp.net",
+		DirectionIncoming,
+		StateRinging,
+		&video,
+		"",
+	)
+	runtime.Transition("call-1", "", DirectionOutgoing, StateActive, nil, "")
+
+	call, ok := runtime.Call("call-1")
+	if !ok {
+		t.Fatal("expected call to exist")
+	}
+	if call.Peer != "5511999999999@s.whatsapp.net" {
+		t.Fatalf("peer was erased: %s", call.Peer)
+	}
+	if call.Direction != DirectionIncoming {
+		t.Fatalf("direction was overwritten: %s", call.Direction)
+	}
+	if !call.Video {
+		t.Fatal("video metadata was erased")
+	}
+	if call.State != StateActive {
+		t.Fatalf("unexpected state: %s", call.State)
+	}
+}
+
+func TestRuntimeTracksWhatsmeowCallLifecycle(t *testing.T) {
+	runtime := New("instance-1", nil)
+	creator := types.NewJID("5511999999999", types.DefaultUserServer)
+
+	runtime.handleEvent(&events.CallOffer{
+		BasicCallMeta: types.BasicCallMeta{
+			From:        creator,
+			CallCreator: creator,
+			CallID:     "call-1",
+		},
+		Data: &waBinary.Node{
+			Tag: "offer",
+			Content: []waBinary.Node{
+				{Tag: "video"},
+			},
+		},
+	})
+
+	call, ok := runtime.Call("call-1")
+	if !ok {
+		t.Fatal("expected call offer to create a runtime call")
+	}
+	if call.State != StateRinging || call.Direction != DirectionIncoming {
+		t.Fatalf("unexpected offered call: %+v", call)
+	}
+	if !call.Video {
+		t.Fatal("expected video call metadata")
+	}
+
+	runtime.handleEvent(&events.CallAccept{
+		BasicCallMeta: types.BasicCallMeta{
+			From:        creator,
+			CallCreator: creator,
+			CallID:     "call-1",
+		},
+	})
+
+	call, _ = runtime.Call("call-1")
+	if call.State != StateActive {
+		t.Fatalf("expected active state, got %s", call.State)
+	}
+	if call.Direction != DirectionIncoming {
+		t.Fatalf("incoming direction must be preserved, got %s", call.Direction)
+	}
+
+	runtime.handleEvent(&events.CallTerminate{
+		BasicCallMeta: types.BasicCallMeta{
+			From:        creator,
+			CallCreator: creator,
+			CallID:     "call-1",
+		},
+		Reason: "peer_hangup",
+	})
+
+	call, _ = runtime.Call("call-1")
+	if call.State != StateEnded {
+		t.Fatalf("expected ended state, got %s", call.State)
+	}
+	if call.EndReason != "peer_hangup" {
+		t.Fatalf("unexpected end reason: %s", call.EndReason)
+	}
+}
+
+func TestRuntimeMarksOpenCallsFailedOnDisconnect(t *testing.T) {
+	runtime := New("instance-1", nil)
+	runtime.Transition("call-1", "peer", DirectionOutgoing, StateConnecting, nil, "")
+	runtime.Transition("call-2", "peer", DirectionIncoming, StateEnded, nil, "completed")
+
+	runtime.handleEvent(&events.Disconnected{})
+
+	openCall, _ := runtime.Call("call-1")
+	if openCall.State != StateFailed {
+		t.Fatalf("expected open call to fail, got %s", openCall.State)
+	}
+	if openCall.Error == "" {
+		t.Fatal("expected disconnect error")
+	}
+
+	endedCall, _ := runtime.Call("call-2")
+	if endedCall.State != StateEnded {
+		t.Fatalf("ended call must not change, got %s", endedCall.State)
 	}
 }
 
