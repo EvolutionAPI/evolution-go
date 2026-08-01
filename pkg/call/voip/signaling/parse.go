@@ -16,15 +16,15 @@ func NodeContainsVideo(node *waBinary.Node) bool {
 	if strings.EqualFold(node.Tag, "video") {
 		return true
 	}
-	for key, value := range node.Attrs {
+	for key := range node.Attrs {
 		keyLower := strings.ToLower(key)
 		valueString := strings.ToLower(strings.TrimSpace(wanode.AttrString(node.Attrs, key)))
 		if (keyLower == "media" || keyLower == "type") && valueString == "video" {
 			return true
 		}
 	}
-	for index := range wanode.NodeChildren(node) {
-		children := wanode.NodeChildren(node)
+	children := wanode.NodeChildren(node)
+	for index := range children {
 		if NodeContainsVideo(&children[index]) {
 			return true
 		}
@@ -36,15 +36,14 @@ func findEncryptedCallKeyNode(inner *waBinary.Node) *waBinary.Node {
 	if inner == nil {
 		return nil
 	}
-	for _, childValue := range wanode.NodeChildren(inner) {
-		child := childValue
-		if child.Tag == "enc" && wanode.HasAttr(child.Attrs, "type") {
-			return &child
+	children := wanode.NodeChildren(inner)
+	for index := range children {
+		if children[index].Tag == "enc" && wanode.HasAttr(children[index].Attrs, "type") {
+			return &children[index]
 		}
 	}
-	for _, childValue := range wanode.NodeChildren(inner) {
-		child := childValue
-		if found := findEncryptedCallKeyNode(&child); found != nil {
+	for index := range children {
+		if found := findEncryptedCallKeyNode(&children[index]); found != nil {
 			return found
 		}
 	}
