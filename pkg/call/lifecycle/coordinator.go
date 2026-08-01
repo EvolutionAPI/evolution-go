@@ -25,7 +25,12 @@ type Coordinator struct {
 	relays   *call_media.RelayRegistry
 	packets  *call_media.PacketRegistry
 	audio    *call_media.AudioRegistry
-	onRTP    func(instanceID, callID string, packet *call_media.RTPPacket)
+
+	onRTP                  func(instanceID, callID string, packet *call_media.RTPPacket)
+	onPCM                  func(instanceID, callID string, pcm []float32)
+	browserPCM             func(instanceID, callID string, pcm []float32)
+	onCallMediaCleanup     func(instanceID, callID string)
+	onInstanceMediaCleanup func(instanceID string)
 
 	incomingEnabled map[string]bool
 }
@@ -42,7 +47,18 @@ func NewCoordinator() *Coordinator {
 	coordinator.audio = call_media.NewAudioRegistry(func(instanceID, callID string, payload []byte, durationSamples uint32, marker bool) error {
 		return coordinator.SendOpus(instanceID, callID, payload, durationSamples, marker)
 	}, nil)
+	coordinator.audio.SetOnPCM(coordinator.dispatchPCM)
 	coordinator.relays = call_media.NewRelayRegistry(incoming, nil, nil)
+	coordinator.relays.SetOnRemoved(func(instanceID, callID string) {
+		coordinator.audio.Remove(instanceID, callID)
+		coordinator.packets.Remove(instanceID, callID)
+		coordinator.notifyCallMediaCleanup(instanceID, callID)
+	})
+	coordinator.relays.SetOnCleanup(func(instanceID string) {
+		coordinator.audio.Close(instanceID)
+		coordinator.packets.Close(instanceID)
+		coordinator.notifyInstanceMediaCleanup(instanceID)
+	})
 	coordinator.relays.SetOnConnected(func(instanceID, callID string) {
 		if err := coordinator.packets.Prepare(instanceID, callID); err != nil {
 			return
@@ -92,7 +108,8 @@ func (c *Coordinator) AttachClient(instanceID string, client *whatsmeow.Client, 
 }
 
 // DetachClient removes handlers, relay connections, codec sessions, packet
-// contexts, configuration and private call keys before the client is discarded.
+// contexts, browser media, configuration and private call keys before the
+// client is discarded.
 func (c *Coordinator) DetachClient(instanceID string) {
 	if c == nil || instanceID == "" {
 		return
@@ -103,6 +120,7 @@ func (c *Coordinator) DetachClient(instanceID string) {
 	c.relays.Close(instanceID)
 	c.audio.Close(instanceID)
 	c.packets.Close(instanceID)
+	c.notifyInstanceMediaCleanup(instanceID)
 	c.runtimes.Remove(instanceID)
 	c.incoming.Close(instanceID)
 }
@@ -177,6 +195,7 @@ func (c *Coordinator) TerminateIncoming(ctx context.Context, instanceID, callID 
 	c.relays.Remove(instanceID, callID)
 	c.audio.Remove(instanceID, callID)
 	c.packets.Remove(instanceID, callID)
+	c.notifyCallMediaCleanup(instanceID, callID)
 	return nil
 }
 
@@ -189,11 +208,64 @@ func (c *Coordinator) FeedPCM(instanceID, callID string, pcm []float32) error {
 	return c.audio.FeedPCM(instanceID, callID, pcm)
 }
 
-// SetOnPCM registers the internal decoded-audio sink used by a future WebRTC,
-// native playback or test bridge. The callback receives an owned PCM copy.
+// SetOnPCM registers an optional external decoded-audio observer. Browser
+// media keeps a separate internal sink so neither callback replaces the other.
 func (c *Coordinator) SetOnPCM(callback func(instanceID, callID string, pcm []float32)) {
-	if c != nil {
-		c.audio.SetOnPCM(callback)
+	if c == nil {
+		return
+	}
+	c.mu.Lock()
+	c.onPCM = callback
+	c.mu.Unlock()
+}
+
+func (c *Coordinator) SetBrowserPCM(callback func(instanceID, callID string, pcm []float32)) {
+	if c == nil {
+		return
+	}
+	c.mu.Lock()
+	c.browserPCM = callback
+	c.mu.Unlock()
+}
+
+func (c *Coordinator) SetMediaCleanupHooks(onCall func(instanceID, callID string), onInstance func(instanceID string)) {
+	if c == nil {
+		return
+	}
+	c.mu.Lock()
+	c.onCallMediaCleanup = onCall
+	c.onInstanceMediaCleanup = onInstance
+	c.mu.Unlock()
+}
+
+func (c *Coordinator) dispatchPCM(instanceID, callID string, pcm []float32) {
+	c.mu.RLock()
+	browserCallback := c.browserPCM
+	externalCallback := c.onPCM
+	c.mu.RUnlock()
+	if browserCallback != nil {
+		browserCallback(instanceID, callID, append([]float32(nil), pcm...))
+	}
+	if externalCallback != nil {
+		externalCallback(instanceID, callID, append([]float32(nil), pcm...))
+	}
+}
+
+func (c *Coordinator) notifyCallMediaCleanup(instanceID, callID string) {
+	c.mu.RLock()
+	callback := c.onCallMediaCleanup
+	c.mu.RUnlock()
+	if callback != nil {
+		callback(instanceID, callID)
+	}
+}
+
+func (c *Coordinator) notifyInstanceMediaCleanup(instanceID string) {
+	c.mu.RLock()
+	callback := c.onInstanceMediaCleanup
+	c.mu.RUnlock()
+	if callback != nil {
+		callback(instanceID)
 	}
 }
 
@@ -227,6 +299,7 @@ func (c *Coordinator) RemovePrivate(instanceID, callID string) {
 	c.audio.Remove(instanceID, callID)
 	c.packets.Remove(instanceID, callID)
 	c.incoming.Remove(instanceID, callID)
+	c.notifyCallMediaCleanup(instanceID, callID)
 }
 
 // RemoveIncoming is kept as a compatibility alias while call-service code is
