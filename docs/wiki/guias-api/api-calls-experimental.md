@@ -78,14 +78,14 @@ O runtime descriptografa a chave recebida usando a sessão Signal já autenticad
 
 Se a preparação criptográfica do evento ainda não terminou, a API retorna um erro informando que a chamada ainda não está pronta para aceite.
 
-## Encerrar uma chamada realizada
+## Encerrar uma chamada
 
 ```http
 DELETE /call/{callId}
 apikey: INSTANCE_TOKEN
 ```
 
-Nesta etapa, o encerramento por essa rota está habilitado apenas para chamadas de saída registradas pelo runtime.
+A rota envia `terminate` tanto para chamadas realizadas quanto para chamadas recebidas cujo material privado ainda está disponível em memória. Em seguida, o runtime muda o estado para `ended` e apaga a chave da chamada recebida.
 
 ## Rejeitar uma chamada recebida
 
@@ -120,6 +120,6 @@ O runtime escuta `CallOffer`, `CallOfferNotice`, `CallPreAccept`, `CallAccept`, 
 - sem WebRTC para navegador;
 - sem SRTP/relay do WhatsApp;
 - aceitar a sinalização não estabelece o caminho de mídia;
-- encerramento via API de chamadas recebidas ainda depende do `CallManager` completo;
+- as chaves ficam somente em memória e não sobrevivem a reinícios;
 - o runtime ainda precisa ser ativado por uma rota de chamadas após reconexão;
 - API e formatos podem mudar enquanto o PR estiver em rascunho.
