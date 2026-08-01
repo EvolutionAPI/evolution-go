@@ -41,6 +41,8 @@ type relaySession struct {
 	ownJID      func() types.JID
 	onConnected func(instanceID, callID string)
 	onPacket    func(instanceID, callID string, packet []byte)
+	onRemoved   func(instanceID, callID string)
+	onCleanup   func(instanceID string)
 }
 
 func newRelaySession(instanceID string, client *whatsmeow.Client, source NegotiationSource, factory RelayFactory, log *slog.Logger) *relaySession {
@@ -219,9 +221,13 @@ func (s *relaySession) remove(callID string) {
 	relay := s.transports[callID]
 	delete(s.transports, callID)
 	delete(s.configuring, callID)
+	callback := s.onRemoved
 	s.mu.Unlock()
 	if relay != nil {
 		relay.Cleanup()
+	}
+	if callback != nil && callID != "" {
+		callback(s.instanceID, callID)
 	}
 }
 
@@ -233,9 +239,13 @@ func (s *relaySession) cleanup() {
 		delete(s.transports, callID)
 	}
 	s.configuring = make(map[string]bool)
+	callback := s.onCleanup
 	s.mu.Unlock()
 	for _, relay := range transports {
 		relay.Cleanup()
+	}
+	if callback != nil {
+		callback(s.instanceID)
 	}
 }
 
@@ -261,6 +271,8 @@ type RelayRegistry struct {
 	sessions    map[string]*relaySession
 	onConnected func(instanceID, callID string)
 	onPacket    func(instanceID, callID string, packet []byte)
+	onRemoved   func(instanceID, callID string)
+	onCleanup   func(instanceID string)
 }
 
 func NewRelayRegistry(source NegotiationSource, factory RelayFactory, log *slog.Logger) *RelayRegistry {
@@ -293,6 +305,24 @@ func (r *RelayRegistry) SetOnPacket(callback func(instanceID, callID string, pac
 	r.mu.Unlock()
 }
 
+func (r *RelayRegistry) SetOnRemoved(callback func(instanceID, callID string)) {
+	r.mu.Lock()
+	r.onRemoved = callback
+	for _, session := range r.sessions {
+		session.onRemoved = callback
+	}
+	r.mu.Unlock()
+}
+
+func (r *RelayRegistry) SetOnCleanup(callback func(instanceID string)) {
+	r.mu.Lock()
+	r.onCleanup = callback
+	for _, session := range r.sessions {
+		session.onCleanup = callback
+	}
+	r.mu.Unlock()
+}
+
 func (r *RelayRegistry) Attach(instanceID string, client *whatsmeow.Client) {
 	if instanceID == "" || client == nil {
 		return
@@ -309,6 +339,8 @@ func (r *RelayRegistry) Attach(instanceID string, client *whatsmeow.Client) {
 	r.mu.Lock()
 	candidate.onConnected = r.onConnected
 	candidate.onPacket = r.onPacket
+	candidate.onRemoved = r.onRemoved
+	candidate.onCleanup = r.onCleanup
 	previous := r.sessions[instanceID]
 	r.sessions[instanceID] = candidate
 	r.mu.Unlock()
