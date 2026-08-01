@@ -6,7 +6,7 @@ def replace_once(path: Path, old: str, new: str) -> None:
     text = path.read_text()
     count = text.count(old)
     if count != 1:
-        raise RuntimeError(f"{path}: expected one match, found {count}: {old[:80]!r}")
+        raise RuntimeError(f"{path}: expected one match, found {count}: {old[:100]!r}")
     path.write_text(text.replace(old, new, 1))
 
 
@@ -23,9 +23,13 @@ replace_once(
 )
 replace_once(
     whatsmeow,
-    "\tpasskeyCeremony    *ceremony.Store\n}",
+    "\tloggerWrapper      *logger_wrapper.LoggerManager\n"
     "\tpasskeyCeremony    *ceremony.Store\n"
-    "\tclientLifecycle    ClientLifecycle\n}",
+    "}",
+    "\tloggerWrapper      *logger_wrapper.LoggerManager\n"
+    "\tpasskeyCeremony    *ceremony.Store\n"
+    "\tclientLifecycle    ClientLifecycle\n"
+    "}",
 )
 replace_once(
     whatsmeow,
@@ -175,6 +179,5 @@ replace_once(
     "\tcallService := call_service.NewCallService(clientPointer, whatsmeowService, loggerWrapper, callCoordinator)\n",
 )
 
-# Remove the one-shot migration machinery from the resulting commit.
 Path("tools/apply_call_lifecycle.py").unlink()
 Path(".github/workflows/apply-call-lifecycle.yml").unlink()
