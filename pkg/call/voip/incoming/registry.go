@@ -1,6 +1,6 @@
-// Package incoming keeps private material required to accept WhatsApp calls.
-// Call keys and device metadata are intentionally separated from the public
-// runtime snapshots and are never serialized.
+// Package incoming keeps private material required by WhatsApp call negotiation.
+// Call keys, relay tokens and device metadata are intentionally separated from
+// public runtime snapshots and are never serialized.
 package incoming
 
 import (
@@ -9,33 +9,42 @@ import (
 	"sync"
 	"time"
 
+	"github.com/evolution-foundation/evolution-go/pkg/call/voip/core"
 	"github.com/evolution-foundation/evolution-go/pkg/call/voip/signaling"
 	"github.com/evolution-foundation/evolution-go/pkg/call/voip/wa"
 	"go.mau.fi/whatsmeow"
+	waBinary "go.mau.fi/whatsmeow/binary"
 	"go.mau.fi/whatsmeow/types"
 	"go.mau.fi/whatsmeow/types/events"
 )
 
 const prepareTimeout = 30 * time.Second
 
-type callSecret struct {
-	callKey []byte
-	peer    types.JID
-	creator types.JID
-	video   bool
+type callMaterial struct {
+	callKey   []byte
+	peer      types.JID
+	creator   types.JID
+	video     bool
+	relayData *core.RelayData
 }
 
 type session struct {
-	mu        sync.RWMutex
-	client    *whatsmeow.Client
-	handlerID uint32
-	secrets   map[string]*callSecret
+	mu              sync.RWMutex
+	client          *whatsmeow.Client
+	handlerID       uint32
+	prepareIncoming bool
+	materials       map[string]*callMaterial
 }
 
-func newSession(client *whatsmeow.Client) *session {
+func newSession(client *whatsmeow.Client, prepareIncoming ...bool) *session {
+	enabled := true
+	if len(prepareIncoming) > 0 {
+		enabled = prepareIncoming[0]
+	}
 	s := &session{
-		client:  client,
-		secrets: make(map[string]*callSecret),
+		client:          client,
+		prepareIncoming: enabled,
+		materials:       make(map[string]*callMaterial),
 	}
 	if client != nil {
 		s.handlerID = client.AddEventHandler(s.handleEvent)
@@ -49,12 +58,27 @@ func (s *session) usesClient(client *whatsmeow.Client) bool {
 	return s.client == client && client != nil
 }
 
+func (s *session) setPrepareIncoming(enabled bool) {
+	s.mu.Lock()
+	s.prepareIncoming = enabled
+	s.mu.Unlock()
+}
+
 func (s *session) handleEvent(rawEvent interface{}) {
 	switch event := rawEvent.(type) {
 	case *events.CallOffer:
-		// Decrypting the Signal payload and sending preaccept must not block the
-		// main Evolution event dispatcher.
-		go s.prepareOffer(event)
+		s.mu.RLock()
+		prepareIncoming := s.prepareIncoming
+		s.mu.RUnlock()
+		if prepareIncoming {
+			// Decrypting the Signal payload and sending preaccept must not block
+			// the main Evolution event dispatcher.
+			go s.prepareOffer(event)
+		}
+	case *events.CallAccept:
+		s.captureRelays(event.CallID, event.Data)
+	case *events.CallTransport:
+		s.captureRelays(event.CallID, event.Data)
 	case *events.CallReject:
 		s.remove(event.CallID)
 	case *events.CallTerminate:
@@ -73,8 +97,9 @@ func (s *session) prepareOffer(event *events.CallOffer) {
 
 	s.mu.RLock()
 	client := s.client
+	prepareIncoming := s.prepareIncoming
 	s.mu.RUnlock()
-	if client == nil {
+	if client == nil || !prepareIncoming {
 		return
 	}
 
@@ -103,14 +128,15 @@ func (s *session) prepareOffer(event *events.CallOffer) {
 		return
 	}
 
-	secret := &callSecret{
-		callKey: append([]byte(nil), callKey...),
-		peer:    peer,
-		creator: creator,
-		video:   signaling.NodeContainsVideo(event.Data),
+	material := &callMaterial{
+		callKey:   append([]byte(nil), callKey...),
+		peer:      peer,
+		creator:   creator,
+		video:     signaling.NodeContainsVideo(event.Data),
+		relayData: relayDataFromNode(event.Data),
 	}
 	zeroBytes(callKey)
-	s.store(event.CallID, secret)
+	s.store(event.CallID, material)
 
 	// WhatsApp expects preaccept before the user explicitly accepts the call.
 	// A send failure does not expose or discard the key; the accept endpoint will
@@ -118,12 +144,45 @@ func (s *session) prepareOffer(event *events.CallOffer) {
 	_ = socket.SendNode(ctx, signaling.BuildPreacceptStanza(peer, event.CallID, creator))
 }
 
+func (s *session) storeOutgoing(callID string, callKey []byte, peer, creator types.JID, video bool, relayData *core.RelayData) {
+	if callID == "" || len(callKey) == 0 || peer.IsEmpty() || creator.IsEmpty() {
+		return
+	}
+	s.store(callID, &callMaterial{
+		callKey:   append([]byte(nil), callKey...),
+		peer:      peer,
+		creator:   creator,
+		video:     video,
+		relayData: core.CloneRelayData(relayData),
+	})
+}
+
+func (s *session) captureRelays(callID string, node *waBinary.Node) {
+	if callID == "" || node == nil {
+		return
+	}
+	relayData := relayDataFromNode(node)
+	if relayData == nil {
+		return
+	}
+
+	s.mu.Lock()
+	material := s.materials[callID]
+	if material == nil {
+		material = &callMaterial{}
+		s.materials[callID] = material
+	}
+	core.ZeroRelayData(material.relayData)
+	material.relayData = relayData
+	s.mu.Unlock()
+}
+
 func (s *session) accept(ctx context.Context, callID string) error {
-	secret, ok := s.copySecret(callID)
-	if !ok {
+	material, ok := s.copyMaterial(callID)
+	if !ok || len(material.callKey) == 0 {
 		return fmt.Errorf("incoming call %s is not ready to accept", callID)
 	}
-	defer zeroBytes(secret.callKey)
+	defer zeroMaterial(material)
 
 	s.mu.RLock()
 	client := s.client
@@ -137,10 +196,10 @@ func (s *session) accept(ctx context.Context, callID string) error {
 		ctx,
 		socket,
 		callID,
-		secret.callKey,
-		secret.peer,
-		secret.creator,
-		secret.video,
+		material.callKey,
+		material.peer,
+		material.creator,
+		material.video,
 	)
 	if err != nil {
 		return fmt.Errorf("build call accept: %w", err)
@@ -152,72 +211,88 @@ func (s *session) accept(ctx context.Context, callID string) error {
 }
 
 func (s *session) terminate(ctx context.Context, callID string) error {
-	secret, ok := s.copySecret(callID)
-	if !ok {
-		return fmt.Errorf("incoming call %s has no private signaling material", callID)
+	material, ok := s.copyMaterial(callID)
+	if !ok || material.peer.IsEmpty() || material.creator.IsEmpty() {
+		return fmt.Errorf("call %s has no private signaling material", callID)
 	}
-	defer zeroBytes(secret.callKey)
+	defer zeroMaterial(material)
 
 	s.mu.RLock()
 	client := s.client
 	s.mu.RUnlock()
 	if client == nil {
-		return fmt.Errorf("incoming call session is detached")
+		return fmt.Errorf("call session is detached")
 	}
 
-	node := signaling.BuildTerminateStanza(secret.peer, callID, secret.creator)
+	node := signaling.BuildTerminateStanza(material.peer, callID, material.creator)
 	if err := wa.NewSocket(client).SendNode(ctx, node); err != nil {
-		return fmt.Errorf("send incoming call terminate: %w", err)
+		return fmt.Errorf("send call terminate: %w", err)
 	}
 	s.remove(callID)
 	return nil
 }
 
-func (s *session) store(callID string, secret *callSecret) {
-	if callID == "" || secret == nil {
+func (s *session) store(callID string, material *callMaterial) {
+	if callID == "" || material == nil {
 		return
 	}
 	s.mu.Lock()
-	if previous := s.secrets[callID]; previous != nil {
-		zeroBytes(previous.callKey)
+	if previous := s.materials[callID]; previous != nil {
+		if material.relayData == nil {
+			material.relayData = core.CloneRelayData(previous.relayData)
+		}
+		zeroMaterial(previous)
 	}
-	s.secrets[callID] = secret
+	s.materials[callID] = material
 	s.mu.Unlock()
 }
 
-func (s *session) copySecret(callID string) (*callSecret, bool) {
+func (s *session) copyMaterial(callID string) (*callMaterial, bool) {
 	s.mu.RLock()
-	secret, ok := s.secrets[callID]
-	if !ok || secret == nil {
+	material, ok := s.materials[callID]
+	if !ok || material == nil {
 		s.mu.RUnlock()
 		return nil, false
 	}
-	copyValue := &callSecret{
-		callKey: append([]byte(nil), secret.callKey...),
-		peer:    secret.peer,
-		creator: secret.creator,
-		video:   secret.video,
+	copyValue := &callMaterial{
+		callKey:   append([]byte(nil), material.callKey...),
+		peer:      material.peer,
+		creator:   material.creator,
+		video:     material.video,
+		relayData: core.CloneRelayData(material.relayData),
 	}
 	s.mu.RUnlock()
 	return copyValue, true
 }
 
+func (s *session) relayData(callID string) (*core.RelayData, bool) {
+	s.mu.RLock()
+	material := s.materials[callID]
+	if material == nil || material.relayData == nil {
+		s.mu.RUnlock()
+		return nil, false
+	}
+	data := core.CloneRelayData(material.relayData)
+	s.mu.RUnlock()
+	return data, true
+}
+
 func (s *session) remove(callID string) {
 	s.mu.Lock()
-	if secret := s.secrets[callID]; secret != nil {
-		zeroBytes(secret.callKey)
+	if material := s.materials[callID]; material != nil {
+		zeroMaterial(material)
 	}
-	delete(s.secrets, callID)
+	delete(s.materials, callID)
 	s.mu.Unlock()
 }
 
 func (s *session) clear() {
 	s.mu.Lock()
-	for callID, secret := range s.secrets {
-		if secret != nil {
-			zeroBytes(secret.callKey)
+	for callID, material := range s.materials {
+		if material != nil {
+			zeroMaterial(material)
 		}
-		delete(s.secrets, callID)
+		delete(s.materials, callID)
 	}
 	s.mu.Unlock()
 }
@@ -236,13 +311,49 @@ func (s *session) close() {
 	s.clear()
 }
 
+func relayDataFromNode(node *waBinary.Node) *core.RelayData {
+	if node == nil {
+		return nil
+	}
+
+	endpoints := signaling.ExtractRelayEndpoints(node)
+	parsed := signaling.ParseRelayFromAck(node)
+	if len(endpoints) == 0 {
+		endpoints = parsed.Relays
+	}
+	if len(endpoints) == 0 && parsed.UUID == "" && len(parsed.HBHKey) == 0 &&
+		len(parsed.ParticipantJIDs) == 0 && parsed.SelfPID == nil && parsed.PeerPID == nil {
+		return nil
+	}
+	return &core.RelayData{
+		Endpoints:       endpoints,
+		ParticipantJIDs: parsed.ParticipantJIDs,
+		UUID:            parsed.UUID,
+		SelfPID:         parsed.SelfPID,
+		PeerPID:         parsed.PeerPID,
+		HBHKey:          parsed.HBHKey,
+	}
+}
+
+func zeroMaterial(material *callMaterial) {
+	if material == nil {
+		return
+	}
+	zeroBytes(material.callKey)
+	core.ZeroRelayData(material.relayData)
+	material.callKey = nil
+	material.peer = types.JID{}
+	material.creator = types.JID{}
+	material.relayData = nil
+}
+
 func zeroBytes(value []byte) {
 	for index := range value {
 		value[index] = 0
 	}
 }
 
-// Registry stores one private incoming-call session per Evolution instance.
+// Registry stores one private call-negotiation session per Evolution instance.
 type Registry struct {
 	mu       sync.RWMutex
 	sessions map[string]*session
@@ -253,21 +364,27 @@ func NewRegistry() *Registry {
 }
 
 // Attach installs an isolated call handler on the same authenticated client used
-// by messaging. Reattaching the same pointer is idempotent.
-func (r *Registry) Attach(instanceID string, client *whatsmeow.Client) {
+// by messaging. Reattaching the same pointer is idempotent. prepareIncoming may
+// be disabled for instances configured to reject calls automatically.
+func (r *Registry) Attach(instanceID string, client *whatsmeow.Client, prepareIncoming ...bool) {
 	if instanceID == "" || client == nil {
 		return
+	}
+	enabled := true
+	if len(prepareIncoming) > 0 {
+		enabled = prepareIncoming[0]
 	}
 
 	r.mu.RLock()
 	current := r.sessions[instanceID]
 	if current != nil && current.usesClient(client) {
+		current.setPrepareIncoming(enabled)
 		r.mu.RUnlock()
 		return
 	}
 	r.mu.RUnlock()
 
-	candidate := newSession(client)
+	candidate := newSession(client, enabled)
 
 	r.mu.Lock()
 	previous := r.sessions[instanceID]
@@ -277,6 +394,27 @@ func (r *Registry) Attach(instanceID string, client *whatsmeow.Client) {
 	if previous != nil {
 		previous.close()
 	}
+}
+
+func (r *Registry) StoreOutgoing(instanceID, callID string, callKey []byte, peer, creator types.JID, video bool, relayData *core.RelayData) error {
+	r.mu.RLock()
+	s := r.sessions[instanceID]
+	r.mu.RUnlock()
+	if s == nil {
+		return fmt.Errorf("call runtime is not attached for instance %s", instanceID)
+	}
+	s.storeOutgoing(callID, callKey, peer, creator, video, relayData)
+	return nil
+}
+
+func (r *Registry) RelayData(instanceID, callID string) (*core.RelayData, bool) {
+	r.mu.RLock()
+	s := r.sessions[instanceID]
+	r.mu.RUnlock()
+	if s == nil {
+		return nil, false
+	}
+	return s.relayData(callID)
 }
 
 func (r *Registry) Accept(ctx context.Context, instanceID, callID string) error {
@@ -294,7 +432,7 @@ func (r *Registry) Terminate(ctx context.Context, instanceID, callID string) err
 	s := r.sessions[instanceID]
 	r.mu.RUnlock()
 	if s == nil {
-		return fmt.Errorf("incoming call runtime is not attached for instance %s", instanceID)
+		return fmt.Errorf("call runtime is not attached for instance %s", instanceID)
 	}
 	return s.terminate(ctx, callID)
 }
