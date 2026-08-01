@@ -50,7 +50,13 @@ import (
 	"github.com/evolution-foundation/evolution-go/pkg/utils"
 )
 
+type ClientLifecycle interface {
+	AttachClient(instanceID string, client *whatsmeow.Client, prepareIncoming bool)
+	DetachClient(instanceID string)
+}
+
 type WhatsmeowService interface {
+	SetClientLifecycle(lifecycle ClientLifecycle)
 	StartClient(clientData *ClientData)
 	ConnectOnStartup(clientName string)
 	StartInstance(instanceId string) error
@@ -97,6 +103,7 @@ type whatsmeowService struct {
 	natsProducer       producer_interfaces.Producer
 	loggerWrapper      *logger_wrapper.LoggerManager
 	passkeyCeremony    *ceremony.Store
+	clientLifecycle    ClientLifecycle
 }
 
 type MyClient struct {
@@ -172,6 +179,7 @@ type ProxyConfig struct {
 }
 
 func (w whatsmeowService) ReconnectClient(instanceId string) error {
+	w.detachCallClient(instanceId)
 	w.loggerWrapper.GetLogger(instanceId).LogInfo("[%s] Starting reconnection process - simulating restart", instanceId)
 
 	// Passo 1: Limpar conexão existente se houver
@@ -308,10 +316,11 @@ func (w whatsmeowService) StartClient(cd *ClientData) {
 	var deviceStore *store.Device
 	var err error
 
-	if w.clientPointer[cd.Instance.Id] != nil {
-		if w.clientPointer[cd.Instance.Id].IsConnected() {
+	if existing := w.clientPointer[cd.Instance.Id]; existing != nil {
+		if existing.IsConnected() {
 			return
 		}
+		w.detachCallClient(cd.Instance.Id)
 	}
 
 	var container *sqlstore.Container
@@ -501,6 +510,11 @@ func (w whatsmeowService) StartClient(cd *ClientData) {
 
 	// Armazena o MyClient no map para permitir atualizações posteriores
 	w.myClientPointer[cd.Instance.Id] = mycli
+
+	// Call monitoring starts with the WhatsApp client itself, before the
+	// connection can emit an incoming offer. Auto-reject instances keep only
+	// the public state tracker and do not decrypt/send preaccept.
+	w.attachCallClient(cd.Instance.Id, client, !cd.Instance.RejectCall)
 
 	if client.Store.ID != nil {
 		w.loggerWrapper.GetLogger(cd.Instance.Id).LogInfo("[%s] Already logged in with JID: %s", cd.Instance.Id, client.Store.ID.String())
@@ -2756,6 +2770,7 @@ func (w whatsmeowService) UpdateInstanceAdvancedSettings(instanceId string) erro
 }
 
 func (w whatsmeowService) ClearInstanceCache(instanceId string, token string) error {
+	w.detachCallClient(instanceId)
 	w.loggerWrapper.GetLogger(instanceId).LogInfo("[%s] Clearing instance cache - Token: %s", instanceId, token)
 
 	// Limpar userInfoCache

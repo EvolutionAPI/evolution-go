@@ -6,9 +6,9 @@ import (
 	"fmt"
 	"time"
 
+	call_lifecycle "github.com/evolution-foundation/evolution-go/pkg/call/lifecycle"
 	call_runtime "github.com/evolution-foundation/evolution-go/pkg/call/runtime"
 	call_driver "github.com/evolution-foundation/evolution-go/pkg/call/voip/driver"
-	call_incoming "github.com/evolution-foundation/evolution-go/pkg/call/voip/incoming"
 	instance_model "github.com/evolution-foundation/evolution-go/pkg/instance/model"
 	logger_wrapper "github.com/evolution-foundation/evolution-go/pkg/logger"
 	"github.com/evolution-foundation/evolution-go/pkg/utils"
@@ -32,8 +32,7 @@ type callService struct {
 	clientPointer    map[string]*whatsmeow.Client
 	whatsmeowService whatsmeow_service.WhatsmeowService
 	loggerWrapper    *logger_wrapper.LoggerManager
-	runtimeRegistry  *call_runtime.Registry
-	incomingRegistry *call_incoming.Registry
+	coordinator      *call_lifecycle.Coordinator
 }
 
 type StartCallStruct struct {
@@ -82,8 +81,7 @@ func (c *callService) ensureClientConnected(instanceID string) (*whatsmeow.Clien
 
 	// Calls and messaging share the same authenticated client. The public runtime
 	// tracks state while the private incoming registry holds non-serializable keys.
-	c.runtimeRegistry.Attach(instanceID, client)
-	c.incomingRegistry.Attach(instanceID, client)
+	c.coordinator.Attach(instanceID, client)
 
 	c.loggerWrapper.GetLogger(instanceID).LogInfo("[%s] Client successfully validated - Connected: %v", instanceID, client.IsConnected())
 	return client, nil
@@ -113,7 +111,7 @@ func (c *callService) StartCall(data *StartCallStruct, instance *instance_model.
 		return call_runtime.Call{}, err
 	}
 
-	runtime := c.runtimeRegistry.Attach(instance.Id, client)
+	runtime := c.coordinator.RuntimeFor(instance.Id, client)
 	video := data.Video
 	runtime.Transition(
 		callID,
@@ -134,7 +132,7 @@ func (c *callService) AcceptCall(callID string, instance *instance_model.Instanc
 		return call_runtime.Call{}, err
 	}
 
-	runtime := c.runtimeRegistry.Attach(instance.Id, client)
+	runtime := c.coordinator.RuntimeFor(instance.Id, client)
 	call, ok := runtime.Call(callID)
 	if !ok {
 		return call_runtime.Call{}, fmt.Errorf("call %s not found", callID)
@@ -148,7 +146,7 @@ func (c *callService) AcceptCall(callID string, instance *instance_model.Instanc
 
 	ctx, cancel := context.WithTimeout(context.Background(), signalingTimeout)
 	defer cancel()
-	if err := c.incomingRegistry.Accept(ctx, instance.Id, callID); err != nil {
+	if err := c.coordinator.AcceptIncoming(ctx, instance.Id, callID); err != nil {
 		return call_runtime.Call{}, err
 	}
 
@@ -164,7 +162,7 @@ func (c *callService) TerminateCall(callID string, instance *instance_model.Inst
 		return call_runtime.Call{}, err
 	}
 
-	runtime := c.runtimeRegistry.Attach(instance.Id, client)
+	runtime := c.coordinator.RuntimeFor(instance.Id, client)
 	call, ok := runtime.Call(callID)
 	if !ok {
 		return call_runtime.Call{}, fmt.Errorf("call %s not found", callID)
@@ -177,7 +175,7 @@ func (c *callService) TerminateCall(callID string, instance *instance_model.Inst
 	defer cancel()
 
 	if call.Direction == call_runtime.DirectionIncoming {
-		if err := c.incomingRegistry.Terminate(ctx, instance.Id, callID); err != nil {
+		if err := c.coordinator.TerminateIncoming(ctx, instance.Id, callID); err != nil {
 			return call_runtime.Call{}, err
 		}
 	} else {
@@ -206,8 +204,8 @@ func (c *callService) RejectCall(data *RejectCallStruct, instance *instance_mode
 		return err
 	}
 
-	c.incomingRegistry.Remove(instance.Id, data.CallID)
-	runtime := c.runtimeRegistry.Attach(instance.Id, client)
+	c.coordinator.RemoveIncoming(instance.Id, data.CallID)
+	runtime := c.coordinator.RuntimeFor(instance.Id, client)
 	runtime.Transition(data.CallID, data.CallCreator.String(), call_runtime.DirectionIncoming, call_runtime.StateEnded, nil, "rejected")
 	return nil
 }
@@ -218,7 +216,7 @@ func (c *callService) RuntimeStatus(instance *instance_model.Instance) (call_run
 		return call_runtime.Snapshot{InstanceID: instance.Id}, err
 	}
 
-	runtime := c.runtimeRegistry.Attach(instance.Id, client)
+	runtime := c.coordinator.RuntimeFor(instance.Id, client)
 	return runtime.Snapshot(), nil
 }
 
@@ -226,12 +224,15 @@ func NewCallService(
 	clientPointer map[string]*whatsmeow.Client,
 	whatsmeowService whatsmeow_service.WhatsmeowService,
 	loggerWrapper *logger_wrapper.LoggerManager,
+	coordinator *call_lifecycle.Coordinator,
 ) CallService {
+	if coordinator == nil {
+		coordinator = call_lifecycle.NewCoordinator()
+	}
 	return &callService{
 		clientPointer:    clientPointer,
 		whatsmeowService: whatsmeowService,
 		loggerWrapper:    loggerWrapper,
-		runtimeRegistry:  call_runtime.NewRegistry(),
-		incomingRegistry: call_incoming.NewRegistry(),
+		coordinator:      coordinator,
 	}
 }
