@@ -226,7 +226,7 @@ func (r *Routes) AssignRoutes(eng *gin.Engine) {
 	{
 		routes.Use(r.authMiddleware.Auth)
 		{
-			routes.POST("/chat", r.jidValidationMiddleware.ValidateNumberField(), r.chatHandler.ChatUnlabel)
+			routes.POST("/chat", r.jidValidationMiddleware.ValidateNumberField(), r.labelHandler.ChatUnlabel)
 			routes.POST("/message", r.labelHandler.MessageUnlabel)
 		}
 	}
