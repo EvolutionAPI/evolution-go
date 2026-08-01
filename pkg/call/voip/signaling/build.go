@@ -11,7 +11,10 @@ import (
 	"go.mau.fi/whatsmeow/types"
 )
 
-var capabilityOffer = []byte{0x01, 0x05, 0xf7, 0x09, 0xe4, 0xbb, 0x07}
+var (
+	capabilityOffer     = []byte{0x01, 0x05, 0xf7, 0x09, 0xe4, 0xbb, 0x07}
+	capabilityPreaccept = []byte{0x01, 0x05, 0xff, 0x09, 0xe4, 0xbb, 0x07}
+)
 
 func BuildOfferStanza(ctx context.Context, socket core.VoipSocket, callID string, callKey []byte, peer types.JID, video bool) (waBinary.Node, error) {
 	creator := socket.OwnLID()
@@ -83,6 +86,103 @@ func BuildOfferStanza(ctx context.Context, socket core.VoipSocket, callID string
 			Content: content,
 		}},
 	}, nil
+}
+
+// BuildPreacceptStanza acknowledges an incoming offer while the local user is
+// deciding whether to accept it.
+func BuildPreacceptStanza(peer types.JID, callID string, creator types.JID) waBinary.Node {
+	return waBinary.Node{
+		Tag:   "call",
+		Attrs: waBinary.Attrs{"to": peer, "id": GenerateCallStanzaID()},
+		Content: []waBinary.Node{{
+			Tag:   "preaccept",
+			Attrs: waBinary.Attrs{"call-id": callID, "call-creator": creator},
+			Content: []waBinary.Node{
+				{Tag: "audio", Attrs: waBinary.Attrs{"enc": "opus", "rate": "16000"}},
+				{Tag: "encopt", Attrs: waBinary.Attrs{"keygen": "2"}},
+				{Tag: "capability", Attrs: waBinary.Attrs{"ver": "1"}, Content: capabilityPreaccept},
+			},
+		}},
+	}
+}
+
+// BuildAcceptStanza encrypts the incoming call key back to the initiating
+// device and constructs the explicit call acceptance node.
+func BuildAcceptStanza(
+	ctx context.Context,
+	socket core.VoipSocket,
+	callID string,
+	callKey []byte,
+	peer types.JID,
+	creator types.JID,
+	video bool,
+) (waBinary.Node, error) {
+	if len(callKey) != 32 {
+		return waBinary.Node{}, fmt.Errorf("invalid call key length: %d", len(callKey))
+	}
+	if peer.IsEmpty() || creator.IsEmpty() {
+		return waBinary.Node{}, fmt.Errorf("peer and call creator are required")
+	}
+	if err := socket.AssertSessions(ctx, []types.JID{creator}, true); err != nil {
+		return waBinary.Node{}, fmt.Errorf("assert creator session: %w", err)
+	}
+
+	participants, includeIdentity, err := socket.CreateParticipantNodes(
+		ctx,
+		[]types.JID{creator},
+		callKey,
+		waBinary.Attrs{"count": "0"},
+	)
+	if err != nil {
+		return waBinary.Node{}, fmt.Errorf("encrypt accept key: %w", err)
+	}
+	encrypted := extractEncryptedNode(participants)
+	if encrypted == nil {
+		return waBinary.Node{}, fmt.Errorf("participant encryption did not produce an enc node")
+	}
+
+	content := []waBinary.Node{
+		{Tag: "audio", Attrs: waBinary.Attrs{"enc": "opus", "rate": "16000"}},
+		{Tag: "net", Attrs: waBinary.Attrs{"medium": "3"}},
+		*encrypted,
+		{Tag: "encopt", Attrs: waBinary.Attrs{"keygen": "2"}},
+	}
+	if includeIdentity {
+		if identity, ok := socket.AccountDeviceIdentityNode(); ok {
+			content = append(content, identity)
+		}
+	}
+	if video {
+		content = append(content, waBinary.Node{Tag: "video", Attrs: waBinary.Attrs{"enc": "vp8"}})
+	}
+
+	return waBinary.Node{
+		Tag: "call",
+		Attrs: waBinary.Attrs{
+			"to": wanode.MustJID(wanode.CleanJID(peer.String())),
+			"id": GenerateCallStanzaID(),
+		},
+		Content: []waBinary.Node{{
+			Tag:     "accept",
+			Attrs:   waBinary.Attrs{"call-id": callID, "call-creator": creator},
+			Content: content,
+		}},
+	}, nil
+}
+
+func extractEncryptedNode(nodes []waBinary.Node) *waBinary.Node {
+	for index := range nodes {
+		if nodes[index].Tag == "enc" {
+			return &nodes[index]
+		}
+		children := nodes[index].GetChildren()
+		for childIndex := range children {
+			if children[childIndex].Tag == "enc" {
+				return &children[childIndex]
+			}
+		}
+	}
+	return nil
 }
 
 func BuildTerminateStanza(peer types.JID, callID string, creator types.JID) waBinary.Node {
