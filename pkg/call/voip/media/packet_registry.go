@@ -24,6 +24,7 @@ type PacketSource interface {
 }
 
 type packetSession struct {
+	mu       sync.RWMutex
 	srtp     *SRTPSession
 	rtp      *RTPSession
 	selfSSRC uint32
@@ -47,7 +48,12 @@ func newPacketSession(sendKeying, receiveKeying core.SRTPKeyingMaterial, selfSSR
 }
 
 func (s *packetSession) protectOpus(payload []byte, durationSamples uint32, marker bool) ([]byte, error) {
-	if s == nil || s.srtp == nil || s.rtp == nil {
+	if s == nil {
+		return nil, ErrPacketSessionNotReady
+	}
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	if s.srtp == nil || s.rtp == nil {
 		return nil, ErrPacketSessionNotReady
 	}
 	packet := s.rtp.CreatePacketWithDuration(payload, durationSamples, marker)
@@ -56,7 +62,12 @@ func (s *packetSession) protectOpus(payload []byte, durationSamples uint32, mark
 }
 
 func (s *packetSession) unprotect(frame []byte) (*RTPPacket, error) {
-	if s == nil || s.srtp == nil {
+	if s == nil {
+		return nil, ErrPacketSessionNotReady
+	}
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	if s.srtp == nil {
 		return nil, ErrPacketSessionNotReady
 	}
 	packet, err := s.srtp.Unprotect(frame)
@@ -80,6 +91,8 @@ func (s *packetSession) close() {
 	if s == nil {
 		return
 	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	if s.srtp != nil {
 		s.srtp.Close()
 	}
