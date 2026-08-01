@@ -67,6 +67,8 @@ type JitterBuffer struct {
 	started            bool
 	highestSequence    uint64
 	nextSequence       uint64
+	lastTimestamp      uint32
+	hasTimestamp       bool
 	firstArrival       time.Time
 	consecutiveMissing int
 	closed             bool
@@ -235,6 +237,8 @@ func (b *JitterBuffer) dequeue(now time.Time) (JitterFrame, bool) {
 		}
 		packet.payload = nil
 		b.nextSequence++
+		b.lastTimestamp = frame.Timestamp
+		b.hasTimestamp = true
 		b.consecutiveMissing = 0
 		b.stats.Delivered++
 		return frame, true
@@ -243,6 +247,8 @@ func (b *JitterBuffer) dequeue(now time.Time) (JitterFrame, bool) {
 	sequence := uint16(b.nextSequence)
 	timestamp := b.estimatedTimestampLocked()
 	b.nextSequence++
+	b.lastTimestamp = timestamp
+	b.hasTimestamp = true
 	b.consecutiveMissing++
 	b.stats.Concealed++
 	frame := JitterFrame{SequenceNumber: sequence, Timestamp: timestamp, Concealed: true}
@@ -269,6 +275,8 @@ func (b *JitterBuffer) resynchronizeLocked() {
 		b.started = false
 		b.highestSequence = 0
 		b.nextSequence = 0
+		b.lastTimestamp = 0
+		b.hasTimestamp = false
 		b.firstArrival = time.Time{}
 		return
 	}
@@ -277,7 +285,9 @@ func (b *JitterBuffer) resynchronizeLocked() {
 
 func (b *JitterBuffer) extendSequenceLocked(sequence uint16) uint64 {
 	if !b.initialized {
-		return uint64(sequence)
+		// Start in epoch one so an out-of-order packet from the previous epoch can
+		// still be represented when sequence zero arrives before 65535.
+		return 1<<16 | uint64(sequence)
 	}
 	rollover := b.highestSequence >> 16
 	highestLow := uint16(b.highestSequence)
@@ -304,11 +314,11 @@ func (b *JitterBuffer) minimumSequenceLocked() uint64 {
 }
 
 func (b *JitterBuffer) estimatedTimestampLocked() uint32 {
+	if b.hasTimestamp {
+		return b.lastTimestamp + uint32(MLowFrameSize)
+	}
 	if next := b.packets[b.nextSequence+1]; next != nil {
 		return next.timestamp - uint32(MLowFrameSize)
-	}
-	if previous := b.packets[b.nextSequence-1]; previous != nil {
-		return previous.timestamp + uint32(MLowFrameSize)
 	}
 	return 0
 }
