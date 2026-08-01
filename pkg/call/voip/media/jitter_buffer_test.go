@@ -156,7 +156,6 @@ func TestJitterBufferRejectsDuplicateLateAndOverflow(t *testing.T) {
 
 func TestJitterBufferStopsAfterBoundedConcealment(t *testing.T) {
 	options := testJitterOptions()
-	options.InitialDelayPackets = 1
 	frames := make(chan JitterFrame, 8)
 	buffer := NewJitterBuffer(&options, func(frame JitterFrame) { frames <- frame })
 	defer buffer.Close()
@@ -164,15 +163,28 @@ func TestJitterBufferStopsAfterBoundedConcealment(t *testing.T) {
 	if err := buffer.Push(jitterPacket(40, 1000, 1)); err != nil {
 		t.Fatal(err)
 	}
-	got := readJitterFrames(t, frames, 3)
-	if got[0].Concealed || !got[1].Concealed || !got[2].Concealed {
-		t.Fatalf("unexpected concealment sequence: %+v", got)
+	if err := buffer.Push(jitterPacket(45, 5800, 5)); err != nil {
+		t.Fatal(err)
+	}
+	got := readJitterFrames(t, frames, 4)
+	if got[0].SequenceNumber != 40 || got[0].Concealed {
+		t.Fatalf("unexpected first frame: %+v", got[0])
+	}
+	if got[1].SequenceNumber != 41 || !got[1].Concealed || got[2].SequenceNumber != 42 || !got[2].Concealed {
+		t.Fatalf("concealment was not bounded: %+v", got)
+	}
+	if got[3].SequenceNumber != 45 || got[3].Concealed {
+		t.Fatalf("buffer did not resynchronize to future packet: %+v", got[3])
 	}
 
 	select {
 	case extra := <-frames:
 		t.Fatalf("unbounded concealment produced extra frame: %+v", extra)
 	case <-time.After(25 * time.Millisecond):
+	}
+	stats := buffer.Stats()
+	if stats.Delivered != 2 || stats.Concealed != 2 {
+		t.Fatalf("unexpected bounded-concealment stats: %+v", stats)
 	}
 }
 
