@@ -175,7 +175,7 @@ func (r *Runtime) Transition(callID, peer string, direction Direction, state Sta
 	if peer != "" {
 		call.Peer = peer
 	}
-	if direction != "" {
+	if direction != "" && call.Direction == "" {
 		call.Direction = direction
 	}
 	if state != "" {
@@ -277,7 +277,7 @@ func (r *Runtime) handleEvent(rawEvent interface{}) {
 		r.Transition(
 			event.CallID,
 			callPeer(event.CallCreator, event.From),
-			"",
+			DirectionOutgoing,
 			StateEnded,
 			nil,
 			"rejected",
