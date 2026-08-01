@@ -3,18 +3,25 @@ package call_service
 import (
 	"context"
 	"errors"
+	"fmt"
 	"time"
 
 	call_runtime "github.com/evolution-foundation/evolution-go/pkg/call/runtime"
+	call_driver "github.com/evolution-foundation/evolution-go/pkg/call/voip/driver"
 	instance_model "github.com/evolution-foundation/evolution-go/pkg/instance/model"
 	logger_wrapper "github.com/evolution-foundation/evolution-go/pkg/logger"
+	"github.com/evolution-foundation/evolution-go/pkg/utils"
 	whatsmeow_service "github.com/evolution-foundation/evolution-go/pkg/whatsmeow/service"
 	"github.com/gomessguii/logger"
 	"go.mau.fi/whatsmeow"
 	"go.mau.fi/whatsmeow/types"
 )
 
+const signalingTimeout = 30 * time.Second
+
 type CallService interface {
+	StartCall(data *StartCallStruct, instance *instance_model.Instance) (call_runtime.Call, error)
+	TerminateCall(callID string, instance *instance_model.Instance) (call_runtime.Call, error)
 	RejectCall(data *RejectCallStruct, instance *instance_model.Instance) error
 	RuntimeStatus(instance *instance_model.Instance) (call_runtime.Snapshot, error)
 }
@@ -26,52 +33,129 @@ type callService struct {
 	runtimeRegistry  *call_runtime.Registry
 }
 
-type RejectCallStruct struct {
-	CallCreator types.JID `json:"callCreator"`
-	CallID      string    `json:"callId"`
+type StartCallStruct struct {
+	Number string `json:"number" binding:"required"`
+	Video  bool   `json:"video"`
 }
 
-func (c *callService) ensureClientConnected(instanceId string) (*whatsmeow.Client, error) {
-	client := c.clientPointer[instanceId]
-	c.loggerWrapper.GetLogger(instanceId).LogInfo("[%s] Checking client connection status - Client exists: %v", instanceId, client != nil)
+type RejectCallStruct struct {
+	CallCreator types.JID `json:"callCreator"`
+	CallID      string    `json:"callId" binding:"required"`
+}
+
+func (c *callService) ensureClientConnected(instanceID string) (*whatsmeow.Client, error) {
+	client := c.clientPointer[instanceID]
+	c.loggerWrapper.GetLogger(instanceID).LogInfo("[%s] Checking client connection status - Client exists: %v", instanceID, client != nil)
 
 	if client == nil {
-		c.loggerWrapper.GetLogger(instanceId).LogInfo("[%s] No client found, attempting to start new instance", instanceId)
-		err := c.whatsmeowService.StartInstance(instanceId)
-		if err != nil {
-			c.loggerWrapper.GetLogger(instanceId).LogError("[%s] Failed to start instance: %v", instanceId, err)
+		c.loggerWrapper.GetLogger(instanceID).LogInfo("[%s] No client found, attempting to start new instance", instanceID)
+		if err := c.whatsmeowService.StartInstance(instanceID); err != nil {
+			c.loggerWrapper.GetLogger(instanceID).LogError("[%s] Failed to start instance: %v", instanceID, err)
 			return nil, errors.New("no active session found")
 		}
 
-		c.loggerWrapper.GetLogger(instanceId).LogInfo("[%s] Instance started, waiting 2 seconds...", instanceId)
+		c.loggerWrapper.GetLogger(instanceID).LogInfo("[%s] Instance started, waiting 2 seconds...", instanceID)
 		time.Sleep(2 * time.Second)
 
-		client = c.clientPointer[instanceId]
-		c.loggerWrapper.GetLogger(instanceId).LogInfo("[%s] Checking new client - Exists: %v, Connected: %v",
-			instanceId,
+		client = c.clientPointer[instanceID]
+		c.loggerWrapper.GetLogger(instanceID).LogInfo("[%s] Checking new client - Exists: %v, Connected: %v",
+			instanceID,
 			client != nil,
 			client != nil && client.IsConnected())
 
 		if client == nil || !client.IsConnected() {
-			c.loggerWrapper.GetLogger(instanceId).LogError("[%s] New client validation failed - Exists: %v, Connected: %v",
-				instanceId,
+			c.loggerWrapper.GetLogger(instanceID).LogError("[%s] New client validation failed - Exists: %v, Connected: %v",
+				instanceID,
 				client != nil,
 				client != nil && client.IsConnected())
 			return nil, errors.New("no active session found")
 		}
 	} else if !client.IsConnected() {
-		c.loggerWrapper.GetLogger(instanceId).LogError("[%s] Existing client is disconnected - Connected status: %v",
-			instanceId,
+		c.loggerWrapper.GetLogger(instanceID).LogError("[%s] Existing client is disconnected - Connected status: %v",
+			instanceID,
 			client.IsConnected())
 		return nil, errors.New("client disconnected")
 	}
 
-	// Calls and messaging must share the same authenticated client. Attach is
-	// idempotent and also replaces the pointer after an instance reconnects.
-	c.runtimeRegistry.Attach(instanceId, client)
+	// Calls and messaging share the same authenticated client. Attach also
+	// installs the isolated call event handler and replaces it after reconnects.
+	c.runtimeRegistry.Attach(instanceID, client)
 
-	c.loggerWrapper.GetLogger(instanceId).LogInfo("[%s] Client successfully validated - Connected: %v", instanceId, client.IsConnected())
+	c.loggerWrapper.GetLogger(instanceID).LogInfo("[%s] Client successfully validated - Connected: %v", instanceID, client.IsConnected())
 	return client, nil
+}
+
+func (c *callService) StartCall(data *StartCallStruct, instance *instance_model.Instance) (call_runtime.Call, error) {
+	client, err := c.ensureClientConnected(instance.Id)
+	if err != nil {
+		return call_runtime.Call{}, err
+	}
+
+	peer, ok := utils.ParseJID(data.Number)
+	if !ok {
+		return call_runtime.Call{}, fmt.Errorf("invalid WhatsApp number: %s", data.Number)
+	}
+	peer = utils.CanonicalJID(peer)
+	if peer.Server != types.DefaultUserServer && peer.Server != types.HiddenUserServer {
+		return call_runtime.Call{}, fmt.Errorf("calls only support individual WhatsApp users")
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), signalingTimeout)
+	defer cancel()
+
+	driver := call_driver.NewSignalingDriver(client)
+	callID, resolvedPeer, err := driver.Start(ctx, peer, data.Video)
+	if err != nil {
+		return call_runtime.Call{}, err
+	}
+
+	runtime := c.runtimeRegistry.Attach(instance.Id, client)
+	video := data.Video
+	runtime.Transition(
+		callID,
+		resolvedPeer.String(),
+		call_runtime.DirectionOutgoing,
+		call_runtime.StateRinging,
+		&video,
+		"",
+	)
+	call, _ := runtime.Call(callID)
+	c.loggerWrapper.GetLogger(instance.Id).LogInfo("[%s] Call offer sent - CallID: %s, Peer: %s, Video: %v", instance.Id, callID, resolvedPeer.String(), data.Video)
+	return call, nil
+}
+
+func (c *callService) TerminateCall(callID string, instance *instance_model.Instance) (call_runtime.Call, error) {
+	client, err := c.ensureClientConnected(instance.Id)
+	if err != nil {
+		return call_runtime.Call{}, err
+	}
+
+	runtime := c.runtimeRegistry.Attach(instance.Id, client)
+	call, ok := runtime.Call(callID)
+	if !ok {
+		return call_runtime.Call{}, fmt.Errorf("call %s not found", callID)
+	}
+	if call.State == call_runtime.StateEnded || call.State == call_runtime.StateFailed {
+		return call, nil
+	}
+	if call.Direction != call_runtime.DirectionOutgoing {
+		return call_runtime.Call{}, fmt.Errorf("terminating incoming calls will be enabled with the full CallManager port")
+	}
+
+	peer, err := types.ParseJID(call.Peer)
+	if err != nil || peer.IsEmpty() {
+		return call_runtime.Call{}, fmt.Errorf("invalid call peer: %s", call.Peer)
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), signalingTimeout)
+	defer cancel()
+	if err := call_driver.NewSignalingDriver(client).EndOutgoing(ctx, callID, peer); err != nil {
+		return call_runtime.Call{}, err
+	}
+
+	runtime.Transition(callID, "", "", call_runtime.StateEnded, nil, "user_ended")
+	call, _ = runtime.Call(callID)
+	return call, nil
 }
 
 func (c *callService) RejectCall(data *RejectCallStruct, instance *instance_model.Instance) error {
@@ -80,12 +164,13 @@ func (c *callService) RejectCall(data *RejectCallStruct, instance *instance_mode
 		return err
 	}
 
-	err = client.RejectCall(context.Background(), data.CallCreator, data.CallID)
-	if err != nil {
+	if err = client.RejectCall(context.Background(), data.CallCreator, data.CallID); err != nil {
 		logger.LogError("[%s] error reject call: %v", instance.Id, err)
 		return err
 	}
 
+	runtime := c.runtimeRegistry.Attach(instance.Id, client)
+	runtime.Transition(data.CallID, data.CallCreator.String(), call_runtime.DirectionIncoming, call_runtime.StateEnded, nil, "rejected")
 	return nil
 }
 
