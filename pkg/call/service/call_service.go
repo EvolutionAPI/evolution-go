@@ -5,6 +5,7 @@ import (
 	"errors"
 	"time"
 
+	call_runtime "github.com/evolution-foundation/evolution-go/pkg/call/runtime"
 	instance_model "github.com/evolution-foundation/evolution-go/pkg/instance/model"
 	logger_wrapper "github.com/evolution-foundation/evolution-go/pkg/logger"
 	whatsmeow_service "github.com/evolution-foundation/evolution-go/pkg/whatsmeow/service"
@@ -15,12 +16,14 @@ import (
 
 type CallService interface {
 	RejectCall(data *RejectCallStruct, instance *instance_model.Instance) error
+	RuntimeStatus(instance *instance_model.Instance) (call_runtime.Snapshot, error)
 }
 
 type callService struct {
 	clientPointer    map[string]*whatsmeow.Client
 	whatsmeowService whatsmeow_service.WhatsmeowService
 	loggerWrapper    *logger_wrapper.LoggerManager
+	runtimeRegistry  *call_runtime.Registry
 }
 
 type RejectCallStruct struct {
@@ -63,6 +66,10 @@ func (c *callService) ensureClientConnected(instanceId string) (*whatsmeow.Clien
 		return nil, errors.New("client disconnected")
 	}
 
+	// Calls and messaging must share the same authenticated client. Attach is
+	// idempotent and also replaces the pointer after an instance reconnects.
+	c.runtimeRegistry.Attach(instanceId, client)
+
 	c.loggerWrapper.GetLogger(instanceId).LogInfo("[%s] Client successfully validated - Connected: %v", instanceId, client.IsConnected())
 	return client, nil
 }
@@ -82,6 +89,16 @@ func (c *callService) RejectCall(data *RejectCallStruct, instance *instance_mode
 	return nil
 }
 
+func (c *callService) RuntimeStatus(instance *instance_model.Instance) (call_runtime.Snapshot, error) {
+	client, err := c.ensureClientConnected(instance.Id)
+	if err != nil {
+		return call_runtime.Snapshot{InstanceID: instance.Id}, err
+	}
+
+	runtime := c.runtimeRegistry.Attach(instance.Id, client)
+	return runtime.Snapshot(), nil
+}
+
 func NewCallService(
 	clientPointer map[string]*whatsmeow.Client,
 	whatsmeowService whatsmeow_service.WhatsmeowService,
@@ -91,5 +108,6 @@ func NewCallService(
 		clientPointer:    clientPointer,
 		whatsmeowService: whatsmeowService,
 		loggerWrapper:    loggerWrapper,
+		runtimeRegistry:  call_runtime.NewRegistry(),
 	}
 }
