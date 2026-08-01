@@ -96,7 +96,7 @@ func TestRuntimeTracksWhatsmeowCallLifecycle(t *testing.T) {
 		BasicCallMeta: types.BasicCallMeta{
 			From:        creator,
 			CallCreator: creator,
-			CallID:     "call-1",
+			CallID:      "call-1",
 		},
 		Data: &waBinary.Node{
 			Tag: "offer",
@@ -121,13 +121,13 @@ func TestRuntimeTracksWhatsmeowCallLifecycle(t *testing.T) {
 		BasicCallMeta: types.BasicCallMeta{
 			From:        creator,
 			CallCreator: creator,
-			CallID:     "call-1",
+			CallID:      "call-1",
 		},
 	})
 
 	call, _ = runtime.Call("call-1")
-	if call.State != StateActive {
-		t.Fatalf("expected active state, got %s", call.State)
+	if call.State != StateConnecting {
+		t.Fatalf("expected connecting state before media, got %s", call.State)
 	}
 	if call.Direction != DirectionIncoming {
 		t.Fatalf("incoming direction must be preserved, got %s", call.Direction)
@@ -137,7 +137,7 @@ func TestRuntimeTracksWhatsmeowCallLifecycle(t *testing.T) {
 		BasicCallMeta: types.BasicCallMeta{
 			From:        creator,
 			CallCreator: creator,
-			CallID:     "call-1",
+			CallID:      "call-1",
 		},
 		Reason: "peer_hangup",
 	})

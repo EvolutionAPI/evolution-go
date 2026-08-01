@@ -87,10 +87,10 @@ func (s *relaySession) handleEvent(rawEvent interface{}) {
 	case *events.CallAccept:
 		_ = s.source.EnsureRemoteAccepted(s.instanceID, event.CallID)
 		s.source.CaptureRelayNode(s.instanceID, event.CallID, event.Data)
-		go s.start(event.CallID)
+		go s.startLogged(event.CallID)
 	case *events.CallTransport:
 		s.source.CaptureRelayNode(s.instanceID, event.CallID, event.Data)
-		go s.start(event.CallID)
+		go s.startLogged(event.CallID)
 	case *events.CallReject:
 		s.remove(event.CallID)
 	case *events.CallTerminate:
@@ -99,6 +99,12 @@ func (s *relaySession) handleEvent(rawEvent interface{}) {
 		s.cleanup()
 	case *events.LoggedOut:
 		s.cleanup()
+	}
+}
+
+func (s *relaySession) startLogged(callID string) {
+	if err := s.start(callID); err != nil {
+		s.log.Warn("WhatsApp relay setup failed", "instance", s.instanceID, "call_id", callID, "err", err)
 	}
 }
 
@@ -131,7 +137,6 @@ func (s *relaySession) start(callID string) error {
 	if relay == nil {
 		relay = s.factory(s.log)
 		s.transports[callID] = relay
-		relay.SetOnConnected(func(_, _ int) {})
 	}
 	s.mu.Unlock()
 	defer func() {
@@ -165,13 +170,19 @@ func (s *relaySession) start(callID string) error {
 			s.log.Debug("ignore stale relay connection callback", "instance", s.instanceID, "call_id", callID, "err", err)
 			return
 		}
-		if s.onConnected != nil {
-			s.onConnected(s.instanceID, callID)
+		s.mu.Lock()
+		callback := s.onConnected
+		s.mu.Unlock()
+		if callback != nil {
+			callback(s.instanceID, callID)
 		}
 	})
 	relay.SetOnReceive(func(packet []byte) {
-		if s.onPacket != nil {
-			s.onPacket(s.instanceID, callID, append([]byte(nil), packet...))
+		s.mu.Lock()
+		callback := s.onPacket
+		s.mu.Unlock()
+		if callback != nil {
+			callback(s.instanceID, callID, append([]byte(nil), packet...))
 		}
 	})
 
@@ -313,7 +324,11 @@ func (r *RelayRegistry) Start(instanceID, callID string) error {
 	if session == nil {
 		return fmt.Errorf("relay runtime is not attached for instance %s", instanceID)
 	}
-	return session.start(callID)
+	err := session.start(callID)
+	if err != nil {
+		r.log.Warn("WhatsApp relay setup failed", "instance", instanceID, "call_id", callID, "err", err)
+	}
+	return err
 }
 
 func (r *RelayRegistry) Remove(instanceID, callID string) {

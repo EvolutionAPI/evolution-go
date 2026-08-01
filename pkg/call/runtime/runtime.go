@@ -260,7 +260,7 @@ func (r *Runtime) handleEvent(rawEvent interface{}) {
 			event.CallID,
 			callPeer(event.CallCreator, event.From),
 			DirectionOutgoing,
-			StateActive,
+			StateConnecting,
 			nil,
 			"",
 		)

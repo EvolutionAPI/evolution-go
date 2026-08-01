@@ -58,11 +58,11 @@ type fakeRelayTransport struct {
 	cleaned          bool
 }
 
-func (f *fakeRelayTransport) SetSSRC(ssrc uint32)                         { f.ssrc = ssrc }
-func (f *fakeRelayTransport) SetSubscriptionSSRC(ssrc uint32)             { f.subscriptionSSRC = ssrc }
-func (f *fakeRelayTransport) SetOnConnected(callback func(string, int))   { f.onConnected = callback }
-func (f *fakeRelayTransport) SetOnReceive(callback func([]byte))          { f.onReceive = callback }
-func (f *fakeRelayTransport) ResendSubscriptions()                        {}
+func (f *fakeRelayTransport) SetSSRC(ssrc uint32)                       { f.ssrc = ssrc }
+func (f *fakeRelayTransport) SetSubscriptionSSRC(ssrc uint32)           { f.subscriptionSSRC = ssrc }
+func (f *fakeRelayTransport) SetOnConnected(callback func(string, int)) { f.onConnected = callback }
+func (f *fakeRelayTransport) SetOnReceive(callback func([]byte))        { f.onReceive = callback }
+func (f *fakeRelayTransport) ResendSubscriptions()                      {}
 func (f *fakeRelayTransport) ConfigureRelays(configs []call_transport.RelayConfig) error {
 	f.configs = append([]call_transport.RelayConfig(nil), configs...)
 	return f.configureErr
@@ -182,7 +182,7 @@ func TestRelaySessionReturnsRealConfigurationErrors(t *testing.T) {
 	session := &relaySession{
 		instanceID: "instance-1", source: source,
 		factory: func(*slog.Logger) call_transport.RelayTransport { return &fakeRelayTransport{configureErr: expected} },
-		log: slog.Default(), transports: make(map[string]call_transport.RelayTransport), configuring: make(map[string]bool),
+		log:     slog.Default(), transports: make(map[string]call_transport.RelayTransport), configuring: make(map[string]bool),
 		ownJID: func() types.JID { return types.NewJID("5511999999999", types.DefaultUserServer) },
 	}
 	if err := session.start("call-3"); !errors.Is(err, expected) {

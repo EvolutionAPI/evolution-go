@@ -129,7 +129,8 @@ func (c *Coordinator) AcceptIncoming(ctx context.Context, instanceID, callID str
 	if err := c.incoming.Accept(ctx, instanceID, callID); err != nil {
 		return err
 	}
-	return c.relays.Start(instanceID, callID)
+	go func() { _ = c.relays.Start(instanceID, callID) }()
+	return nil
 }
 
 func (c *Coordinator) TerminateIncoming(ctx context.Context, instanceID, callID string) error {
