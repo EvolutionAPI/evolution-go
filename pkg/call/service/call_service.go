@@ -8,6 +8,7 @@ import (
 
 	call_lifecycle "github.com/evolution-foundation/evolution-go/pkg/call/lifecycle"
 	call_runtime "github.com/evolution-foundation/evolution-go/pkg/call/runtime"
+	call_browser "github.com/evolution-foundation/evolution-go/pkg/call/voip/browser"
 	call_driver "github.com/evolution-foundation/evolution-go/pkg/call/voip/driver"
 	instance_model "github.com/evolution-foundation/evolution-go/pkg/instance/model"
 	logger_wrapper "github.com/evolution-foundation/evolution-go/pkg/logger"
@@ -20,12 +21,17 @@ import (
 
 const signalingTimeout = 30 * time.Second
 
+var ErrCallNotActive = errors.New("call media is not active")
+
 type CallService interface {
 	StartCall(data *StartCallStruct, instance *instance_model.Instance) (call_runtime.Call, error)
 	AcceptCall(callID string, instance *instance_model.Instance) (call_runtime.Call, error)
 	TerminateCall(callID string, instance *instance_model.Instance) (call_runtime.Call, error)
 	RejectCall(data *RejectCallStruct, instance *instance_model.Instance) error
 	RuntimeStatus(instance *instance_model.Instance) (call_runtime.Snapshot, error)
+	CreateWebRTC(ctx context.Context, callID string, request call_browser.CreateRequest, instance *instance_model.Instance) (call_browser.CreateResponse, error)
+	WebRTCSessions(callID string, instance *instance_model.Instance) ([]call_browser.SessionInfo, error)
+	CloseWebRTC(callID, sessionID string, instance *instance_model.Instance) error
 }
 
 type callService struct {
@@ -33,6 +39,7 @@ type callService struct {
 	whatsmeowService whatsmeow_service.WhatsmeowService
 	loggerWrapper    *logger_wrapper.LoggerManager
 	coordinator      *call_lifecycle.Coordinator
+	browser          call_browser.Manager
 }
 
 type StartCallStruct struct {
@@ -245,6 +252,36 @@ func (c *callService) RuntimeStatus(instance *instance_model.Instance) (call_run
 	return runtime.Snapshot(), nil
 }
 
+func (c *callService) CreateWebRTC(ctx context.Context, callID string, request call_browser.CreateRequest, instance *instance_model.Instance) (call_browser.CreateResponse, error) {
+	client, err := c.ensureClientConnected(instance.Id)
+	if err != nil {
+		return call_browser.CreateResponse{}, err
+	}
+	runtime := c.coordinator.RuntimeFor(instance.Id, client)
+	call, ok := runtime.Call(callID)
+	if !ok {
+		return call_browser.CreateResponse{}, fmt.Errorf("call %s not found", callID)
+	}
+	if call.State != call_runtime.StateActive {
+		return call_browser.CreateResponse{}, fmt.Errorf("%w: call %s is %s", ErrCallNotActive, callID, call.State)
+	}
+	return c.browser.Create(ctx, instance.Id, callID, request)
+}
+
+func (c *callService) WebRTCSessions(callID string, instance *instance_model.Instance) ([]call_browser.SessionInfo, error) {
+	if callID == "" {
+		return nil, fmt.Errorf("callId is required")
+	}
+	return c.browser.Sessions(instance.Id, callID)
+}
+
+func (c *callService) CloseWebRTC(callID, sessionID string, instance *instance_model.Instance) error {
+	if callID == "" || sessionID == "" {
+		return call_browser.ErrSessionNotFound
+	}
+	return c.browser.CloseSession(instance.Id, callID, sessionID)
+}
+
 func NewCallService(
 	clientPointer map[string]*whatsmeow.Client,
 	whatsmeowService whatsmeow_service.WhatsmeowService,
@@ -254,10 +291,14 @@ func NewCallService(
 	if coordinator == nil {
 		coordinator = call_lifecycle.NewCoordinator()
 	}
-	return &callService{
+	service := &callService{
 		clientPointer:    clientPointer,
 		whatsmeowService: whatsmeowService,
 		loggerWrapper:    loggerWrapper,
 		coordinator:      coordinator,
 	}
+	service.browser = call_browser.NewManager(coordinator.FeedPCM)
+	coordinator.SetBrowserPCM(service.browser.HandlePCM)
+	coordinator.SetMediaCleanupHooks(service.browser.CloseCall, service.browser.CloseInstance)
+	return service
 }
