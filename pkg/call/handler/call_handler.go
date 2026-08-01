@@ -10,6 +10,7 @@ import (
 
 type CallHandler interface {
 	RejectCall(ctx *gin.Context)
+	Status(ctx *gin.Context)
 }
 
 type callHandler struct {
@@ -49,6 +50,32 @@ func (g *callHandler) RejectCall(ctx *gin.Context) {
 	}
 
 	ctx.JSON(http.StatusOK, gin.H{"message": "success"})
+}
+
+// Runtime status
+// @Summary Get VoIP runtime status
+// @Description Returns the VoIP runtime attached to the authenticated Evolution instance
+// @Tags Call
+// @Produce json
+// @Success 200 {object} call_runtime.Snapshot
+// @Failure 500 {object} gin.H "Internal server error"
+// @Router /call/status [get]
+func (g *callHandler) Status(ctx *gin.Context) {
+	getInstance := ctx.MustGet("instance")
+
+	instance, ok := getInstance.(*instance_model.Instance)
+	if !ok {
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "instance not found"})
+		return
+	}
+
+	status, err := g.callService.RuntimeStatus(instance)
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	ctx.JSON(http.StatusOK, status)
 }
 
 func NewCallHandler(
