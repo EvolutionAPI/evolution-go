@@ -1,0 +1,335 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Evolution Go — chamada WebRTC PCM</title>
+  <style>
+    :root { color-scheme: light dark; font-family: system-ui, sans-serif; }
+    body { max-width: 760px; margin: 2rem auto; padding: 0 1rem; }
+    form, fieldset { display: grid; gap: .75rem; }
+    label { display: grid; gap: .25rem; }
+    input, button { font: inherit; padding: .65rem; }
+    .actions { display: flex; gap: .75rem; flex-wrap: wrap; }
+    pre { min-height: 12rem; max-height: 24rem; overflow: auto; padding: 1rem; background: CanvasText; color: Canvas; }
+    .warning { border-left: .3rem solid currentColor; padding-left: .8rem; }
+  </style>
+</head>
+<body>
+  <h1>Chamada WebRTC PCM</h1>
+  <p class="warning">Exemplo experimental. Use HTTPS ou localhost para liberar o microfone. A chamada do WhatsApp precisa estar no estado <code>active</code> e o servidor deve ser compilado com <code>-tags=voip_pion</code>.</p>
+
+  <form id="config">
+    <label>URL do Evolution
+      <input id="baseUrl" value="http://localhost:8080" required>
+    </label>
+    <label>API key da instância
+      <input id="apiKey" type="password" autocomplete="off" required>
+    </label>
+    <label>Call ID
+      <input id="callId" required>
+    </label>
+    <div class="actions">
+      <button id="connect" type="submit">Conectar áudio</button>
+      <button id="disconnect" type="button" disabled>Desconectar</button>
+      <button id="mute" type="button" disabled>Silenciar microfone</button>
+    </div>
+  </form>
+
+  <h2>Estado</h2>
+  <pre id="log"></pre>
+
+<script type="module">
+const DATA_CHANNEL_LABEL = "evolution-call-pcm";
+const DATA_CHANNEL_PROTOCOL = "evcall.pcm.v1";
+const PCM_RATE = 16000;
+const PCM_FRAME_SAMPLES = 960;
+const MAX_BUFFERED_AMOUNT = 256 * 1024;
+const HEADER_BYTES = 16;
+
+const fields = {
+  form: document.querySelector("#config"),
+  baseUrl: document.querySelector("#baseUrl"),
+  apiKey: document.querySelector("#apiKey"),
+  callId: document.querySelector("#callId"),
+  connect: document.querySelector("#connect"),
+  disconnect: document.querySelector("#disconnect"),
+  mute: document.querySelector("#mute"),
+  log: document.querySelector("#log"),
+};
+
+let peer = null;
+let channel = null;
+let sessionId = "";
+let audioContext = null;
+let microphoneStream = null;
+let captureNode = null;
+let playbackNode = null;
+let captureResampler = null;
+let playbackResampler = null;
+let capturePending = new Float32Array(0);
+let muted = false;
+let sentFrames = 0;
+let receivedFrames = 0;
+let droppedFrames = 0;
+
+function log(message, value) {
+  const suffix = value === undefined ? "" : ` ${typeof value === "string" ? value : JSON.stringify(value)}`;
+  fields.log.textContent += `[${new Date().toLocaleTimeString()}] ${message}${suffix}\n`;
+  fields.log.scrollTop = fields.log.scrollHeight;
+}
+
+class StreamingLinearResampler {
+  constructor(inputRate, outputRate) {
+    this.step = inputRate / outputRate;
+    this.position = 0;
+    this.carry = new Float32Array(0);
+  }
+
+  push(input) {
+    if (!(input instanceof Float32Array) || input.length === 0) return new Float32Array(0);
+    const data = new Float32Array(this.carry.length + input.length);
+    data.set(this.carry);
+    data.set(input, this.carry.length);
+    const output = [];
+    let position = this.position;
+    while (position + 1 < data.length) {
+      const left = Math.floor(position);
+      const fraction = position - left;
+      output.push(data[left] + (data[left + 1] - data[left]) * fraction);
+      position += this.step;
+    }
+    const consumed = Math.floor(position);
+    this.carry = data.slice(Math.min(consumed, data.length));
+    this.position = position - consumed;
+    return Float32Array.from(output);
+  }
+}
+
+function encodePCM(samples) {
+  const buffer = new ArrayBuffer(HEADER_BYTES + samples.length * 4);
+  const bytes = new Uint8Array(buffer);
+  bytes.set([0x45, 0x56, 0x50, 0x43], 0); // EVPC
+  const view = new DataView(buffer);
+  view.setUint8(4, 1);
+  view.setUint8(5, 1);
+  view.setUint16(6, 0, true);
+  view.setUint32(8, PCM_RATE, true);
+  view.setUint32(12, samples.length, true);
+  for (let index = 0; index < samples.length; index++) {
+    const sample = Number.isFinite(samples[index]) ? Math.max(-1, Math.min(1, samples[index])) : 0;
+    view.setFloat32(HEADER_BYTES + index * 4, sample, true);
+  }
+  return buffer;
+}
+
+function decodePCM(buffer) {
+  if (!(buffer instanceof ArrayBuffer) || buffer.byteLength < HEADER_BYTES) throw new Error("frame PCM truncado");
+  const bytes = new Uint8Array(buffer, 0, 4);
+  if (bytes[0] !== 0x45 || bytes[1] !== 0x56 || bytes[2] !== 0x50 || bytes[3] !== 0x43) throw new Error("magic PCM inválido");
+  const view = new DataView(buffer);
+  if (view.getUint8(4) !== 1 || view.getUint8(5) !== 1 || view.getUint16(6, true) !== 0) throw new Error("versão PCM incompatível");
+  if (view.getUint32(8, true) !== PCM_RATE) throw new Error("sample rate PCM incompatível");
+  const count = view.getUint32(12, true);
+  if (!count || count > PCM_FRAME_SAMPLES * 4 || buffer.byteLength !== HEADER_BYTES + count * 4) throw new Error("tamanho PCM inválido");
+  const output = new Float32Array(count);
+  for (let index = 0; index < count; index++) output[index] = view.getFloat32(HEADER_BYTES + index * 4, true);
+  return output;
+}
+
+async function installAudioWorklet(context) {
+  const source = `
+    class EvolutionPCMProcessor extends AudioWorkletProcessor {
+      constructor(options) {
+        super();
+        this.mode = options.processorOptions.mode;
+        this.queue = [];
+        this.offset = 0;
+        this.port.onmessage = event => {
+          if (this.mode === 'playback' && event.data instanceof Float32Array) this.queue.push(event.data);
+        };
+      }
+      process(inputs, outputs) {
+        if (this.mode === 'capture') {
+          const input = inputs[0] && inputs[0][0];
+          if (input && input.length) this.port.postMessage(new Float32Array(input));
+        } else {
+          const output = outputs[0] && outputs[0][0];
+          if (output) {
+            output.fill(0);
+            let written = 0;
+            while (written < output.length && this.queue.length) {
+              const chunk = this.queue[0];
+              const count = Math.min(output.length - written, chunk.length - this.offset);
+              output.set(chunk.subarray(this.offset, this.offset + count), written);
+              written += count;
+              this.offset += count;
+              if (this.offset >= chunk.length) { this.queue.shift(); this.offset = 0; }
+            }
+          }
+        }
+        return true;
+      }
+    }
+    registerProcessor('evolution-pcm', EvolutionPCMProcessor);
+  `;
+  const url = URL.createObjectURL(new Blob([source], { type: "text/javascript" }));
+  try { await context.audioWorklet.addModule(url); } finally { URL.revokeObjectURL(url); }
+}
+
+function gatherComplete(connection) {
+  if (connection.iceGatheringState === "complete") return Promise.resolve();
+  return new Promise((resolve, reject) => {
+    const timeout = setTimeout(() => reject(new Error("timeout ao coletar ICE")), 15000);
+    const listener = () => {
+      if (connection.iceGatheringState === "complete") {
+        clearTimeout(timeout);
+        connection.removeEventListener("icegatheringstatechange", listener);
+        resolve();
+      }
+    };
+    connection.addEventListener("icegatheringstatechange", listener);
+  });
+}
+
+function appendCapture(samples) {
+  const joined = new Float32Array(capturePending.length + samples.length);
+  joined.set(capturePending);
+  joined.set(samples, capturePending.length);
+  let offset = 0;
+  while (joined.length - offset >= PCM_FRAME_SAMPLES) {
+    const frame = joined.slice(offset, offset + PCM_FRAME_SAMPLES);
+    offset += PCM_FRAME_SAMPLES;
+    if (!muted && channel?.readyState === "open" && channel.bufferedAmount <= MAX_BUFFERED_AMOUNT) {
+      channel.send(encodePCM(frame));
+      sentFrames++;
+    } else if (!muted) {
+      droppedFrames++;
+    }
+  }
+  capturePending = joined.slice(offset);
+}
+
+async function startAudio() {
+  audioContext = new AudioContext({ latencyHint: "interactive" });
+  await installAudioWorklet(audioContext);
+  await audioContext.resume();
+  captureResampler = new StreamingLinearResampler(audioContext.sampleRate, PCM_RATE);
+  playbackResampler = new StreamingLinearResampler(PCM_RATE, audioContext.sampleRate);
+
+  playbackNode = new AudioWorkletNode(audioContext, "evolution-pcm", {
+    numberOfInputs: 0,
+    numberOfOutputs: 1,
+    outputChannelCount: [1],
+    processorOptions: { mode: "playback" },
+  });
+  playbackNode.connect(audioContext.destination);
+
+  microphoneStream = await navigator.mediaDevices.getUserMedia({
+    audio: { channelCount: 1, echoCancellation: true, noiseSuppression: true, autoGainControl: true },
+    video: false,
+  });
+  const source = audioContext.createMediaStreamSource(microphoneStream);
+  captureNode = new AudioWorkletNode(audioContext, "evolution-pcm", {
+    numberOfInputs: 1,
+    numberOfOutputs: 0,
+    processorOptions: { mode: "capture" },
+  });
+  captureNode.port.onmessage = event => appendCapture(captureResampler.push(event.data));
+  source.connect(captureNode);
+  log("Microfone e reprodução iniciados", { contextRate: audioContext.sampleRate });
+}
+
+async function connect(event) {
+  event.preventDefault();
+  fields.connect.disabled = true;
+  try {
+    const baseUrl = fields.baseUrl.value.replace(/\/$/, "");
+    const callId = encodeURIComponent(fields.callId.value.trim());
+    peer = new RTCPeerConnection({ iceServers: [] });
+    channel = peer.createDataChannel(DATA_CHANNEL_LABEL, { ordered: true, protocol: DATA_CHANNEL_PROTOCOL });
+    channel.binaryType = "arraybuffer";
+    channel.bufferedAmountLowThreshold = MAX_BUFFERED_AMOUNT / 2;
+    channel.onopen = async () => {
+      log("DataChannel aberto");
+      try { await startAudio(); } catch (error) { log("Falha ao iniciar áudio", error.message); await disconnect(); }
+    };
+    channel.onclose = () => log("DataChannel fechado");
+    channel.onerror = error => log("Erro no DataChannel", error.message || String(error));
+    channel.onmessage = event => {
+      try {
+        const pcm16k = decodePCM(event.data);
+        const playback = playbackResampler.push(pcm16k);
+        if (playback.length) playbackNode?.port.postMessage(playback, [playback.buffer]);
+        receivedFrames++;
+      } catch (error) {
+        droppedFrames++;
+        log("Frame recebido rejeitado", error.message);
+      }
+    };
+    peer.onconnectionstatechange = () => log("PeerConnection", peer.connectionState);
+
+    await peer.setLocalDescription(await peer.createOffer());
+    await gatherComplete(peer);
+    const response = await fetch(`${baseUrl}/call/${callId}/webrtc`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", apikey: fields.apiKey.value },
+      body: JSON.stringify({ offer: { type: "offer", sdp: peer.localDescription.sdp } }),
+    });
+    const body = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(body.error || `HTTP ${response.status}`);
+    sessionId = body.sessionId;
+    await peer.setRemoteDescription(body.answer);
+    fields.disconnect.disabled = false;
+    fields.mute.disabled = false;
+    log("SDP conectado", { sessionId, audio: body.audio });
+  } catch (error) {
+    log("Falha ao conectar", error.message);
+    await disconnect();
+  } finally {
+    fields.connect.disabled = false;
+  }
+}
+
+async function disconnect() {
+  const baseUrl = fields.baseUrl.value.replace(/\/$/, "");
+  const callId = encodeURIComponent(fields.callId.value.trim());
+  const closingSession = sessionId;
+  sessionId = "";
+
+  microphoneStream?.getTracks().forEach(track => track.stop());
+  microphoneStream = null;
+  captureNode?.disconnect();
+  playbackNode?.disconnect();
+  captureNode = null;
+  playbackNode = null;
+  if (audioContext) await audioContext.close().catch(() => {});
+  audioContext = null;
+  channel?.close();
+  peer?.close();
+  channel = null;
+  peer = null;
+  capturePending = new Float32Array(0);
+
+  if (closingSession && callId) {
+    await fetch(`${baseUrl}/call/${callId}/webrtc/${encodeURIComponent(closingSession)}`, {
+      method: "DELETE",
+      headers: { apikey: fields.apiKey.value },
+    }).catch(() => {});
+  }
+  fields.disconnect.disabled = true;
+  fields.mute.disabled = true;
+  log("Áudio desconectado", { sentFrames, receivedFrames, droppedFrames });
+}
+
+fields.form.addEventListener("submit", connect);
+fields.disconnect.addEventListener("click", disconnect);
+fields.mute.addEventListener("click", () => {
+  muted = !muted;
+  fields.mute.textContent = muted ? "Ativar microfone" : "Silenciar microfone";
+  log(muted ? "Microfone silenciado" : "Microfone ativado");
+});
+window.addEventListener("beforeunload", () => { peer?.close(); });
+</script>
+</body>
+</html>
