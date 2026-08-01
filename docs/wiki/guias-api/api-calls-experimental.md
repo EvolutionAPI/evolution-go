@@ -2,7 +2,7 @@
 
 Esta branch adiciona a integração experimental WaCalls/AstraCalls ao Evolution Go.
 
-> **Estado atual:** a sinalização é real e permite iniciar, receber, aceitar, rejeitar e encerrar chamadas no nível do protocolo. A variante experimental também consegue negociar DataChannels com os relays usando Pion. RTP/SRTP e áudio ainda não foram conectados. Não use em produção.
+> **Estado atual:** a sinalização é real e permite iniciar, receber, aceitar, rejeitar e encerrar chamadas no nível do protocolo. A variante `voip_pion` negocia DataChannels com os relays e processa pacotes RTP/SRTP autenticados. Ainda não há áudio reproduzível porque codecs, PCM e a ponte WebRTC não foram conectados. Não use em produção.
 
 Todas as rotas usam a autenticação normal da instância do Evolution.
 
@@ -12,7 +12,7 @@ Todas as rotas usam a autenticação normal da instância do Evolution.
 GET /call/status
 ```
 
-Os monitores de chamada são anexados automaticamente quando o Evolution cria o `whatsmeow.Client`. Durante reconexão, logout ou remoção da instância, handlers, DataChannels e material privado são removidos antes que o novo cliente seja registrado. Não é necessário chamar `/call/status` para ativar o monitoramento.
+Os monitores são anexados automaticamente quando o Evolution cria o `whatsmeow.Client`. Durante reconexão, logout ou remoção da instância, handlers, DataChannels, sessões RTP/SRTP e material privado são removidos antes que o novo cliente seja registrado. Não é necessário chamar `/call/status` para ativar o monitoramento.
 
 Exemplo de resposta:
 
@@ -24,7 +24,7 @@ Exemplo de resposta:
 }
 ```
 
-Chaves de chamada, JIDs internos de dispositivos, tokens de relay e outros dados privados não fazem parte dessa resposta. Eles ficam somente em memória e são apagados quando a chamada termina, é rejeitada ou a sessão é desconectada.
+Chaves de chamada, JIDs internos de dispositivos, chaves SRTP, tokens de relay e outros dados privados não fazem parte dessa resposta. Eles ficam somente em memória e são apagados quando a chamada termina, é rejeitada ou a sessão é desconectada.
 
 Instâncias configuradas com rejeição automática continuam rastreando o estado público da chamada. Elas não descriptografam ofertas recebidas nem enviam `preaccept`, mas continuam podendo iniciar chamadas e armazenar sua negociação privada de saída.
 
@@ -80,7 +80,7 @@ O runtime descriptografa a chave recebida usando a sessão Signal já autenticad
 }
 ```
 
-`CallAccept` não marca mais a chamada como `active` sozinho. Na variante Pion, `active` é publicado somente depois que um DataChannel de relay abre e o callback `media_connected` é aplicado.
+`CallAccept` não marca a chamada como `active` sozinho. Na variante Pion, `active` é publicado somente depois que o DataChannel abre e a sessão RTP/SRTP por chamada é criada com sucesso.
 
 Se a preparação criptográfica do evento ainda não terminou, a API retorna um erro informando que a chamada ainda não está pronta para aceite.
 
@@ -91,7 +91,7 @@ DELETE /call/{callId}
 apikey: INSTANCE_TOKEN
 ```
 
-A rota envia `terminate` para chamadas realizadas e recebidas. Em seguida, o runtime muda o estado público para `ended` e remove chave, candidatos, DataChannels e demais dados privados da chamada.
+A rota envia `terminate` para chamadas realizadas e recebidas. Em seguida, o runtime muda o estado público para `ended` e remove chave, candidatos, DataChannels, contextos RTP/SRTP e demais dados privados da chamada.
 
 ## Rejeitar uma chamada recebida
 
@@ -153,6 +153,27 @@ A implementação experimental Pion inclui:
 - timeout, fechamento e limpeza de buffers;
 - SSRC determinístico derivado de `callId` e JID do dispositivo.
 
+## RTP e SRTP
+
+O caminho de pacotes agora inclui:
+
+- RTP versão 2 com CSRC, extensões e padding validados;
+- gerador concorrente de sequência e timestamp para payload type `120`;
+- derivação HKDF-SHA256 por JID de dispositivo a partir da chave privada de 32 bytes da chamada;
+- chave mestra AES de 16 bytes e salt de 14 bytes;
+- AES-CTR para proteção do payload;
+- autenticação HMAC-SHA1 truncada em quatro bytes;
+- verificação da autenticação antes da descriptografia;
+- rollover counter para a transição de sequência `65535 → 0`;
+- janela antirreplay de 64 pacotes;
+- suporte a pacotes autenticados fora de ordem dentro da janela;
+- rejeição de reutilização do índice SRTP no envio;
+- validação do SSRC remoto e do payload type Opus;
+- sessão independente por `callId`;
+- limpeza sincronizada durante término, rejeição, logout ou reconexão.
+
+O `Coordinator` já possui uma fronteira interna para proteger um frame Opus e transmiti-lo pelos relays. Ela ainda não é exposta em HTTP porque falta conectar encoder/decoder e PCM.
+
 A build padrão continua usando um transportador sem rede. Para compilar a variante experimental:
 
 ```bash
@@ -168,11 +189,11 @@ go test -race -tags=voip_pion ./pkg/call/...
 
 ## Limitações atuais
 
-- sem áudio bidirecional;
-- os frames recebidos pelo DataChannel ainda não são processados por uma sessão RTP/SRTP;
-- sem derivação e instalação das chaves SRTP;
-- sem codecs Opus ou MLow conectados ao runtime;
+- sem áudio bidirecional reproduzível;
+- sem encoder/decoder Opus ou MLow conectado ao runtime;
+- sem captura e reprodução PCM;
 - sem WebRTC para navegador;
+- o caminho interno de envio Opus ainda não possui endpoint público;
 - a conexão real com um relay WhatsApp ainda precisa ser validada de ponta a ponta com uma conta conectada;
 - as chaves ficam somente em memória e não sobrevivem a reinícios;
 - API e formatos podem mudar enquanto o PR estiver em rascunho.
