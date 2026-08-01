@@ -8,6 +8,7 @@ import (
 
 	call_runtime "github.com/evolution-foundation/evolution-go/pkg/call/runtime"
 	call_driver "github.com/evolution-foundation/evolution-go/pkg/call/voip/driver"
+	call_incoming "github.com/evolution-foundation/evolution-go/pkg/call/voip/incoming"
 	instance_model "github.com/evolution-foundation/evolution-go/pkg/instance/model"
 	logger_wrapper "github.com/evolution-foundation/evolution-go/pkg/logger"
 	"github.com/evolution-foundation/evolution-go/pkg/utils"
@@ -21,6 +22,7 @@ const signalingTimeout = 30 * time.Second
 
 type CallService interface {
 	StartCall(data *StartCallStruct, instance *instance_model.Instance) (call_runtime.Call, error)
+	AcceptCall(callID string, instance *instance_model.Instance) (call_runtime.Call, error)
 	TerminateCall(callID string, instance *instance_model.Instance) (call_runtime.Call, error)
 	RejectCall(data *RejectCallStruct, instance *instance_model.Instance) error
 	RuntimeStatus(instance *instance_model.Instance) (call_runtime.Snapshot, error)
@@ -31,6 +33,7 @@ type callService struct {
 	whatsmeowService whatsmeow_service.WhatsmeowService
 	loggerWrapper    *logger_wrapper.LoggerManager
 	runtimeRegistry  *call_runtime.Registry
+	incomingRegistry *call_incoming.Registry
 }
 
 type StartCallStruct struct {
@@ -77,9 +80,10 @@ func (c *callService) ensureClientConnected(instanceID string) (*whatsmeow.Clien
 		return nil, errors.New("client disconnected")
 	}
 
-	// Calls and messaging share the same authenticated client. Attach also
-	// installs the isolated call event handler and replaces it after reconnects.
+	// Calls and messaging share the same authenticated client. The public runtime
+	// tracks state while the private incoming registry holds non-serializable keys.
 	c.runtimeRegistry.Attach(instanceID, client)
+	c.incomingRegistry.Attach(instanceID, client)
 
 	c.loggerWrapper.GetLogger(instanceID).LogInfo("[%s] Client successfully validated - Connected: %v", instanceID, client.IsConnected())
 	return client, nil
@@ -121,6 +125,36 @@ func (c *callService) StartCall(data *StartCallStruct, instance *instance_model.
 	)
 	call, _ := runtime.Call(callID)
 	c.loggerWrapper.GetLogger(instance.Id).LogInfo("[%s] Call offer sent - CallID: %s, Peer: %s, Video: %v", instance.Id, callID, resolvedPeer.String(), data.Video)
+	return call, nil
+}
+
+func (c *callService) AcceptCall(callID string, instance *instance_model.Instance) (call_runtime.Call, error) {
+	client, err := c.ensureClientConnected(instance.Id)
+	if err != nil {
+		return call_runtime.Call{}, err
+	}
+
+	runtime := c.runtimeRegistry.Attach(instance.Id, client)
+	call, ok := runtime.Call(callID)
+	if !ok {
+		return call_runtime.Call{}, fmt.Errorf("call %s not found", callID)
+	}
+	if call.Direction != call_runtime.DirectionIncoming {
+		return call_runtime.Call{}, fmt.Errorf("call %s is not incoming", callID)
+	}
+	if call.State == call_runtime.StateEnded || call.State == call_runtime.StateFailed {
+		return call_runtime.Call{}, fmt.Errorf("call %s cannot be accepted in state %s", callID, call.State)
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), signalingTimeout)
+	defer cancel()
+	if err := c.incomingRegistry.Accept(ctx, instance.Id, callID); err != nil {
+		return call_runtime.Call{}, err
+	}
+
+	runtime.Transition(callID, "", call_runtime.DirectionIncoming, call_runtime.StateConnecting, nil, "")
+	call, _ = runtime.Call(callID)
+	c.loggerWrapper.GetLogger(instance.Id).LogInfo("[%s] Incoming call accepted - CallID: %s", instance.Id, callID)
 	return call, nil
 }
 
@@ -169,6 +203,7 @@ func (c *callService) RejectCall(data *RejectCallStruct, instance *instance_mode
 		return err
 	}
 
+	c.incomingRegistry.Remove(instance.Id, data.CallID)
 	runtime := c.runtimeRegistry.Attach(instance.Id, client)
 	runtime.Transition(data.CallID, data.CallCreator.String(), call_runtime.DirectionIncoming, call_runtime.StateEnded, nil, "rejected")
 	return nil
@@ -194,5 +229,6 @@ func NewCallService(
 		whatsmeowService: whatsmeowService,
 		loggerWrapper:    loggerWrapper,
 		runtimeRegistry:  call_runtime.NewRegistry(),
+		incomingRegistry: call_incoming.NewRegistry(),
 	}
 }
