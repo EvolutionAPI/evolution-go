@@ -2,7 +2,7 @@
 
 Esta branch adiciona a primeira etapa da integração WaCalls/AstraCalls ao Evolution Go.
 
-> **Estado atual:** a sinalização é real e pode fazer o aparelho remoto tocar, mas o transporte de áudio/WebRTC/SRTP ainda não foi conectado. Não use em produção.
+> **Estado atual:** a sinalização é real e permite iniciar, receber, aceitar, rejeitar e encerrar chamadas no nível do protocolo. O transporte de áudio/WebRTC/SRTP ainda não foi conectado. Não use em produção.
 
 Todas as rotas usam a autenticação normal da instância do Evolution.
 
@@ -12,7 +12,7 @@ Todas as rotas usam a autenticação normal da instância do Evolution.
 GET /call/status
 ```
 
-Além de retornar as chamadas conhecidas, essa rota anexa o monitor de eventos ao `whatsmeow.Client` da instância. Nesta etapa experimental, execute-a ao menos uma vez após conectar ou reconectar a instância para monitorar chamadas recebidas antes de qualquer operação de chamada.
+Além de retornar as chamadas conhecidas, essa rota anexa os monitores de eventos e de material criptográfico ao `whatsmeow.Client` da instância. Nesta etapa experimental, execute-a ao menos uma vez após conectar ou reconectar a instância para monitorar chamadas recebidas.
 
 Exemplo de resposta:
 
@@ -23,6 +23,8 @@ Exemplo de resposta:
   "calls": []
 }
 ```
+
+Chaves de chamada, JIDs internos de dispositivos e outros dados privados não fazem parte dessa resposta. Eles ficam somente em memória e são zerados quando a chamada termina, é rejeitada ou a sessão é desconectada.
 
 ## Iniciar uma chamada
 
@@ -52,6 +54,29 @@ A resposta HTTP `201` contém o `id` da chamada e o estado inicial `ringing`.
   "updatedAt": "2026-07-31T23:00:00Z"
 }
 ```
+
+## Aceitar uma chamada recebida
+
+Quando uma chamada recebida aparecer em `GET /call/status`, use:
+
+```http
+POST /call/{callId}/accept
+apikey: INSTANCE_TOKEN
+```
+
+O runtime descriptografa a chave recebida usando a sessão Signal já autenticada, envia `preaccept` automaticamente e mantém o material somente na memória privada. O endpoint envia a stanza `accept` e retorna a chamada no estado `connecting`.
+
+```json
+{
+  "id": "CALL_ID",
+  "peer": "5511999999999@s.whatsapp.net",
+  "direction": "incoming",
+  "state": "connecting",
+  "video": false
+}
+```
+
+Se a preparação criptográfica do evento ainda não terminou, a API retorna um erro informando que a chamada ainda não está pronta para aceite.
 
 ## Encerrar uma chamada realizada
 
@@ -94,6 +119,7 @@ O runtime escuta `CallOffer`, `CallOfferNotice`, `CallPreAccept`, `CallAccept`, 
 - sem áudio bidirecional;
 - sem WebRTC para navegador;
 - sem SRTP/relay do WhatsApp;
-- aceite de chamadas recebidas ainda não exposto;
+- aceitar a sinalização não estabelece o caminho de mídia;
+- encerramento via API de chamadas recebidas ainda depende do `CallManager` completo;
 - o runtime ainda precisa ser ativado por uma rota de chamadas após reconexão;
 - API e formatos podem mudar enquanto o PR estiver em rascunho.
