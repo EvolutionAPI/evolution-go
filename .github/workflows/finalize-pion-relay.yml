@@ -1,0 +1,59 @@
+name: Finalize experimental Pion relay
+
+on:
+  pull_request:
+    paths:
+      - .github/workflows/finalize-pion-relay.yml
+      - pkg/call/voip/transport/**
+      - pkg/call/voip/core/relay_constants.go
+      - go.mod
+      - go.sum
+
+permissions:
+  contents: write
+
+jobs:
+  finalize:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout integration branch
+        uses: actions/checkout@v4
+        with:
+          ref: dev/astracalls-integration
+          fetch-depth: 0
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Add Pion and normalize module files
+        run: |
+          go get github.com/pion/webrtc/v4@v4.2.15
+          go mod tidy
+          gofmt -w \
+            pkg/call/voip/core/relay_constants.go \
+            pkg/call/voip/transport/factory_default.go \
+            pkg/call/voip/transport/foundation_test.go \
+            pkg/call/voip/transport/pion_relay.go \
+            pkg/call/voip/transport/pion_relay_test.go \
+            pkg/call/voip/transport/stun.go \
+            pkg/call/voip/transport/subscriptions.go
+
+      - name: Test default call build
+        run: go test -race ./pkg/call/...
+
+      - name: Test experimental Pion build
+        run: go test -race -tags=voip_pion ./pkg/call/...
+
+      - name: Commit normalized implementation
+        run: |
+          rm .github/workflows/finalize-pion-relay.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "feat(call): finalize experimental Pion relay transport"
+          git push origin HEAD:dev/astracalls-integration
