@@ -4,8 +4,7 @@ import "go.mau.fi/whatsmeow/types"
 
 // selectCallDeviceJIDs chooses concrete device JIDs from the relay participant
 // list. The account-level peer LID and the call creator may use different user
-// identifiers, so an exact peer match is preferred but the first non-local
-// participant is a safer fallback than deriving media keys from user@lid.
+// identifiers, so the remote creator device is preferred for incoming calls.
 func selectCallDeviceJIDs(participants []string, ownJID, peerJID, creatorJID types.JID) (string, string) {
 	selfDevice := ensureDeviceJIDString(ownJID.String())
 	peerDevice := ensureDeviceJIDString(peerJID.String())
@@ -36,10 +35,10 @@ func selectCallDeviceJIDs(participants []string, ownJID, peerJID, creatorJID typ
 	}
 
 	switch {
-	case exactPeer != "":
-		peerDevice = exactPeer
 	case creatorPeer != "":
 		peerDevice = creatorPeer
+	case exactPeer != "":
+		peerDevice = exactPeer
 	case fallbackPeer != "":
 		peerDevice = fallbackPeer
 	case creatorIsRemote:
