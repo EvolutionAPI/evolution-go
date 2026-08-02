@@ -56,6 +56,7 @@ type fakeRelayTransport struct {
 	onReceive        func([]byte)
 	configureErr     error
 	cleaned          bool
+	connected        bool
 }
 
 func (f *fakeRelayTransport) SetSSRC(ssrc uint32)                       { f.ssrc = ssrc }
@@ -68,9 +69,47 @@ func (f *fakeRelayTransport) ConfigureRelays(configs []call_transport.RelayConfi
 	return f.configureErr
 }
 func (f *fakeRelayTransport) Broadcast([]byte) error { return nil }
-func (f *fakeRelayTransport) HasConnection() bool    { return false }
-func (f *fakeRelayTransport) ConnectedCount() int    { return 0 }
-func (f *fakeRelayTransport) Cleanup()               { f.cleaned = true }
+func (f *fakeRelayTransport) HasConnection() bool    { return f.connected }
+func (f *fakeRelayTransport) ConnectedCount() int {
+	if f.connected {
+		return 1
+	}
+	return 0
+}
+func (f *fakeRelayTransport) Cleanup() { f.cleaned = true }
+
+func newTestRelaySession(source *fakeNegotiationSource, transport *fakeRelayTransport) *relaySession {
+	return &relaySession{
+		instanceID:  "instance-1",
+		source:      source,
+		factory:     func(*slog.Logger) call_transport.RelayTransport { return transport },
+		log:         slog.Default(),
+		transports:  make(map[string]call_transport.RelayTransport),
+		configuring: make(map[string]bool),
+		started:     make(map[string]bool),
+		connected:   make(map[string]bool),
+		activated:   make(map[string]bool),
+		ownJID: func() types.JID {
+			return types.NewJID("5511999999999", types.DefaultUserServer)
+		},
+	}
+}
+
+func testRelayData() *core.RelayData {
+	return &core.RelayData{
+		Endpoints: []core.RelayEndpoint{{
+			IP:       "203.0.113.10",
+			Port:     3480,
+			Protocol: 0,
+			Key:      "relay-password",
+			RawToken: []byte{1, 2, 3},
+		}},
+		ParticipantJIDs: []string{
+			"5511999999999:7@s.whatsapp.net",
+			"5511888888888:9@s.whatsapp.net",
+		},
+	}
+}
 
 func TestRelaySessionConfiguresTransportAndMarksMediaConnected(t *testing.T) {
 	state := call_state.NewOutgoing(
@@ -86,34 +125,9 @@ func TestRelaySessionConfiguresTransportAndMarksMediaConnected(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	source := &fakeNegotiationSource{
-		state: state,
-		relayData: &core.RelayData{
-			Endpoints: []core.RelayEndpoint{{
-				IP:       "203.0.113.10",
-				Port:     3480,
-				Protocol: 0,
-				Key:      "relay-password",
-				RawToken: []byte{1, 2, 3},
-			}},
-			ParticipantJIDs: []string{
-				"5511999999999:7@s.whatsapp.net",
-				"5511888888888:9@s.whatsapp.net",
-			},
-		},
-	}
+	source := &fakeNegotiationSource{state: state, relayData: testRelayData()}
 	fakeTransport := &fakeRelayTransport{}
-	session := &relaySession{
-		instanceID:  "instance-1",
-		source:      source,
-		factory:     func(*slog.Logger) call_transport.RelayTransport { return fakeTransport },
-		log:         slog.Default(),
-		transports:  make(map[string]call_transport.RelayTransport),
-		configuring: make(map[string]bool),
-		ownJID: func() types.JID {
-			return types.NewJID("5511999999999", types.DefaultUserServer)
-		},
-	}
+	session := newTestRelaySession(source, fakeTransport)
 	connectedCallback := 0
 	session.onConnected = func(_, _ string) { connectedCallback++ }
 
@@ -129,9 +143,46 @@ func TestRelaySessionConfiguresTransportAndMarksMediaConnected(t *testing.T) {
 	if fakeTransport.onConnected == nil {
 		t.Fatal("connected callback was not installed")
 	}
+	fakeTransport.connected = true
 	fakeTransport.onConnected("203.0.113.10", 3480)
+	fakeTransport.onConnected("203.0.113.11", 3480)
 	if source.state.StateData.State != core.CallStateActive || source.connected != 1 || connectedCallback != 1 {
-		t.Fatalf("media connection was not propagated: state=%s source=%d callback=%d", source.state.StateData.State, source.connected, connectedCallback)
+		t.Fatalf("media connection was not propagated once: state=%s source=%d callback=%d", source.state.StateData.State, source.connected, connectedCallback)
+	}
+}
+
+func TestRelaySessionPreconnectsWithoutActivatingBeforeAccept(t *testing.T) {
+	state := call_state.NewOutgoing(
+		"call-preconnect",
+		"5511888888888:2@s.whatsapp.net",
+		"5511999999999:1@s.whatsapp.net",
+		core.CallMediaTypeAudio,
+	)
+	if err := state.Apply(call_state.Transition{Type: call_state.TransitionOfferSent}); err != nil {
+		t.Fatal(err)
+	}
+
+	source := &fakeNegotiationSource{state: state, relayData: testRelayData()}
+	fakeTransport := &fakeRelayTransport{}
+	session := newTestRelaySession(source, fakeTransport)
+	connectedCallback := 0
+	session.onConnected = func(_, _ string) { connectedCallback++ }
+
+	if err := session.start("call-preconnect"); err != nil {
+		t.Fatal(err)
+	}
+	fakeTransport.connected = true
+	fakeTransport.onConnected("203.0.113.10", 3480)
+	if source.state.StateData.State != core.CallStateRinging || source.connected != 0 || connectedCallback != 0 {
+		t.Fatalf("preconnect activated media too early: state=%s source=%d callback=%d", source.state.StateData.State, source.connected, connectedCallback)
+	}
+
+	if err := source.EnsureRemoteAccepted("instance-1", "call-preconnect"); err != nil {
+		t.Fatal(err)
+	}
+	session.activateIfReady("call-preconnect")
+	if source.state.StateData.State != core.CallStateActive || source.connected != 1 || connectedCallback != 1 {
+		t.Fatalf("media was not activated after accept: state=%s source=%d callback=%d", source.state.StateData.State, source.connected, connectedCallback)
 	}
 }
 
@@ -147,17 +198,7 @@ func TestRelaySessionTreatsDisabledTransportAsNoop(t *testing.T) {
 		}}},
 	}
 	fakeTransport := &fakeRelayTransport{configureErr: call_transport.ErrSCTPUnavailable}
-	session := &relaySession{
-		instanceID:  "instance-1",
-		source:      source,
-		factory:     func(*slog.Logger) call_transport.RelayTransport { return fakeTransport },
-		log:         slog.Default(),
-		transports:  make(map[string]call_transport.RelayTransport),
-		configuring: make(map[string]bool),
-		ownJID: func() types.JID {
-			return types.NewJID("5511999999999", types.DefaultUserServer)
-		},
-	}
+	session := newTestRelaySession(source, fakeTransport)
 	if err := session.start("call-2"); err != nil {
 		t.Fatal(err)
 	}
@@ -179,12 +220,8 @@ func TestRelaySessionReturnsRealConfigurationErrors(t *testing.T) {
 		}}},
 	}
 	expected := errors.New("setup failed")
-	session := &relaySession{
-		instanceID: "instance-1", source: source,
-		factory: func(*slog.Logger) call_transport.RelayTransport { return &fakeRelayTransport{configureErr: expected} },
-		log:     slog.Default(), transports: make(map[string]call_transport.RelayTransport), configuring: make(map[string]bool),
-		ownJID: func() types.JID { return types.NewJID("5511999999999", types.DefaultUserServer) },
-	}
+	fakeTransport := &fakeRelayTransport{configureErr: expected}
+	session := newTestRelaySession(source, fakeTransport)
 	if err := session.start("call-3"); !errors.Is(err, expected) {
 		t.Fatalf("expected setup error, got %v", err)
 	}
