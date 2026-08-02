@@ -37,9 +37,7 @@ func (r *StartResult) Wipe() {
 	r.RelayData = nil
 }
 
-// SignalingDriver sends real WhatsApp call stanzas. Media transport is not yet
-// attached, so a successful offer means the peer can ring and emit lifecycle
-// events, not that bidirectional audio is available.
+// SignalingDriver sends real WhatsApp call stanzas.
 type SignalingDriver struct {
 	socket core.VoipSocket
 }
@@ -121,7 +119,8 @@ func (d *SignalingDriver) EndOutgoing(ctx context.Context, callID string, peer t
 	if creator.IsEmpty() {
 		return fmt.Errorf("whatsapp client has no own JID")
 	}
-	node := signaling.BuildTerminateStanza(peer, callID, creator)
+	resolvedPeer := d.socket.ResolveLIDForPN(ctx, peer)
+	node := signaling.BuildTerminateStanza(resolvedPeer, callID, creator)
 	if err := d.socket.SendNode(ctx, node); err != nil {
 		return fmt.Errorf("send call terminate: %w", err)
 	}
