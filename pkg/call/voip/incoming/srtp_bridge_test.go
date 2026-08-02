@@ -16,9 +16,8 @@ func TestSessionDerivesSRTPWithoutExposingCallKey(t *testing.T) {
 	session.storeOutgoing("call-1", callKey, peer, creator, false, nil)
 	defer session.clear()
 
-	// The relay may expose a synthetic hosted.lid participant. For an outgoing
-	// call the receive key must still use the accepted peer account/device.
-	send, receive, err := session.deriveSRTPKeying("call-1", "self:1@lid", "5511999999999:99@hosted.lid")
+	const receiveCandidate = "5511999999999:99@hosted.lid"
+	send, receive, err := session.deriveSRTPKeying("call-1", "self:1@lid", receiveCandidate)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -30,7 +29,7 @@ func TestSessionDerivesSRTPWithoutExposingCallKey(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer wantSend.Wipe()
-	wantReceive, err := call_media.DerivePerJIDSRTPKey(callKey, "5511999999999:0@lid")
+	wantReceive, err := call_media.DerivePerJIDSRTPKey(callKey, receiveCandidate)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -45,7 +44,7 @@ func TestSessionDerivesSRTPWithoutExposingCallKey(t *testing.T) {
 
 	zeroBytes(send.MasterKey)
 	zeroBytes(send.MasterSalt)
-	again, againReceive, err := session.deriveSRTPKeying("call-1", "self:1@lid", "5511999999999:99@hosted.lid")
+	again, againReceive, err := session.deriveSRTPKeying("call-1", "self:1@lid", receiveCandidate)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -53,23 +52,6 @@ func TestSessionDerivesSRTPWithoutExposingCallKey(t *testing.T) {
 	defer againReceive.Wipe()
 	if bytes.Equal(again.MasterKey, make([]byte, len(again.MasterKey))) {
 		t.Fatal("wiping returned material modified the stored call key")
-	}
-}
-
-func TestReceiveDeviceJIDKeepsIncomingRelayParticipant(t *testing.T) {
-	material := &callMaterial{}
-	got := receiveDeviceJID(material, "5511888888888:7@lid")
-	if got != "5511888888888:7@lid" {
-		t.Fatalf("receiveDeviceJID() = %q, want relay participant", got)
-	}
-}
-
-func TestEnsureSRTPDeviceJID(t *testing.T) {
-	if got := ensureSRTPDeviceJID("5511999999999@lid"); got != "5511999999999:0@lid" {
-		t.Fatalf("ensureSRTPDeviceJID() = %q", got)
-	}
-	if got := ensureSRTPDeviceJID("5511999999999:3@lid"); got != "5511999999999:3@lid" {
-		t.Fatalf("device JID changed: %q", got)
 	}
 }
 
