@@ -3,18 +3,18 @@ name: Manager V2
 on:
   pull_request:
     paths:
-      - "manager-v2/**"
-      - "pkg/routes/**"
-      - "Dockerfile"
-      - ".github/workflows/manager-v2.yml"
+      - manager-v2/**
+      - pkg/routes/**
+      - Dockerfile
+      - .github/workflows/manager-v2.yml
   push:
     branches:
       - feat/manager-v2-foundation
     paths:
-      - "manager-v2/**"
-      - "pkg/routes/**"
-      - "Dockerfile"
-      - ".github/workflows/manager-v2.yml"
+      - manager-v2/**
+      - pkg/routes/**
+      - Dockerfile
+      - .github/workflows/manager-v2.yml
 
 permissions:
   contents: read
@@ -42,6 +42,10 @@ jobs:
         working-directory: manager-v2
         run: npm run typecheck
 
+      - name: Validate API catalog coverage
+        working-directory: manager-v2
+        run: npm run check:catalog
+
       - name: Build frontend
         working-directory: manager-v2
         run: npm run build
@@ -49,9 +53,9 @@ jobs:
       - name: Validate embedded route
         run: |
           test -f manager-v2/dist/index.html
-          grep -q 'registerManagerV2Routes' pkg/routes/routes.go
-          grep -q '/manager-v2/assets' pkg/routes/manager_v2.go
-          grep -q 'manager-v2-build' Dockerfile
+          grep -q registerManagerV2Routes pkg/routes/routes.go
+          grep -q /manager-v2/assets pkg/routes/manager_v2.go
+          grep -q manager-v2-build Dockerfile
 
       - name: Set up Go
         uses: actions/setup-go@v5
