@@ -4,11 +4,13 @@ on:
   push:
     branches:
       - dev/astracalls-integration
+      - feat/manager-call-panel
   pull_request:
     paths:
       - "cmd/evolution-go/main.go"
       - "pkg/call/**"
       - "pkg/routes/routes.go"
+      - "manager/dist/**"
       - "go.mod"
       - "go.sum"
       - ".github/workflows/voip-integration.yml"
@@ -30,6 +32,14 @@ jobs:
         with:
           go-version-file: go.mod
           cache: true
+
+      - name: Validate Manager call panel
+        run: |
+          node --check manager/dist/assets/call-manager.js
+          grep -q '/assets/call-manager.css' manager/dist/index.html
+          grep -q '/assets/call-manager.js' manager/dist/index.html
+          grep -q 'evolution-call-pcm' manager/dist/assets/call-manager.js
+          grep -q '/call/status' manager/dist/assets/call-manager.js
 
       - name: Download dependencies
         run: go mod download
