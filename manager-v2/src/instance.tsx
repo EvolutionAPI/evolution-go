@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import {
   normalizeBaseUrl,
+  type ApiAuthMode,
   type ApiExecutionResult,
   type EvolutionApi,
   type EvolutionConnection,
@@ -29,8 +30,7 @@ function findQrImage(value: unknown): string {
     }
     if (candidate && typeof candidate === "object") {
       const record = candidate as Record<string, unknown>;
-      const priority = ["qrcode", "qrCode", "base64", "image", "code"];
-      for (const key of priority) {
+      for (const key of ["qrcode", "qrCode", "base64", "image", "code"]) {
         if (key in record) {
           const found = visit(record[key]);
           if (found) return found;
@@ -76,11 +76,8 @@ export function ConnectionEditor({
   return (
     <section className={`card connection-card ${compact ? "compact" : ""}`}>
       <div className="section-heading">
-        <div>
-          <span className="eyebrow">Perfil de acesso</span>
-          <h2>Conexão com o Evolution GO</h2>
-        </div>
-        <span className={`status-dot ${draft.apiKey ? "online" : "offline"}`} />
+        <div><span className="eyebrow">Perfil de acesso</span><h2>Conexão com o Evolution GO</h2></div>
+        <span className={`status-dot ${draft.apiKey || draft.adminApiKey ? "online" : "offline"}`} />
       </div>
       <div className="form-grid connection-form-grid">
         <label>
@@ -97,7 +94,7 @@ export function ConnectionEditor({
         </label>
         <label>
           <span>API key global (opcional)</span>
-          <input type="password" autoComplete="off" value={draft.adminApiKey} onChange={(event) => setDraft({ ...draft, adminApiKey: event.target.value })} placeholder="Usada em /instance/all e rotas administrativas" />
+          <input type="password" autoComplete="off" value={draft.adminApiKey} onChange={(event) => setDraft({ ...draft, adminApiKey: event.target.value })} placeholder="Usada para criar e administrar instâncias" />
         </label>
       </div>
       <label className="check-row">
@@ -118,10 +115,12 @@ type SessionAction = {
   description: string;
   method: string;
   path: string;
+  auth?: ApiAuthMode;
   danger?: boolean;
 };
 
 const SESSION_ACTIONS: SessionAction[] = [
+  { id: "create", title: "Criar instância", description: "Cria a instância usando o ID e a chave do perfil acima.", method: "POST", path: "/instance/create", auth: "admin" },
   { id: "status", title: "Consultar status", description: "Verifica se a sessão está conectada.", method: "GET", path: "/instance/status" },
   { id: "connect", title: "Conectar", description: "Inicia a conexão e prepara o QR Code.", method: "POST", path: "/instance/connect" },
   { id: "qr", title: "Gerar QR Code", description: "Busca o QR Code para pareamento.", method: "GET", path: "/instance/qr" },
@@ -149,7 +148,26 @@ export function InstanceWorkspace({
     setRunning(action.id);
     setError("");
     try {
-      const response = await api.execute({ method: action.method, path: action.path, auth: "instance", body: action.method === "POST" ? JSON.stringify({}) : undefined });
+      let body: BodyInit | undefined;
+      if (action.id === "create") {
+        if (!connection.instanceId.trim()) throw new Error("Informe e salve o ID da instância");
+        if (!connection.apiKey.trim()) throw new Error("Informe e salve a API key da instância");
+        body = JSON.stringify({
+          instanceId: connection.instanceId.trim(),
+          name: connection.instanceId.trim(),
+          token: connection.apiKey.trim(),
+          proxy: null,
+          advancedSettings: null,
+        });
+      } else if (action.method === "POST") {
+        body = JSON.stringify({});
+      }
+      const response = await api.execute({
+        method: action.method,
+        path: action.path,
+        auth: action.auth ?? "instance",
+        body,
+      });
       setResult(response);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Falha ao executar a ação");
@@ -164,7 +182,7 @@ export function InstanceWorkspace({
         <div>
           <span className="eyebrow">Sessão WhatsApp</span>
           <h1>Conectar, salvar e testar</h1>
-          <p>Este painel não é uma caixa de entrada. Ele mantém o acesso da instância e oferece ferramentas para validar todas as funções da API.</p>
+          <p>Este painel não é uma caixa de entrada. Ele cria ou conecta a instância e oferece ferramentas para validar todas as funções da API.</p>
         </div>
         <div className="hero-metrics">
           <div><strong>{connection.instanceId || "—"}</strong><span>instância</span></div>
