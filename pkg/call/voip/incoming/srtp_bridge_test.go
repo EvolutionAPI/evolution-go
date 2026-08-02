@@ -11,12 +11,14 @@ import (
 func TestSessionDerivesSRTPWithoutExposingCallKey(t *testing.T) {
 	callKey := bytes.Repeat([]byte{0x42}, 32)
 	session := newSession(nil)
-	peer := types.NewJID("5511999999999", types.DefaultUserServer)
-	creator := types.NewJID("5511000000000", types.DefaultUserServer)
+	peer := types.NewJID("5511999999999", types.HiddenUserServer)
+	creator := types.NewJID("5511000000000", types.HiddenUserServer)
 	session.storeOutgoing("call-1", callKey, peer, creator, false, nil)
 	defer session.clear()
 
-	send, receive, err := session.deriveSRTPKeying("call-1", "self:1@lid", "peer:2@lid")
+	// The relay may expose a synthetic hosted.lid participant. For an outgoing
+	// call the receive key must still use the accepted peer account/device.
+	send, receive, err := session.deriveSRTPKeying("call-1", "self:1@lid", "5511999999999:99@hosted.lid")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -28,7 +30,7 @@ func TestSessionDerivesSRTPWithoutExposingCallKey(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer wantSend.Wipe()
-	wantReceive, err := call_media.DerivePerJIDSRTPKey(callKey, "peer:2@lid")
+	wantReceive, err := call_media.DerivePerJIDSRTPKey(callKey, "5511999999999:0@lid")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -43,7 +45,7 @@ func TestSessionDerivesSRTPWithoutExposingCallKey(t *testing.T) {
 
 	zeroBytes(send.MasterKey)
 	zeroBytes(send.MasterSalt)
-	again, againReceive, err := session.deriveSRTPKeying("call-1", "self:1@lid", "peer:2@lid")
+	again, againReceive, err := session.deriveSRTPKeying("call-1", "self:1@lid", "5511999999999:99@hosted.lid")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -51,6 +53,23 @@ func TestSessionDerivesSRTPWithoutExposingCallKey(t *testing.T) {
 	defer againReceive.Wipe()
 	if bytes.Equal(again.MasterKey, make([]byte, len(again.MasterKey))) {
 		t.Fatal("wiping returned material modified the stored call key")
+	}
+}
+
+func TestReceiveDeviceJIDKeepsIncomingRelayParticipant(t *testing.T) {
+	material := &callMaterial{}
+	got := receiveDeviceJID(material, "5511888888888:7@lid")
+	if got != "5511888888888:7@lid" {
+		t.Fatalf("receiveDeviceJID() = %q, want relay participant", got)
+	}
+}
+
+func TestEnsureSRTPDeviceJID(t *testing.T) {
+	if got := ensureSRTPDeviceJID("5511999999999@lid"); got != "5511999999999:0@lid" {
+		t.Fatalf("ensureSRTPDeviceJID() = %q", got)
+	}
+	if got := ensureSRTPDeviceJID("5511999999999:3@lid"); got != "5511999999999:3@lid" {
+		t.Fatalf("device JID changed: %q", got)
 	}
 }
 
