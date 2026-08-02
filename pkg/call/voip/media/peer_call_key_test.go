@@ -11,8 +11,8 @@ import (
 
 func TestCallKeyPeerCandidatesPreservesDeviceOrderAndDeduplicates(t *testing.T) {
 	from := types.NewADJID("5511999999999", 7, 3)
-	creator := types.NewJID("5511999999999", types.HiddenUserServer)
-	alt := types.NewJID("5511999999999", types.DefaultUserServer)
+	creator := types.NewJID("5511888888888", types.HiddenUserServer)
+	alt := types.NewJID("5511777777777", types.DefaultUserServer)
 	event := &events.CallAccept{}
 	event.From = from
 	event.CallCreator = creator
