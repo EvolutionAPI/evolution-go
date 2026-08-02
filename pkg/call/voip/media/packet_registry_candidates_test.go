@@ -98,7 +98,7 @@ func TestPacketRegistryAcceptsPeerProvidedCallKey(t *testing.T) {
 	peerCallKeyObservers.registries[registry] = map[string]*peerCallKeyObserver{
 		instanceID: {
 			keys: map[string]storedPeerCallKey{
-				callID: {key: append([]byte(nil), remoteCallKey...), peer: acceptedPeer},
+				callID: {key: append([]byte(nil), remoteCallKey...), peers: []types.JID{acceptedPeer}},
 			},
 		},
 	}
