@@ -189,7 +189,8 @@ func (r *PacketRegistry) Prepare(instanceID, callID string) error {
 	if err != nil || ownJID.IsEmpty() || peerJID.IsEmpty() {
 		return fmt.Errorf("resolve RTP participants for call %s", callID)
 	}
-	selfDevice, peerDevice := selectDeviceJIDs(relayData.ParticipantJIDs, ownJID, peerJID)
+	creatorJID, _ := types.ParseJID(state.CallCreator)
+	selfDevice, peerDevice := selectCallDeviceJIDs(relayData.ParticipantJIDs, ownJID, peerJID, creatorJID)
 	selfSSRC, err := GenerateSecureSSRC(callID, selfDevice, 0)
 	if err != nil {
 		return err
