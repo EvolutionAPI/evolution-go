@@ -262,15 +262,67 @@ Ele implementa:
 
 O navegador exige HTTPS ou `localhost` para liberar o microfone.
 
-### Limitações de rede da ponte
+### Redes diferentes sem TURN
 
-A configuração atual não injeta servidores STUN/TURN no PeerConnection do navegador. Portanto, ela funciona diretamente quando navegador e Evolution conseguem trocar candidatos host, mas pode falhar através de NATs ou redes remotas. TURN configurável é uma etapa posterior.
+Sem configuração adicional, o Pion mantém candidatos host e portas efêmeras, adequado para desenvolvimento local. Para publicar a ponte diretamente na internet, configure as duas variáveis antes de iniciar o processo:
+
+```env
+CALL_WEBRTC_PUBLIC_IP=203.0.113.10
+CALL_WEBRTC_MEDIA_PORT=50000
+```
+
+Também é aceito:
+
+```env
+CALL_WEBRTC_PUBLIC_IP=auto
+CALL_WEBRTC_MEDIA_PORT=50000
+```
+
+`auto` consulta o endereço IPv4 escolhido pela rota padrão. Ele é apropriado quando o Evolution roda diretamente em uma VPS com o IP público na interface. Em máquinas atrás de NAT, informe explicitamente o endereço externo encaminhado.
+
+Quando as variáveis estão presentes, o runtime:
+
+- anuncia `CALL_WEBRTC_PUBLIC_IP` como candidato ICE host por NAT 1:1;
+- abre `0.0.0.0:CALL_WEBRTC_MEDIA_PORT` em UDP;
+- abre a mesma porta em TCP para fallback ICE-TCP passivo;
+- usa um `ICEUDPMux` e um `ICETCPMux` compartilhados por todas as sessões;
+- mantém a troca SDP completa, sem trickle ICE;
+- não depende de um servidor STUN/TURN externo.
+
+As duas variáveis são obrigatórias em conjunto. Endereço, porta ou bind inválidos fazem a criação da sessão WebRTC falhar explicitamente; o sistema não troca silenciosamente para portas efêmeras.
+
+No firewall ou security group, libere a mesma porta nos dois protocolos:
+
+```text
+UDP 50000 entrada
+TCP 50000 entrada
+```
+
+Em Docker, use rede host ou encaminhe a porta fixa diretamente:
+
+```yaml
+ports:
+  - "50000:50000/udp"
+  - "50000:50000/tcp"
+```
+
+Traefik, Nginx e outros proxies HTTP continuam responsáveis apenas por HTTPS/API. A mídia ICE chega diretamente à porta UDP/TCP configurada.
+
+TURN ainda pode ser necessário em redes corporativas que bloqueiem tanto UDP quanto ICE-TCP para portas externas, ou quando o servidor não possui qualquer porta publicamente encaminhável.
 
 ## Build experimental
 
 ```bash
 go build ./cmd/evolution-go
 go build -tags=voip_pion ./cmd/evolution-go
+```
+
+Exemplo de execução pública:
+
+```bash
+CALL_WEBRTC_PUBLIC_IP=203.0.113.10 \
+CALL_WEBRTC_MEDIA_PORT=50000 \
+./evolution-go
 ```
 
 O workflow testa permanentemente as duas variantes:
@@ -289,13 +341,15 @@ go test -race -tags=voip_pion ./pkg/call/...
 - filas e buffer SCTP são limitados;
 - payloads e PCM temporários são sobrescritos antes do descarte;
 - chaves de chamada e SRTP nunca são entregues ao navegador;
-- nenhuma rota HTTP recebe áudio bruto.
+- nenhuma rota HTTP recebe áudio bruto;
+- a porta de mídia aceita tráfego ICE público e deve ser protegida por firewall contra origens e volumes abusivos.
 
 ## Limitações atuais
 
 - falta validar uma chamada real ponta a ponta com relay WhatsApp;
 - o exemplo realiza resampling linear, ainda sem filtro de alta qualidade;
-- não há STUN/TURN configurável para a ponte do navegador;
+- a publicação de mídia fixa atualmente aceita somente IPv4;
+- não há TURN integrado para redes que bloqueiem UDP e ICE-TCP;
 - jitter do WhatsApp ainda é estático, sem ajuste adaptativo pela rede;
 - sessões e chaves ficam apenas em memória;
 - publicação normalizada de estados nos produtores de eventos continua pendente;
