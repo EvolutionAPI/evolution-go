@@ -44,14 +44,35 @@ func (s *Socket) SendNode(ctx context.Context, node waBinary.Node) error {
 	if s.client == nil {
 		return fmt.Errorf("nil whatsmeow client")
 	}
-	// Incoming call acceptance is a request/response stanza. Registering the
-	// response waiter before sending mirrors AstraCalls and prevents the accept
-	// ACK from being lost as an unrelated event while media setup is starting.
+	// Incoming acceptance has an ACK. Register the waiter before sending, then
+	// drain it asynchronously so relay startup is not delayed by the query timer.
 	if isCallAcceptNode(node) {
-		_, err := s.Query(ctx, node)
-		return err
+		return s.sendQueryAsync(ctx, node)
 	}
 	return s.dangerous().SendNode(ctx, node)
+}
+
+func (s *Socket) sendQueryAsync(ctx context.Context, node waBinary.Node) error {
+	id, _ := node.Attrs["id"].(string)
+	if id == "" {
+		return s.dangerous().SendNode(ctx, node)
+	}
+	dangerous := s.dangerous()
+	responseChannel := dangerous.WaitResponse(id)
+	if err := dangerous.SendNode(ctx, node); err != nil {
+		dangerous.CancelResponse(id, responseChannel)
+		return err
+	}
+	go func() {
+		timer := time.NewTimer(queryTimeout)
+		defer timer.Stop()
+		select {
+		case <-responseChannel:
+		case <-timer.C:
+			dangerous.CancelResponse(id, responseChannel)
+		}
+	}()
+	return nil
 }
 
 func isCallAcceptNode(node waBinary.Node) bool {
