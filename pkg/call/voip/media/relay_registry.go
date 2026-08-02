@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log/slog"
 	"sync"
+	"time"
 
 	call_state "github.com/evolution-foundation/evolution-go/pkg/call/voip/call"
 	"github.com/evolution-foundation/evolution-go/pkg/call/voip/core"
@@ -89,6 +90,7 @@ func (s *relaySession) handleEvent(rawEvent interface{}) {
 	case *events.CallAccept:
 		_ = s.source.EnsureRemoteAccepted(s.instanceID, event.CallID)
 		s.source.CaptureRelayNode(s.instanceID, event.CallID, event.Data)
+		go s.sendOutgoingPostAccept(event.CallID)
 		go s.startLogged(event.CallID)
 	case *events.CallTransport:
 		s.source.CaptureRelayNode(s.instanceID, event.CallID, event.Data)
@@ -180,9 +182,14 @@ func (s *relaySession) start(callID string) error {
 		"relays", len(configs),
 	)
 
+	var retryOnce sync.Once
+	var firstFrame sync.Once
 	relay.SetSSRC(selfSSRC)
 	relay.SetSubscriptionSSRC(peerSSRC)
 	relay.SetOnConnected(func(_ string, _ int) {
+		retryOnce.Do(func() {
+			go retryRelaySubscriptions(relay)
+		})
 		if err := s.source.MarkMediaConnected(s.instanceID, callID); err != nil {
 			s.log.Debug("ignore stale relay connection callback", "instance", s.instanceID, "call_id", callID, "err", err)
 			return
@@ -195,6 +202,20 @@ func (s *relaySession) start(callID string) error {
 		}
 	})
 	relay.SetOnReceive(func(packet []byte) {
+		firstFrame.Do(func() {
+			rtpCandidate := len(packet) >= 12 && packet[0]&0xc0 == 0x80
+			payloadType := uint8(0)
+			if len(packet) >= 2 {
+				payloadType = packet[1] & 0x7f
+			}
+			s.log.Info("WhatsApp relay first inbound frame",
+				"instance", s.instanceID,
+				"call_id", callID,
+				"bytes", len(packet),
+				"rtp_candidate", rtpCandidate,
+				"payload_type", payloadType,
+			)
+		})
 		s.mu.Lock()
 		callback := s.onPacket
 		s.mu.Unlock()
@@ -211,6 +232,25 @@ func (s *relaySession) start(callID string) error {
 		return fmt.Errorf("configure relays for call %s: %w", callID, err)
 	}
 	return nil
+}
+
+func retryRelaySubscriptions(relay call_transport.RelayTransport) {
+	if relay == nil {
+		return
+	}
+	for _, delay := range []time.Duration{
+		50 * time.Millisecond,
+		150 * time.Millisecond,
+		500 * time.Millisecond,
+		3 * time.Second,
+	} {
+		timer := time.NewTimer(delay)
+		<-timer.C
+		if !relay.HasConnection() {
+			return
+		}
+		relay.ResendSubscriptions()
+	}
 }
 
 // selectDeviceJIDs is retained for compatibility with existing tests and
