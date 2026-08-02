@@ -19,6 +19,16 @@ const (
 	postAcceptProgressTTL      = 10 * time.Minute
 )
 
+var postAcceptRetryDelays = []time.Duration{
+	200 * time.Millisecond,
+	750 * time.Millisecond,
+	2 * time.Second,
+}
+
+var schedulePostAcceptRetry = func(delay time.Duration, callback func()) {
+	time.AfterFunc(delay, callback)
+}
+
 type postAcceptSocket interface {
 	ResolveLIDForPN(context.Context, types.JID) types.JID
 	SendNode(context.Context, waBinary.Node) error
@@ -30,10 +40,12 @@ type postAcceptProgressKey struct {
 }
 
 type postAcceptProgress struct {
-	running       bool
-	transportSent bool
-	muteSent      bool
-	expiresAt     time.Time
+	running        bool
+	transportSent  bool
+	muteSent       bool
+	failedAttempts int
+	retryScheduled bool
+	expiresAt      time.Time
 }
 
 type postAcceptProgressTracker struct {
@@ -72,7 +84,7 @@ func (t *postAcceptProgressTracker) begin(session *relaySession, callID string) 
 		progress = &postAcceptProgress{}
 		t.calls[key] = progress
 	}
-	if progress.running || (progress.transportSent && progress.muteSent) {
+	if progress.running || progress.retryScheduled || (progress.transportSent && progress.muteSent) {
 		return postAcceptProgress{}, false
 	}
 	progress.running = true
@@ -80,9 +92,29 @@ func (t *postAcceptProgressTracker) begin(session *relaySession, callID string) 
 	return *progress, true
 }
 
-func (t *postAcceptProgressTracker) finish(session *relaySession, callID string, result postAcceptProgress) {
+func (t *postAcceptProgressTracker) retryDue(session *relaySession, callID string) bool {
 	if t == nil || session == nil || callID == "" {
-		return
+		return false
+	}
+	key := postAcceptProgressKey{session: session, callID: callID}
+	t.Lock()
+	defer t.Unlock()
+	progress := t.calls[key]
+	if progress == nil || !progress.retryScheduled || progress.running || (progress.transportSent && progress.muteSent) {
+		return false
+	}
+	progress.retryScheduled = false
+	return true
+}
+
+func (t *postAcceptProgressTracker) finish(
+	session *relaySession,
+	callID string,
+	result postAcceptProgress,
+	failed bool,
+) (retryDelay time.Duration, scheduleRetry, exhausted bool) {
+	if t == nil || session == nil || callID == "" {
+		return 0, false, false
 	}
 	key := postAcceptProgressKey{session: session, callID: callID}
 	expiresAt := time.Now().Add(postAcceptProgressTTL)
@@ -91,12 +123,26 @@ func (t *postAcceptProgressTracker) finish(session *relaySession, callID string,
 	progress := t.calls[key]
 	if progress == nil {
 		t.Unlock()
-		return
+		return 0, false, false
 	}
 	progress.running = false
 	progress.transportSent = result.transportSent
 	progress.muteSent = result.muteSent
 	progress.expiresAt = expiresAt
+
+	if progress.transportSent && progress.muteSent {
+		progress.failedAttempts = 0
+		progress.retryScheduled = false
+	} else if failed && !progress.retryScheduled {
+		if progress.failedAttempts < len(postAcceptRetryDelays) {
+			retryDelay = postAcceptRetryDelays[progress.failedAttempts]
+			progress.failedAttempts++
+			progress.retryScheduled = true
+			scheduleRetry = true
+		} else {
+			exhausted = true
+		}
+	}
 	t.Unlock()
 
 	time.AfterFunc(postAcceptProgressTTL, func() {
@@ -107,6 +153,7 @@ func (t *postAcceptProgressTracker) finish(session *relaySession, callID string,
 			delete(t.calls, key)
 		}
 	})
+	return retryDelay, scheduleRetry, exhausted
 }
 
 func (t *postAcceptProgressTracker) reset() {
@@ -124,7 +171,9 @@ func (t *postAcceptProgressTracker) reset() {
 //
 // WhatsApp can emit duplicate CallAccept events. Progress is therefore tracked
 // per relay session and call: a successful transport announcement is not sent
-// again when only the mute synchronization needs retrying.
+// again when only the mute synchronization needs retrying. Transient send
+// failures are retried internally, so recovery does not depend on WhatsApp
+// emitting another CallAccept event.
 func (s *relaySession) sendOutgoingPostAccept(callID string) {
 	if s == nil || s.source == nil || callID == "" {
 		return
@@ -168,8 +217,28 @@ func (s *relaySession) sendOutgoingPostAccept(callID string) {
 	if !acquired {
 		return
 	}
+	failed := false
 	defer func() {
-		outgoingPostAcceptProgress.finish(s, callID, progress)
+		delay, shouldRetry, exhausted := outgoingPostAcceptProgress.finish(s, callID, progress, failed)
+		if shouldRetry {
+			s.log.Debug("WhatsApp post-accept signaling retry scheduled",
+				"instance", s.instanceID,
+				"call_id", callID,
+				"delay", delay,
+			)
+			schedulePostAcceptRetry(delay, func() {
+				if outgoingPostAcceptProgress.retryDue(s, callID) {
+					s.sendOutgoingPostAccept(callID)
+				}
+			})
+		} else if exhausted {
+			s.log.Warn("WhatsApp post-accept signaling retries exhausted",
+				"instance", s.instanceID,
+				"call_id", callID,
+				"transport_sent", progress.transportSent,
+				"mute_sent", progress.muteSent,
+			)
+		}
 	}()
 
 	ctx, cancel := context.WithTimeout(context.Background(), postAcceptSignalingTimeout)
@@ -178,6 +247,7 @@ func (s *relaySession) sendOutgoingPostAccept(callID string) {
 
 	if !progress.transportSent {
 		if err = socket.SendNode(ctx, signaling.BuildPostAcceptTransportStanza(peer, creator, callID)); err != nil {
+			failed = true
 			s.log.Warn("WhatsApp post-accept transport failed", "instance", s.instanceID, "call_id", callID, "err", err)
 			return
 		}
@@ -185,6 +255,7 @@ func (s *relaySession) sendOutgoingPostAccept(callID string) {
 	}
 	if !progress.muteSent {
 		if err = socket.SendNode(ctx, signaling.BuildMuteV2Stanza(peer, creator, callID, 0)); err != nil {
+			failed = true
 			s.log.Warn("WhatsApp post-accept mute sync failed", "instance", s.instanceID, "call_id", callID, "err", err)
 			return
 		}
