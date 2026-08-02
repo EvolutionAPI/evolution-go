@@ -1,7 +1,6 @@
 package media
 
 import (
-	"bytes"
 	"context"
 	"fmt"
 	"log/slog"
@@ -114,14 +113,31 @@ func capturePeerCallKey(registry *PacketRegistry, instanceID string, client *wha
 	}
 	peerCallKeyObservers.Unlock()
 
-	// A relay may have pre-connected on CallPreAccept. Rebuild any early packet
-	// session now so the first post-accept RTP frame can use the peer-provided key.
-	registry.Remove(instanceID, event.CallID)
+	// A relay may have pre-connected on CallPreAccept. Rebuild only the packet
+	// session, preserving the peer key that was just stored.
+	removePacketSessionOnly(registry, instanceID, event.CallID)
 	if err = registry.Prepare(instanceID, event.CallID); err != nil {
 		slog.Debug("defer peer call-key SRTP refresh", "instance", instanceID, "call_id", event.CallID, "err", err)
 		return
 	}
 	slog.Info("WhatsApp peer call key applied", "instance", instanceID, "call_id", event.CallID, "peer", event.From.String())
+}
+
+func removePacketSessionOnly(registry *PacketRegistry, instanceID, callID string) {
+	if registry == nil || instanceID == "" || callID == "" {
+		return
+	}
+	registry.mu.Lock()
+	calls := registry.sessions[instanceID]
+	session := calls[callID]
+	delete(calls, callID)
+	if len(calls) == 0 {
+		delete(registry.sessions, instanceID)
+	}
+	registry.mu.Unlock()
+	if session != nil {
+		session.close()
+	}
 }
 
 func peerCallKey(registry *PacketRegistry, instanceID, callID string) ([]byte, types.JID, bool) {
@@ -211,12 +227,13 @@ func buildPacketSRTPCandidates(
 
 	peerKey, acceptedPeer, hasPeerKey := peerCallKey(registry, instanceID, callID)
 	defer zeroBytes(peerKey)
-	candidateJIDs := append([]string(nil), receiveJIDs...)
+	peerKeyJIDs := []string(nil)
 	if hasPeerKey {
-		candidateJIDs = uniqueDeviceJIDs(acceptedPeer.String(), ensureDeviceJIDString(acceptedPeer.String()), candidateJIDs...)
+		peerKeyJIDs = uniqueJIDStrings(acceptedPeer.String(), ensureDeviceJIDString(acceptedPeer.String()))
+		peerKeyJIDs = uniqueJIDStrings(append(peerKeyJIDs, receiveJIDs...)...)
 	}
 
-	keyings := make([]packetSRTPCandidateKeying, 0, len(candidateJIDs)+len(receiveJIDs))
+	keyings := make([]packetSRTPCandidateKeying, 0, len(peerKeyJIDs)+len(receiveJIDs))
 	seenMaterial := make(map[string]struct{})
 	appendCandidate := func(receiveJID string, send, receive core.SRTPKeyingMaterial) {
 		identity := fmt.Sprintf("%x:%x", receive.MasterKey, receive.MasterSalt)
@@ -230,7 +247,7 @@ func buildPacketSRTPCandidates(
 	}
 
 	if hasPeerKey {
-		for _, receiveJID := range candidateJIDs {
+		for _, receiveJID := range peerKeyJIDs {
 			send, originalReceive, err := registry.source.SRTPKeying(instanceID, callID, selfDeviceJID, receiveJID)
 			if err != nil {
 				wipePacketCandidateKeyings(keyings)
@@ -261,13 +278,25 @@ func buildPacketSRTPCandidates(
 	return keyings, nil
 }
 
+func uniqueJIDStrings(values ...string) []string {
+	seen := make(map[string]struct{}, len(values))
+	output := make([]string, 0, len(values))
+	for _, value := range values {
+		if value == "" {
+			continue
+		}
+		if _, exists := seen[value]; exists {
+			continue
+		}
+		seen[value] = struct{}{}
+		output = append(output, value)
+	}
+	return output
+}
+
 func wipePacketCandidateKeyings(keyings []packetSRTPCandidateKeying) {
 	for index := range keyings {
 		keyings[index].send.Wipe()
 		keyings[index].receive.Wipe()
 	}
-}
-
-func equalPeerCallKeys(left, right []byte) bool {
-	return bytes.Equal(left, right)
 }
