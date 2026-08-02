@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/evolution-foundation/evolution-go/pkg/call/voip/core"
+	"go.mau.fi/whatsmeow/types"
 )
 
 func TestPacketRegistryFallsBackToAuthenticatedReceiveJID(t *testing.T) {
@@ -76,5 +77,86 @@ func TestPacketRegistryFallsBackToAuthenticatedReceiveJID(t *testing.T) {
 	session.mu.RUnlock()
 	if !observed || selected != actualPeer {
 		t.Fatalf("unexpected selected receive JID: observed=%v selected=%s", observed, selected)
+	}
+}
+
+func TestPacketRegistryAcceptsPeerProvidedCallKey(t *testing.T) {
+	originalCallKey := bytes.Repeat([]byte{0x41}, 32)
+	remoteCallKey := bytes.Repeat([]byte{0x52}, 32)
+	registry := NewPacketRegistry(&fakePacketSource{callKey: originalCallKey})
+	const (
+		instanceID = "instance-peer-key"
+		callID     = "call-peer-key"
+		selfDevice = "self:3@lid"
+		peerDevice = "peer:0@lid"
+		selfSSRC   = uint32(0x30303030)
+		peerSSRC   = uint32(0x40404040)
+	)
+	acceptedPeer := types.NewJID("peer", types.HiddenUserServer)
+
+	peerCallKeyObservers.Lock()
+	peerCallKeyObservers.registries[registry] = map[string]*peerCallKeyObserver{
+		instanceID: {
+			keys: map[string]storedPeerCallKey{
+				callID: {key: append([]byte(nil), remoteCallKey...), peer: acceptedPeer},
+			},
+		},
+	}
+	peerCallKeyObservers.Unlock()
+	defer registry.Close(instanceID)
+
+	if err := registry.PrepareWithDeviceCandidates(
+		instanceID,
+		callID,
+		selfDevice,
+		[]string{peerDevice},
+		selfSSRC,
+		peerSSRC,
+	); err != nil {
+		t.Fatal(err)
+	}
+
+	peerSend, err := DerivePerJIDSRTPKey(remoteCallKey, acceptedPeer.String())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer peerSend.Wipe()
+	peerReceive, err := DerivePerJIDSRTPKey(originalCallKey, selfDevice)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer peerReceive.Wipe()
+	peerSession, err := NewSRTPSession(peerSend, peerReceive, core.SRTPRecvAuthTagLen, core.SRTPSendAuthTagLen)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer peerSession.Close()
+
+	peerRTP, err := NewWhatsAppOpusRTPSession(peerSSRC)
+	if err != nil {
+		t.Fatal(err)
+	}
+	frame, err := peerSession.Protect(peerRTP.CreatePacket([]byte("peer-key audio"), true))
+	if err != nil {
+		t.Fatal(err)
+	}
+	packet, err := registry.Unprotect(instanceID, callID, frame)
+	if err != nil {
+		t.Fatalf("expected peer-provided call key to authenticate packet: %v", err)
+	}
+	defer packet.Wipe()
+	if string(packet.Payload) != "peer-key audio" {
+		t.Fatalf("unexpected payload: %q", packet.Payload)
+	}
+
+	session, err := registry.packetSession(instanceID, callID, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	session.mu.RLock()
+	selected := session.srtpCandidates[session.activeCandidate].receiveJID
+	session.mu.RUnlock()
+	if selected != acceptedPeer.String()+" (peer-key)" {
+		t.Fatalf("unexpected peer-key candidate selected: %s", selected)
 	}
 }
