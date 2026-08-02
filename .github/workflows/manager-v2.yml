@@ -1,0 +1,39 @@
+name: Manager V2
+
+on:
+  pull_request:
+    paths:
+      - "manager-v2/**"
+      - ".github/workflows/manager-v2.yml"
+  push:
+    branches:
+      - feat/manager-v2-foundation
+    paths:
+      - "manager-v2/**"
+      - ".github/workflows/manager-v2.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  build-manager-v2:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: manager-v2
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22.12"
+          cache: npm
+          cache-dependency-path: manager-v2/package.json
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund
+      - name: Typecheck
+        run: npm run typecheck
+      - name: Build
+        run: npm run build
