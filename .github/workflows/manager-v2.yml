@@ -59,5 +59,8 @@ jobs:
           go-version-file: go.mod
           cache: true
 
+      - name: Test Manager V2 routes
+        run: go test ./pkg/routes
+
       - name: Build server
         run: go build -o /tmp/evolution-go-manager-v2 ./cmd/evolution-go
