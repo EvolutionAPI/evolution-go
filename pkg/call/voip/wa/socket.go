@@ -44,13 +44,35 @@ func (s *Socket) SendNode(ctx context.Context, node waBinary.Node) error {
 	if s.client == nil {
 		return fmt.Errorf("nil whatsmeow client")
 	}
+	// Incoming call acceptance is a request/response stanza. Registering the
+	// response waiter before sending mirrors AstraCalls and prevents the accept
+	// ACK from being lost as an unrelated event while media setup is starting.
+	if isCallAcceptNode(node) {
+		_, err := s.Query(ctx, node)
+		return err
+	}
 	return s.dangerous().SendNode(ctx, node)
+}
+
+func isCallAcceptNode(node waBinary.Node) bool {
+	if node.Tag == "accept" {
+		return true
+	}
+	for _, child := range node.GetChildren() {
+		if child.Tag == "accept" {
+			return true
+		}
+	}
+	return false
 }
 
 func (s *Socket) Query(ctx context.Context, node waBinary.Node) (*waBinary.Node, error) {
 	id, _ := node.Attrs["id"].(string)
 	if id == "" {
-		return nil, s.SendNode(ctx, node)
+		if s.client == nil {
+			return nil, fmt.Errorf("nil whatsmeow client")
+		}
+		return nil, s.dangerous().SendNode(ctx, node)
 	}
 
 	dangerous := s.dangerous()
@@ -136,4 +158,18 @@ func (s *Socket) ResolveLIDForPN(ctx context.Context, phoneNumber types.JID) typ
 		}
 	}
 	return phoneNumber
+}
+
+// ResolvePNForLID converts an opaque LID back to the user's phone-number JID
+// when the WhatsApp store has learned the mapping.
+func (s *Socket) ResolvePNForLID(ctx context.Context, lid types.JID) types.JID {
+	if lid.IsEmpty() || lid.Server != types.HiddenUserServer {
+		return lid
+	}
+	if s.client != nil && s.client.Store != nil && s.client.Store.LIDs != nil {
+		if pn, err := s.client.Store.LIDs.GetPNForLID(ctx, lid.ToNonAD()); err == nil && !pn.IsEmpty() {
+			return pn
+		}
+	}
+	return lid
 }
