@@ -220,7 +220,7 @@ func (r *Routes) AssignRoutes(eng *gin.Engine) {
 		routes.Use(r.authMiddleware.Auth)
 		{
 			routes.POST("/chat", r.jidValidationMiddleware.ValidateNumberField(), r.labelHandler.ChatLabel)
-			routes.POST("/message", r.messageHandler.MessageLabel)
+			routes.POST("/message", r.labelHandler.MessageLabel)
 			routes.POST("/edit", r.labelHandler.EditLabel)
 			routes.GET("/list", r.labelHandler.GetLabels)
 		}
@@ -230,7 +230,7 @@ func (r *Routes) AssignRoutes(eng *gin.Engine) {
 		routes.Use(r.authMiddleware.Auth)
 		{
 			routes.POST("/chat", r.jidValidationMiddleware.ValidateNumberField(), r.labelHandler.ChatUnlabel)
-			routes.POST("/message", r.messageHandler.MessageUnlabel)
+			routes.POST("/message", r.labelHandler.MessageUnlabel)
 		}
 	}
 	routes = eng.Group("/newsletter")
