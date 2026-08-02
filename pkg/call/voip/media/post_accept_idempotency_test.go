@@ -3,6 +3,8 @@ package media
 import (
 	"context"
 	"errors"
+	"sync"
+	"sync/atomic"
 	"testing"
 
 	call_state "github.com/evolution-foundation/evolution-go/pkg/call/voip/call"
@@ -99,5 +101,53 @@ func TestOutgoingPostAcceptRetriesOnlyFailedMuteStage(t *testing.T) {
 	}
 	if muteCalls != 2 {
 		t.Fatalf("failed mute stage was not retried once: %d", muteCalls)
+	}
+}
+
+func TestOutgoingPostAcceptSerializesConcurrentAccepts(t *testing.T) {
+	var transportCalls atomic.Int32
+	var muteCalls atomic.Int32
+	transportStarted := make(chan struct{})
+	releaseTransport := make(chan struct{})
+	var startOnce sync.Once
+
+	installPostAcceptTestHooks(t,
+		func(context.Context, *whatsmeow.Client, types.JID, types.JID, string) error {
+			transportCalls.Add(1)
+			startOnce.Do(func() { close(transportStarted) })
+			<-releaseTransport
+			return nil
+		},
+		func(context.Context, *whatsmeow.Client, types.JID, types.JID, string) error {
+			muteCalls.Add(1)
+			return nil
+		},
+	)
+
+	session := newPostAcceptTestSession(t, "call-concurrent-accept")
+	primaryDone := make(chan struct{})
+	go func() {
+		session.sendOutgoingPostAccept("call-concurrent-accept")
+		close(primaryDone)
+	}()
+	<-transportStarted
+
+	var duplicates sync.WaitGroup
+	for range 16 {
+		duplicates.Add(1)
+		go func() {
+			defer duplicates.Done()
+			session.sendOutgoingPostAccept("call-concurrent-accept")
+		}()
+	}
+	duplicates.Wait()
+	close(releaseTransport)
+	<-primaryDone
+
+	if got := transportCalls.Load(); got != 1 {
+		t.Fatalf("concurrent accepts sent transport %d times", got)
+	}
+	if got := muteCalls.Load(); got != 1 {
+		t.Fatalf("concurrent accepts sent mute %d times", got)
 	}
 }
