@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/evolution-foundation/evolution-go/pkg/call/voip/core"
+	"go.mau.fi/whatsmeow"
 	"go.mau.fi/whatsmeow/types"
 	"go.mau.fi/whatsmeow/types/events"
 )
@@ -62,5 +63,44 @@ func TestEqualCallKeyPeersIsOrderSensitive(t *testing.T) {
 	}
 	if equalCallKeyPeers([]types.JID{first, second}, []types.JID{second, first}) {
 		t.Fatal("different peer priority order was treated as equal")
+	}
+}
+
+func TestStaleClientCannotDeleteReplacementPeerKeys(t *testing.T) {
+	registry := NewPacketRegistry(&fakePacketSource{callKey: bytes.Repeat([]byte{0x31}, 32)})
+	const (
+		instanceID = "replacement-instance"
+		callID     = "replacement-call"
+	)
+	staleClient := &whatsmeow.Client{}
+	activeClient := &whatsmeow.Client{}
+	peer := types.NewJID("5511888888888", types.HiddenUserServer)
+
+	peerCallKeyObservers.Lock()
+	peerCallKeyObservers.registries[registry] = map[string]*peerCallKeyObserver{
+		instanceID: {
+			client: activeClient,
+			keys: map[string]storedPeerCallKey{
+				callID: {
+					key:   bytes.Repeat([]byte{0x52}, 32),
+					peers: []types.JID{peer},
+				},
+			},
+		},
+	}
+	peerCallKeyObservers.Unlock()
+	defer detachPeerCallKeyObserver(registry, instanceID)
+
+	removePeerCallKeyForClient(registry, instanceID, staleClient, callID)
+	clearPeerCallKeysForClient(registry, instanceID, staleClient)
+	key, peers, ok := peerCallKey(registry, instanceID, callID)
+	if !ok || len(key) != 32 || len(peers) != 1 || peers[0].String() != peer.String() {
+		t.Fatalf("stale client removed replacement key: ok=%v key=%d peers=%#v", ok, len(key), peers)
+	}
+	zeroBytes(key)
+
+	removePeerCallKeyForClient(registry, instanceID, activeClient, callID)
+	if _, _, ok = peerCallKey(registry, instanceID, callID); ok {
+		t.Fatal("active client failed to remove its own peer key")
 	}
 }
