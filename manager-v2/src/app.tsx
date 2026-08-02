@@ -10,6 +10,7 @@ import {
   type EvolutionConnection,
 } from "./api";
 import { useCallDesk } from "./calls";
+import { ContactsWorkspace, MessagingWorkspace } from "./messaging";
 import { EvolutionPcmBridge, type MediaStats, type MediaStatus } from "./pcm";
 
 type View = "overview" | "calls" | "instances" | "messages" | "contacts" | "settings";
@@ -347,6 +348,7 @@ function CallWorkspace({ api }: { api: EvolutionApi | null }) {
 export function App() {
   const [view, setView] = useState<View>("calls");
   const [connection, setConnection] = useState(loadConnection);
+  const [messageRecipient, setMessageRecipient] = useState("");
   const api = useMemo(() => connection.apiKey ? new EvolutionApi(connection) : null, [connection]);
 
   const updateConnection = (next: EvolutionConnection) => {
@@ -382,11 +384,26 @@ export function App() {
         </header>
         <div className="content">
           {view === "calls" && <CallWorkspace api={api} />}
+          {view === "messages" && (
+            <MessagingWorkspace
+              api={api}
+              initialRecipient={messageRecipient}
+              onStartCall={() => setView("calls")}
+            />
+          )}
+          {view === "contacts" && (
+            <ContactsWorkspace
+              api={api}
+              onMessage={(recipient) => {
+                setMessageRecipient(recipient);
+                setView("messages");
+              }}
+              onCallStarted={() => setView("calls")}
+            />
+          )}
           {view === "settings" && <ConnectionEditor value={connection} onSave={updateConnection} />}
           {view === "overview" && <EmptyModule title="Visão geral operacional" description="Indicadores de instâncias, mensagens e chamadas serão reunidos aqui." />}
           {view === "instances" && <EmptyModule title="Gerenciamento de instâncias" description="QR Code, conexão, reconexão e configurações avançadas serão migrados na próxima etapa." />}
-          {view === "messages" && <EmptyModule title="Conversas" description="A futura caixa de entrada utilizará as APIs e eventos do próprio Evolution GO." />}
-          {view === "contacts" && <EmptyModule title="Contatos" description="Contatos, busca e histórico de relacionamento ficarão integrados às chamadas." />}
           {!connection.apiKey && view !== "settings" && (
             <div className="setup-overlay"><ConnectionEditor value={connection} onSave={updateConnection} /></div>
           )}
