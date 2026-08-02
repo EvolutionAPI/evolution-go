@@ -115,17 +115,20 @@ func (s *relaySession) start(callID string) error {
 		return nil
 	}
 	state, ok := s.source.State(s.instanceID, callID)
-	if !ok || state == nil || state.StateData.State != core.CallStateConnecting {
+	if !ok || state == nil {
+		return fmt.Errorf("call %s has no private relay state", callID)
+	}
+	if state.StateData.State != core.CallStateConnecting {
 		return nil
 	}
 	relayData, ok := s.source.RelayData(s.instanceID, callID)
 	if !ok || relayData == nil {
-		return nil
+		return fmt.Errorf("call %s has no relay data", callID)
 	}
 	defer core.ZeroRelayData(relayData)
 	configs := call_transport.BuildRelayConfigs(relayData.Endpoints)
 	if len(configs) == 0 {
-		return nil
+		return fmt.Errorf("call %s has no usable relay endpoints", callID)
 	}
 	defer call_transport.ZeroRelayConfigs(configs)
 
@@ -155,7 +158,8 @@ func (s *relaySession) start(callID string) error {
 	if err != nil || peerJID.IsEmpty() || ownJID.IsEmpty() {
 		return fmt.Errorf("resolve SSRC participants for call %s", callID)
 	}
-	selfDevice, peerDevice := selectDeviceJIDs(relayData.ParticipantJIDs, ownJID, peerJID)
+	creatorJID, _ := types.ParseJID(state.CallCreator)
+	selfDevice, peerDevice := selectCallDeviceJIDs(relayData.ParticipantJIDs, ownJID, peerJID, creatorJID)
 	selfSSRC, err := GenerateSecureSSRC(callID, selfDevice, 0)
 	if err != nil {
 		return err
@@ -164,6 +168,17 @@ func (s *relaySession) start(callID string) error {
 	if err != nil {
 		return err
 	}
+
+	s.log.Info("WhatsApp relay media participants resolved",
+		"instance", s.instanceID,
+		"call_id", callID,
+		"self_device", selfDevice,
+		"peer_device", peerDevice,
+		"self_ssrc", selfSSRC,
+		"peer_ssrc", peerSSRC,
+		"participants", len(relayData.ParticipantJIDs),
+		"relays", len(configs),
+	)
 
 	relay.SetSSRC(selfSSRC)
 	relay.SetSubscriptionSSRC(peerSSRC)
@@ -198,22 +213,11 @@ func (s *relaySession) start(callID string) error {
 	return nil
 }
 
+// selectDeviceJIDs is retained for compatibility with existing tests and
+// callers. New call setup uses selectCallDeviceJIDs so call-creator and
+// non-matching LID device participants are handled correctly.
 func selectDeviceJIDs(participants []string, ownJID, peerJID types.JID) (string, string) {
-	selfDevice := ownJID.String()
-	peerDevice := peerJID.String()
-	for _, participant := range participants {
-		jid, err := types.ParseJID(participant)
-		if err != nil || jid.IsEmpty() {
-			continue
-		}
-		if jid.User == ownJID.User {
-			selfDevice = jid.String()
-		}
-		if jid.User == peerJID.User {
-			peerDevice = jid.String()
-		}
-	}
-	return selfDevice, peerDevice
+	return selectCallDeviceJIDs(participants, ownJID, peerJID, types.JID{})
 }
 
 func (s *relaySession) remove(callID string) {

@@ -24,11 +24,12 @@ type PacketSource interface {
 }
 
 type packetSession struct {
-	mu       sync.RWMutex
-	srtp     *SRTPSession
-	rtp      *RTPSession
-	selfSSRC uint32
-	peerSSRC uint32
+	mu           sync.RWMutex
+	srtp         *SRTPSession
+	rtp          *RTPSession
+	selfSSRC     uint32
+	peerSSRC     uint32
+	peerObserved bool
 }
 
 func newPacketSession(sendKeying, receiveKeying core.SRTPKeyingMaterial, selfSSRC, peerSSRC uint32) (*packetSession, error) {
@@ -61,30 +62,39 @@ func (s *packetSession) protectOpus(payload []byte, durationSamples uint32, mark
 	return s.srtp.Protect(packet)
 }
 
-func (s *packetSession) unprotect(frame []byte) (*RTPPacket, error) {
+func (s *packetSession) unprotect(frame []byte) (*RTPPacket, uint32, uint32, bool, error) {
 	if s == nil {
-		return nil, ErrPacketSessionNotReady
+		return nil, 0, 0, false, ErrPacketSessionNotReady
 	}
-	s.mu.RLock()
-	defer s.mu.RUnlock()
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	if s.srtp == nil {
-		return nil, ErrPacketSessionNotReady
+		return nil, 0, 0, false, ErrPacketSessionNotReady
+	}
+
+	previous, actual, first, err := s.peerSSRCCandidate(frame)
+	if err != nil {
+		return nil, previous, actual, false, err
 	}
 	packet, err := s.srtp.Unprotect(frame)
 	if err != nil {
-		return nil, err
+		return nil, previous, actual, false, err
 	}
-	if packet.Header.SSRC != s.peerSSRC {
+	if packet.Header.SSRC != actual {
 		got := packet.Header.SSRC
 		packet.Wipe()
-		return nil, fmt.Errorf("unexpected RTP SSRC: got %d, want %d", got, s.peerSSRC)
+		return nil, previous, actual, false, fmt.Errorf("authenticated RTP SSRC mismatch: header=%d frame=%d", got, actual)
 	}
 	if packet.Header.PayloadType != core.PayloadTypeWhatsAppOpus {
 		got := packet.Header.PayloadType
 		packet.Wipe()
-		return nil, fmt.Errorf("unexpected RTP payload type: %d", got)
+		return nil, previous, actual, false, fmt.Errorf("unexpected RTP payload type: %d", got)
 	}
-	return packet, nil
+	changed := false
+	if first {
+		previous, changed = s.commitPeerSSRC(actual)
+	}
+	return packet, previous, actual, changed, nil
 }
 
 func (s *packetSession) close() {
@@ -100,14 +110,16 @@ func (s *packetSession) close() {
 	s.rtp = nil
 	s.selfSSRC = 0
 	s.peerSSRC = 0
+	s.peerObserved = false
 }
 
 type PacketRegistry struct {
-	mu       sync.RWMutex
-	source   PacketSource
-	clients  map[string]*whatsmeow.Client
-	sessions map[string]map[string]*packetSession
-	onRTP    func(instanceID, callID string, packet *RTPPacket)
+	mu         sync.RWMutex
+	source     PacketSource
+	clients    map[string]*whatsmeow.Client
+	sessions   map[string]map[string]*packetSession
+	onRTP      func(instanceID, callID string, packet *RTPPacket)
+	onPeerSSRC func(instanceID, callID string, previous, actual uint32)
 }
 
 func NewPacketRegistry(source PacketSource) *PacketRegistry {
@@ -121,6 +133,12 @@ func NewPacketRegistry(source PacketSource) *PacketRegistry {
 func (r *PacketRegistry) SetOnRTP(callback func(instanceID, callID string, packet *RTPPacket)) {
 	r.mu.Lock()
 	r.onRTP = callback
+	r.mu.Unlock()
+}
+
+func (r *PacketRegistry) SetOnPeerSSRC(callback func(instanceID, callID string, previous, actual uint32)) {
+	r.mu.Lock()
+	r.onPeerSSRC = callback
 	r.mu.Unlock()
 }
 
@@ -171,7 +189,8 @@ func (r *PacketRegistry) Prepare(instanceID, callID string) error {
 	if err != nil || ownJID.IsEmpty() || peerJID.IsEmpty() {
 		return fmt.Errorf("resolve RTP participants for call %s", callID)
 	}
-	selfDevice, peerDevice := selectDeviceJIDs(relayData.ParticipantJIDs, ownJID, peerJID)
+	creatorJID, _ := types.ParseJID(state.CallCreator)
+	selfDevice, peerDevice := selectCallDeviceJIDs(relayData.ParticipantJIDs, ownJID, peerJID, creatorJID)
 	selfSSRC, err := GenerateSecureSSRC(callID, selfDevice, 0)
 	if err != nil {
 		return err
@@ -230,7 +249,19 @@ func (r *PacketRegistry) Unprotect(instanceID, callID string, frame []byte) (*RT
 	if err != nil {
 		return nil, err
 	}
-	return session.unprotect(frame)
+	packet, previous, actual, changed, err := session.unprotect(frame)
+	if err != nil {
+		return nil, err
+	}
+	if changed {
+		r.mu.RLock()
+		callback := r.onPeerSSRC
+		r.mu.RUnlock()
+		if callback != nil {
+			callback(instanceID, callID, previous, actual)
+		}
+	}
+	return packet, nil
 }
 
 func (r *PacketRegistry) Handle(instanceID, callID string, frame []byte) error {

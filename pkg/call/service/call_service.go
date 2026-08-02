@@ -86,10 +86,7 @@ func (c *callService) ensureClientConnected(instanceID string) (*whatsmeow.Clien
 		return nil, errors.New("client disconnected")
 	}
 
-	// Calls and messaging share the same authenticated client. Public state and
-	// private call negotiation are attached idempotently to that client.
 	c.coordinator.Attach(instanceID, client)
-
 	c.loggerWrapper.GetLogger(instanceID).LogInfo("[%s] Client successfully validated - Connected: %v", instanceID, client.IsConnected())
 	return client, nil
 }
@@ -134,7 +131,7 @@ func (c *callService) StartCall(data *StartCallStruct, instance *instance_model.
 	video := data.Video
 	runtime.Transition(
 		result.CallID,
-		result.Peer.String(),
+		peer.ToNonAD().String(),
 		call_runtime.DirectionOutgoing,
 		call_runtime.StateRinging,
 		&video,

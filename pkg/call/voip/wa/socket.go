@@ -44,13 +44,56 @@ func (s *Socket) SendNode(ctx context.Context, node waBinary.Node) error {
 	if s.client == nil {
 		return fmt.Errorf("nil whatsmeow client")
 	}
+	// Incoming acceptance has an ACK. Register the waiter before sending, then
+	// drain it asynchronously so relay startup is not delayed by the query timer.
+	if isCallAcceptNode(node) {
+		return s.sendQueryAsync(ctx, node)
+	}
 	return s.dangerous().SendNode(ctx, node)
+}
+
+func (s *Socket) sendQueryAsync(ctx context.Context, node waBinary.Node) error {
+	id, _ := node.Attrs["id"].(string)
+	if id == "" {
+		return s.dangerous().SendNode(ctx, node)
+	}
+	dangerous := s.dangerous()
+	responseChannel := dangerous.WaitResponse(id)
+	if err := dangerous.SendNode(ctx, node); err != nil {
+		dangerous.CancelResponse(id, responseChannel)
+		return err
+	}
+	go func() {
+		timer := time.NewTimer(queryTimeout)
+		defer timer.Stop()
+		select {
+		case <-responseChannel:
+		case <-timer.C:
+			dangerous.CancelResponse(id, responseChannel)
+		}
+	}()
+	return nil
+}
+
+func isCallAcceptNode(node waBinary.Node) bool {
+	if node.Tag == "accept" {
+		return true
+	}
+	for _, child := range node.GetChildren() {
+		if child.Tag == "accept" {
+			return true
+		}
+	}
+	return false
 }
 
 func (s *Socket) Query(ctx context.Context, node waBinary.Node) (*waBinary.Node, error) {
 	id, _ := node.Attrs["id"].(string)
 	if id == "" {
-		return nil, s.SendNode(ctx, node)
+		if s.client == nil {
+			return nil, fmt.Errorf("nil whatsmeow client")
+		}
+		return nil, s.dangerous().SendNode(ctx, node)
 	}
 
 	dangerous := s.dangerous()
@@ -136,4 +179,18 @@ func (s *Socket) ResolveLIDForPN(ctx context.Context, phoneNumber types.JID) typ
 		}
 	}
 	return phoneNumber
+}
+
+// ResolvePNForLID converts an opaque LID back to the user's phone-number JID
+// when the WhatsApp store has learned the mapping.
+func (s *Socket) ResolvePNForLID(ctx context.Context, lid types.JID) types.JID {
+	if lid.IsEmpty() || lid.Server != types.HiddenUserServer {
+		return lid
+	}
+	if s.client != nil && s.client.Store != nil && s.client.Store.LIDs != nil {
+		if pn, err := s.client.Store.LIDs.GetPNForLID(ctx, lid.ToNonAD()); err == nil && !pn.IsEmpty() {
+			return pn
+		}
+	}
+	return lid
 }
