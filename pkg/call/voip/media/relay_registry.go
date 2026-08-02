@@ -156,7 +156,7 @@ func (s *relaySession) start(callID string) error {
 		}
 		s.mu.Unlock()
 		if connected {
-			go s.activateIfReady(callID)
+			s.activateIfReady(callID)
 		}
 		return nil
 	}
@@ -229,7 +229,7 @@ func (s *relaySession) start(callID string) error {
 		retryOnce.Do(func() {
 			go retryRelaySubscriptions(relay)
 		})
-		go s.activateIfReady(callID)
+		s.activateIfReady(callID)
 	})
 	relay.SetOnReceive(func(packet []byte) {
 		firstFrame.Do(func() {
@@ -265,7 +265,7 @@ func (s *relaySession) start(callID string) error {
 		s.mu.Lock()
 		s.connected[callID] = true
 		s.mu.Unlock()
-		go s.activateIfReady(callID)
+		s.activateIfReady(callID)
 	}
 	return nil
 }
@@ -274,11 +274,10 @@ func (s *relaySession) activateIfReady(callID string) {
 	if s == nil || s.source == nil || callID == "" {
 		return
 	}
-	state, ok := s.source.State(s.instanceID, callID)
-	if !ok || state == nil || state.StateData.State != core.CallStateConnecting {
-		return
-	}
 
+	// Reserve activation before consulting mutable call state. Multiple relays
+	// may connect at nearly the same time, but only one goroutine may transition
+	// and notify the media pipeline.
 	s.mu.Lock()
 	if !s.connected[callID] || s.activated[callID] {
 		s.mu.Unlock()
@@ -288,6 +287,13 @@ func (s *relaySession) activateIfReady(callID string) {
 	callback := s.onConnected
 	s.mu.Unlock()
 
+	state, ok := s.source.State(s.instanceID, callID)
+	if !ok || state == nil || state.StateData.State != core.CallStateConnecting {
+		s.mu.Lock()
+		s.activated[callID] = false
+		s.mu.Unlock()
+		return
+	}
 	if err := s.source.MarkMediaConnected(s.instanceID, callID); err != nil {
 		s.mu.Lock()
 		s.activated[callID] = false
