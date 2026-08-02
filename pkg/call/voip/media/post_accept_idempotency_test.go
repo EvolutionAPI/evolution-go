@@ -6,6 +6,7 @@ import (
 	"sync"
 	"sync/atomic"
 	"testing"
+	"time"
 
 	call_state "github.com/evolution-foundation/evolution-go/pkg/call/voip/call"
 	"github.com/evolution-foundation/evolution-go/pkg/call/voip/core"
@@ -36,12 +37,21 @@ func (f *fakePostAcceptSocket) SendNode(ctx context.Context, node waBinary.Node)
 func installPostAcceptTestSocket(t *testing.T, socket postAcceptSocket) {
 	t.Helper()
 	previousFactory := newPostAcceptSocket
+	previousScheduler := schedulePostAcceptRetry
+	previousDelays := append([]time.Duration(nil), postAcceptRetryDelays...)
 	outgoingPostAcceptProgress.reset()
 	newPostAcceptSocket = func(*whatsmeow.Client) postAcceptSocket {
 		return socket
 	}
+	// Execute retries synchronously so tests prove the state machine without
+	// sleeping or leaving timers alive after cleanup.
+	schedulePostAcceptRetry = func(_ time.Duration, callback func()) {
+		callback()
+	}
 	t.Cleanup(func() {
 		newPostAcceptSocket = previousFactory
+		schedulePostAcceptRetry = previousScheduler
+		postAcceptRetryDelays = previousDelays
 		outgoingPostAcceptProgress.reset()
 	})
 }
@@ -92,7 +102,7 @@ func TestOutgoingPostAcceptSuppressesDuplicateAccept(t *testing.T) {
 	}
 }
 
-func TestOutgoingPostAcceptRetriesOnlyFailedMuteStage(t *testing.T) {
+func TestOutgoingPostAcceptAutomaticallyRetriesOnlyFailedMuteStage(t *testing.T) {
 	transportCalls := 0
 	muteCalls := 0
 	installPostAcceptTestSocket(t, &fakePostAcceptSocket{
@@ -111,14 +121,42 @@ func TestOutgoingPostAcceptRetriesOnlyFailedMuteStage(t *testing.T) {
 	})
 
 	session := newPostAcceptTestSession(t, "call-mute-retry")
-	session.sendOutgoingPostAccept("call-mute-retry")
+	// No duplicate CallAccept is injected: the internal scheduler must recover.
 	session.sendOutgoingPostAccept("call-mute-retry")
 
 	if transportCalls != 1 {
 		t.Fatalf("successful transport stage was resent: %d", transportCalls)
 	}
 	if muteCalls != 2 {
-		t.Fatalf("failed mute stage was not retried once: %d", muteCalls)
+		t.Fatalf("failed mute stage was not automatically retried once: %d", muteCalls)
+	}
+}
+
+func TestOutgoingPostAcceptStopsAfterRetryBudget(t *testing.T) {
+	transportCalls := 0
+	muteCalls := 0
+	installPostAcceptTestSocket(t, &fakePostAcceptSocket{
+		send: func(_ context.Context, node waBinary.Node) error {
+			switch postAcceptChildTag(node) {
+			case "transport":
+				transportCalls++
+				return errors.New("persistent transport failure")
+			case "mute_v2":
+				muteCalls++
+			}
+			return nil
+		},
+	})
+
+	session := newPostAcceptTestSession(t, "call-retry-budget")
+	session.sendOutgoingPostAccept("call-retry-budget")
+
+	wantAttempts := 1 + len(postAcceptRetryDelays)
+	if transportCalls != wantAttempts {
+		t.Fatalf("unexpected retry count: got=%d want=%d", transportCalls, wantAttempts)
+	}
+	if muteCalls != 0 {
+		t.Fatalf("mute stage ran before transport succeeded: %d", muteCalls)
 	}
 }
 
