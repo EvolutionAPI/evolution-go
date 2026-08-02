@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { ApiLab } from "./api-lab";
-import { loadConnection, saveConnection, type EvolutionConnection } from "./api";
+import { EvolutionApi, loadConnection, saveConnection, type EvolutionConnection } from "./api";
 import { CallWorkspace } from "./call-workspace";
 import { ConnectionEditor, InstanceWorkspace } from "./instance";
 
@@ -25,7 +25,7 @@ export function App() {
   const [view, setView] = useState<View>("instance");
   const [connection, setConnection] = useState(loadConnection);
   const api = useMemo(
-    () => connection.apiKey || connection.adminApiKey ? new (requireApi())(connection) : null,
+    () => connection.apiKey || connection.adminApiKey ? new EvolutionApi(connection) : null,
     [connection],
   );
 
@@ -84,11 +84,3 @@ export function App() {
     </div>
   );
 }
-
-function requireApi() {
-  // Kept behind a function so the memo only constructs the client when a key exists.
-  // Static import avoids code splitting and keeps TypeScript inference intact.
-  return EvolutionApiConstructor;
-}
-
-import { EvolutionApi as EvolutionApiConstructor } from "./api";
