@@ -2,7 +2,7 @@ import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { App } from "./app";
 import "./styles.css";
-import "./messaging.css";
+import "./lab.css";
 
 const root = document.getElementById("root");
 if (!root) throw new Error("Manager V2 root element was not found");
