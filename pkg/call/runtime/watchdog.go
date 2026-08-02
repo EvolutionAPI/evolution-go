@@ -6,7 +6,7 @@ import (
 )
 
 var (
-	ringingWatchdogTimeout    = 90 * time.Second
+	ringingWatchdogTimeout     = 90 * time.Second
 	connectingWatchdogTimeout = 45 * time.Second
 )
 
@@ -14,7 +14,6 @@ type runtimeWatchdogEntry struct {
 	timer      *time.Timer
 	generation uint64
 	state      State
-	updatedAt  time.Time
 }
 
 type runtimeWatchdogState struct {
@@ -62,18 +61,26 @@ func (r *Runtime) syncWatchdog(call Call) {
 		state = &runtimeWatchdogState{entries: make(map[string]runtimeWatchdogEntry)}
 		runtimeWatchdogs.states[r] = state
 	}
-	if previous, ok := state.entries[call.ID]; ok && previous.timer != nil {
-		previous.timer.Stop()
+	if previous, ok := state.entries[call.ID]; ok {
+		// Duplicate CallAccept/CallTransport/CallOffer events must not extend the
+		// negotiation deadline indefinitely. Only a real state transition gets a
+		// new timer.
+		if previous.state == call.State {
+			runtimeWatchdogs.Unlock()
+			return
+		}
+		if previous.timer != nil {
+			previous.timer.Stop()
+		}
 	}
 	state.generation++
 	generation := state.generation
 	entry := runtimeWatchdogEntry{
 		generation: generation,
 		state:      call.State,
-		updatedAt:  call.UpdatedAt,
 	}
 	entry.timer = time.AfterFunc(timeout, func() {
-		r.expireWatchdog(call.ID, generation, call.State, call.UpdatedAt, reason)
+		r.expireWatchdog(call.ID, generation, call.State, reason)
 	})
 	state.entries[call.ID] = entry
 	runtimeWatchdogs.Unlock()
@@ -90,7 +97,7 @@ func watchdogTimeout(state State) (time.Duration, string) {
 	}
 }
 
-func (r *Runtime) expireWatchdog(callID string, generation uint64, expectedState State, expectedUpdatedAt time.Time, reason string) {
+func (r *Runtime) expireWatchdog(callID string, generation uint64, expectedState State, reason string) {
 	if r == nil || callID == "" {
 		return
 	}
@@ -112,7 +119,7 @@ func (r *Runtime) expireWatchdog(callID string, generation uint64, expectedState
 
 	r.mu.Lock()
 	call, ok := r.calls[callID]
-	if !ok || call.State != expectedState || !call.UpdatedAt.Equal(expectedUpdatedAt) {
+	if !ok || call.State != expectedState {
 		r.mu.Unlock()
 		return
 	}
