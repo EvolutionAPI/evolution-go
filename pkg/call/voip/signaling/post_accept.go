@@ -53,3 +53,48 @@ func BuildMuteV2Stanza(peer, creator types.JID, callID string, muteState int) wa
 		}},
 	}
 }
+
+// BuildAcceptReceiptStanza builds the device receipt expected after a remote
+// CallAccept. acceptMessageID MUST be the original ID from the outer incoming
+// <call> stanza. It must never be generated locally or replaced by callID.
+//
+// The currently pinned whatsmeow event API does not expose that outer ID, so
+// this helper is intentionally not wired into media signaling until the source
+// event can provide it without reflection or unsafe access.
+func BuildAcceptReceiptStanza(
+	peer types.JID,
+	acceptMessageID, callID string,
+	creator, own types.JID,
+) (waBinary.Node, error) {
+	if peer.IsEmpty() {
+		return waBinary.Node{}, fmt.Errorf("accept receipt peer JID is empty")
+	}
+	if own.IsEmpty() {
+		return waBinary.Node{}, fmt.Errorf("accept receipt own JID is empty")
+	}
+	if creator.IsEmpty() {
+		return waBinary.Node{}, fmt.Errorf("accept receipt creator JID is empty")
+	}
+	if acceptMessageID == "" {
+		return waBinary.Node{}, fmt.Errorf("accept receipt requires original stanza ID")
+	}
+	if callID == "" {
+		return waBinary.Node{}, fmt.Errorf("accept receipt call ID is empty")
+	}
+
+	return waBinary.Node{
+		Tag: "receipt",
+		Attrs: waBinary.Attrs{
+			"to":   peer,
+			"id":   acceptMessageID,
+			"from": own,
+		},
+		Content: []waBinary.Node{{
+			Tag: "accept",
+			Attrs: waBinary.Attrs{
+				"call-id":      callID,
+				"call-creator": creator,
+			},
+		}},
+	}, nil
+}
