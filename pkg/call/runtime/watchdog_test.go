@@ -29,7 +29,7 @@ func waitForTimeout(t *testing.T, timedOut <-chan string) string {
 }
 
 func TestRuntimeWatchdogFailsStuckRingingCall(t *testing.T) {
-	installWatchdogTimeouts(t, 10*time.Millisecond, time.Second)
+	installWatchdogTimeouts(t, 20*time.Millisecond, time.Second)
 	runtime := New("watchdog-instance", nil)
 	defer runtime.Close()
 
@@ -55,7 +55,7 @@ func TestRuntimeWatchdogFailsStuckRingingCall(t *testing.T) {
 }
 
 func TestRuntimeWatchdogFailsStuckConnectingCall(t *testing.T) {
-	installWatchdogTimeouts(t, time.Second, 10*time.Millisecond)
+	installWatchdogTimeouts(t, time.Second, 20*time.Millisecond)
 	runtime := New("watchdog-instance", nil)
 	defer runtime.Close()
 
@@ -73,7 +73,7 @@ func TestRuntimeWatchdogFailsStuckConnectingCall(t *testing.T) {
 }
 
 func TestRuntimeWatchdogIsCancelledWhenMediaBecomesActive(t *testing.T) {
-	installWatchdogTimeouts(t, time.Second, 20*time.Millisecond)
+	installWatchdogTimeouts(t, time.Second, 30*time.Millisecond)
 	runtime := New("watchdog-instance", nil)
 	defer runtime.Close()
 
@@ -82,7 +82,7 @@ func TestRuntimeWatchdogIsCancelledWhenMediaBecomesActive(t *testing.T) {
 	runtime.Transition("active-call", "peer", DirectionOutgoing, StateConnecting, nil, "")
 	runtime.Transition("active-call", "", "", StateActive, nil, "")
 
-	time.Sleep(60 * time.Millisecond)
+	time.Sleep(90 * time.Millisecond)
 	select {
 	case callID := <-timedOut:
 		t.Fatalf("active call timed out: %s", callID)
@@ -95,18 +95,18 @@ func TestRuntimeWatchdogIsCancelledWhenMediaBecomesActive(t *testing.T) {
 }
 
 func TestRuntimeWatchdogIgnoresReplacedTimer(t *testing.T) {
-	installWatchdogTimeouts(t, 15*time.Millisecond, 60*time.Millisecond)
+	installWatchdogTimeouts(t, 30*time.Millisecond, 80*time.Millisecond)
 	runtime := New("watchdog-instance", nil)
 	defer runtime.Close()
 
 	timedOut := make(chan string, 2)
 	runtime.SetOnTimeout(func(_, callID string) { timedOut <- callID })
 	runtime.Transition("progressing-call", "peer", DirectionOutgoing, StateRinging, nil, "")
-	time.Sleep(5 * time.Millisecond)
+	time.Sleep(10 * time.Millisecond)
 	runtime.Transition("progressing-call", "", "", StateConnecting, nil, "")
 
 	// The old ringing timer must not fail the newer connecting state.
-	time.Sleep(25 * time.Millisecond)
+	time.Sleep(45 * time.Millisecond)
 	select {
 	case callID := <-timedOut:
 		t.Fatalf("stale watchdog timer fired for %s", callID)
@@ -118,15 +118,35 @@ func TestRuntimeWatchdogIgnoresReplacedTimer(t *testing.T) {
 	}
 }
 
+func TestRuntimeWatchdogDuplicateStateKeepsOriginalDeadline(t *testing.T) {
+	installWatchdogTimeouts(t, time.Second, time.Second)
+	runtime := New("watchdog-instance", nil)
+	defer runtime.Close()
+
+	runtime.Transition("duplicate-call", "peer", DirectionOutgoing, StateConnecting, nil, "")
+	runtimeWatchdogs.Lock()
+	first := runtimeWatchdogs.states[runtime].entries["duplicate-call"]
+	runtimeWatchdogs.Unlock()
+
+	runtime.Transition("duplicate-call", "peer", DirectionOutgoing, StateConnecting, nil, "")
+	runtimeWatchdogs.Lock()
+	second := runtimeWatchdogs.states[runtime].entries["duplicate-call"]
+	runtimeWatchdogs.Unlock()
+
+	if first.generation != second.generation || first.timer != second.timer {
+		t.Fatalf("duplicate state replaced watchdog deadline: first=%d second=%d", first.generation, second.generation)
+	}
+}
+
 func TestRuntimeCloseCancelsWatchdogs(t *testing.T) {
-	installWatchdogTimeouts(t, 20*time.Millisecond, 20*time.Millisecond)
+	installWatchdogTimeouts(t, 30*time.Millisecond, 30*time.Millisecond)
 	runtime := New("watchdog-instance", nil)
 	timedOut := make(chan string, 1)
 	runtime.SetOnTimeout(func(_, callID string) { timedOut <- callID })
 	runtime.Transition("closed-call", "peer", DirectionOutgoing, StateRinging, nil, "")
 	runtime.Close()
 
-	time.Sleep(60 * time.Millisecond)
+	time.Sleep(90 * time.Millisecond)
 	select {
 	case callID := <-timedOut:
 		t.Fatalf("closed runtime watchdog fired for %s", callID)
