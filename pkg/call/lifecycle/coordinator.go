@@ -5,6 +5,7 @@ package lifecycle
 import (
 	"context"
 	"errors"
+	"log/slog"
 	"sync"
 
 	call_runtime "github.com/evolution-foundation/evolution-go/pkg/call/runtime"
@@ -32,17 +33,19 @@ type Coordinator struct {
 	onCallMediaCleanup     func(instanceID, callID string)
 	onInstanceMediaCleanup func(instanceID string)
 
-	incomingEnabled map[string]bool
+	incomingEnabled   map[string]bool
+	mediaErrorReported map[string]bool
 }
 
 func NewCoordinator() *Coordinator {
 	incoming := call_incoming.NewRegistry()
 	packets := call_media.NewPacketRegistry(incoming)
 	coordinator := &Coordinator{
-		runtimes:        call_runtime.NewRegistry(),
-		incoming:        incoming,
-		packets:         packets,
-		incomingEnabled: make(map[string]bool),
+		runtimes:          call_runtime.NewRegistry(),
+		incoming:          incoming,
+		packets:           packets,
+		incomingEnabled:   make(map[string]bool),
+		mediaErrorReported: make(map[string]bool),
 	}
 	coordinator.audio = call_media.NewAudioRegistry(func(instanceID, callID string, payload []byte, durationSamples uint32, marker bool) error {
 		return coordinator.SendOpus(instanceID, callID, payload, durationSamples, marker)
@@ -52,27 +55,47 @@ func NewCoordinator() *Coordinator {
 	coordinator.relays.SetOnRemoved(func(instanceID, callID string) {
 		coordinator.audio.Remove(instanceID, callID)
 		coordinator.packets.Remove(instanceID, callID)
+		coordinator.clearMediaError(instanceID, callID)
 		coordinator.notifyCallMediaCleanup(instanceID, callID)
 	})
 	coordinator.relays.SetOnCleanup(func(instanceID string) {
 		coordinator.audio.Close(instanceID)
 		coordinator.packets.Close(instanceID)
+		coordinator.clearInstanceMediaErrors(instanceID)
 		coordinator.notifyInstanceMediaCleanup(instanceID)
 	})
 	coordinator.relays.SetOnConnected(func(instanceID, callID string) {
 		if err := coordinator.packets.Prepare(instanceID, callID); err != nil {
+			coordinator.reportMediaError(instanceID, callID, "prepare RTP/SRTP session", err)
 			return
 		}
 		if err := coordinator.audio.Prepare(instanceID, callID); err != nil {
+			coordinator.reportMediaError(instanceID, callID, "prepare audio codec", err)
 			coordinator.packets.Remove(instanceID, callID)
 			return
 		}
 		if runtime, ok := coordinator.runtimes.Get(instanceID); ok {
 			runtime.Transition(callID, "", "", call_runtime.StateActive, nil, "")
 		}
+		slog.Info("WhatsApp call media active", "instance", instanceID, "call_id", callID)
+	})
+	coordinator.packets.SetOnPeerSSRC(func(instanceID, callID string, previous, actual uint32) {
+		if err := coordinator.relays.UpdatePeerSSRC(instanceID, callID, actual); err != nil {
+			coordinator.reportMediaError(instanceID, callID, "refresh relay peer SSRC", err)
+			return
+		}
+		slog.Info("WhatsApp peer SSRC adopted",
+			"instance", instanceID,
+			"call_id", callID,
+			"predicted_ssrc", previous,
+			"actual_ssrc", actual,
+		)
 	})
 	coordinator.packets.SetOnRTP(func(instanceID, callID string, packet *call_media.RTPPacket) {
-		_ = coordinator.audio.HandleRTP(instanceID, callID, packet)
+		if err := coordinator.audio.HandleRTP(instanceID, callID, packet); err != nil {
+			coordinator.reportMediaError(instanceID, callID, "decode WhatsApp audio", err)
+			return
+		}
 		coordinator.mu.RLock()
 		callback := coordinator.onRTP
 		coordinator.mu.RUnlock()
@@ -82,11 +105,54 @@ func NewCoordinator() *Coordinator {
 	})
 	coordinator.relays.SetOnPacket(func(instanceID, callID string, packet []byte) {
 		err := coordinator.packets.Handle(instanceID, callID, packet)
-		if errors.Is(err, call_media.ErrNonRTPFrame) || errors.Is(err, call_media.ErrPacketSessionNotReady) {
+		if err == nil || errors.Is(err, call_media.ErrNonRTPFrame) || errors.Is(err, call_media.ErrPacketSessionNotReady) || errors.Is(err, call_media.ErrSelfRTPFrame) {
 			return
 		}
+		coordinator.reportMediaError(instanceID, callID, "receive WhatsApp SRTP", err)
 	})
 	return coordinator
+}
+
+func mediaErrorKey(instanceID, callID string) string {
+	return instanceID + "\x00" + callID
+}
+
+func (c *Coordinator) reportMediaError(instanceID, callID, stage string, err error) {
+	if c == nil || err == nil {
+		return
+	}
+	key := mediaErrorKey(instanceID, callID)
+	c.mu.Lock()
+	if c.mediaErrorReported[key] {
+		c.mu.Unlock()
+		return
+	}
+	c.mediaErrorReported[key] = true
+	c.mu.Unlock()
+	slog.Warn("WhatsApp inbound media failed", "instance", instanceID, "call_id", callID, "stage", stage, "err", err)
+}
+
+func (c *Coordinator) clearMediaError(instanceID, callID string) {
+	if c == nil {
+		return
+	}
+	c.mu.Lock()
+	delete(c.mediaErrorReported, mediaErrorKey(instanceID, callID))
+	c.mu.Unlock()
+}
+
+func (c *Coordinator) clearInstanceMediaErrors(instanceID string) {
+	if c == nil {
+		return
+	}
+	prefix := instanceID + "\x00"
+	c.mu.Lock()
+	for key := range c.mediaErrorReported {
+		if len(key) >= len(prefix) && key[:len(prefix)] == prefix {
+			delete(c.mediaErrorReported, key)
+		}
+	}
+	c.mu.Unlock()
 }
 
 // AttachClient is called by the WhatsApp client lifecycle. Public call state is
@@ -120,6 +186,7 @@ func (c *Coordinator) DetachClient(instanceID string) {
 	c.relays.Close(instanceID)
 	c.audio.Close(instanceID)
 	c.packets.Close(instanceID)
+	c.clearInstanceMediaErrors(instanceID)
 	c.notifyInstanceMediaCleanup(instanceID)
 	c.runtimes.Remove(instanceID)
 	c.incoming.Close(instanceID)
@@ -184,7 +251,11 @@ func (c *Coordinator) AcceptIncoming(ctx context.Context, instanceID, callID str
 	if err := c.incoming.Accept(ctx, instanceID, callID); err != nil {
 		return err
 	}
-	go func() { _ = c.relays.Start(instanceID, callID) }()
+	go func() {
+		if err := c.relays.Start(instanceID, callID); err != nil {
+			c.reportMediaError(instanceID, callID, "start incoming relay", err)
+		}
+	}()
 	return nil
 }
 
@@ -195,6 +266,7 @@ func (c *Coordinator) TerminateIncoming(ctx context.Context, instanceID, callID 
 	c.relays.Remove(instanceID, callID)
 	c.audio.Remove(instanceID, callID)
 	c.packets.Remove(instanceID, callID)
+	c.clearMediaError(instanceID, callID)
 	c.notifyCallMediaCleanup(instanceID, callID)
 	return nil
 }
@@ -299,6 +371,7 @@ func (c *Coordinator) RemovePrivate(instanceID, callID string) {
 	c.audio.Remove(instanceID, callID)
 	c.packets.Remove(instanceID, callID)
 	c.incoming.Remove(instanceID, callID)
+	c.clearMediaError(instanceID, callID)
 	c.notifyCallMediaCleanup(instanceID, callID)
 }
 
