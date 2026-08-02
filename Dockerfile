@@ -1,3 +1,11 @@
+FROM node:22-alpine AS manager-v2-build
+
+WORKDIR /manager-v2
+COPY manager-v2/package.json ./
+RUN npm install --no-audit --no-fund
+COPY manager-v2/ ./
+RUN npm run typecheck && npm run build
+
 FROM golang:1.25.0-alpine AS build
 
 RUN apk update && apk add --no-cache git build-base libjpeg-turbo-dev libwebp-dev
@@ -29,6 +37,7 @@ WORKDIR /app
 
 COPY --from=build /build/server .
 COPY --from=build /build/manager/dist ./manager/dist
+COPY --from=manager-v2-build /manager-v2/dist ./manager-v2/dist
 COPY --from=build /build/VERSION ./VERSION
 
 ENV TZ=America/Sao_Paulo
