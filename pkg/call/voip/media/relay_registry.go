@@ -87,6 +87,13 @@ func (s *relaySession) usesClient(client *whatsmeow.Client) bool {
 
 func (s *relaySession) handleEvent(rawEvent interface{}) {
 	switch event := rawEvent.(type) {
+	case *events.CallPreAccept:
+		// WhatsApp may expose usable relay data in the original offer ACK before
+		// the final accept. Starting here registers subscriptions early and avoids
+		// losing the first remote audio packets.
+		_ = s.source.EnsureRemoteAccepted(s.instanceID, event.CallID)
+		s.source.CaptureRelayNode(s.instanceID, event.CallID, event.Data)
+		go s.startLogged(event.CallID)
 	case *events.CallAccept:
 		_ = s.source.EnsureRemoteAccepted(s.instanceID, event.CallID)
 		s.source.CaptureRelayNode(s.instanceID, event.CallID, event.Data)
@@ -183,6 +190,7 @@ func (s *relaySession) start(callID string) error {
 	)
 
 	var retryOnce sync.Once
+	var activeOnce sync.Once
 	var firstFrame sync.Once
 	relay.SetSSRC(selfSSRC)
 	relay.SetSubscriptionSSRC(peerSSRC)
@@ -190,16 +198,18 @@ func (s *relaySession) start(callID string) error {
 		retryOnce.Do(func() {
 			go retryRelaySubscriptions(relay)
 		})
-		if err := s.source.MarkMediaConnected(s.instanceID, callID); err != nil {
-			s.log.Debug("ignore stale relay connection callback", "instance", s.instanceID, "call_id", callID, "err", err)
-			return
-		}
-		s.mu.Lock()
-		callback := s.onConnected
-		s.mu.Unlock()
-		if callback != nil {
-			callback(s.instanceID, callID)
-		}
+		activeOnce.Do(func() {
+			if err := s.source.MarkMediaConnected(s.instanceID, callID); err != nil {
+				s.log.Debug("ignore stale relay connection callback", "instance", s.instanceID, "call_id", callID, "err", err)
+				return
+			}
+			s.mu.Lock()
+			callback := s.onConnected
+			s.mu.Unlock()
+			if callback != nil {
+				callback(s.instanceID, callID)
+			}
+		})
 	})
 	relay.SetOnReceive(func(packet []byte) {
 		firstFrame.Do(func() {
