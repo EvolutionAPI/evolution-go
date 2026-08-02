@@ -1,11 +1,13 @@
 package call_runtime
 
 import (
+	"context"
 	"sort"
 	"strings"
 	"sync"
 	"time"
 
+	call_wa "github.com/evolution-foundation/evolution-go/pkg/call/voip/wa"
 	"go.mau.fi/whatsmeow"
 	waBinary "go.mau.fi/whatsmeow/binary"
 	"go.mau.fi/whatsmeow/types"
@@ -32,8 +34,7 @@ const (
 	DirectionOutgoing Direction = "outgoing"
 )
 
-// Call contains transport-independent call state. The AstraCalls adapter will
-// update these records while the existing Evolution event producers publish them.
+// Call contains transport-independent call state.
 type Call struct {
 	ID        string    `json:"id"`
 	Peer      string    `json:"peer"`
@@ -54,8 +55,6 @@ type Snapshot struct {
 }
 
 // Runtime owns the VoIP state associated with exactly one Evolution instance.
-// It deliberately reuses the instance's existing whatsmeow client so messaging
-// and calls share a single authenticated WhatsApp session.
 type Runtime struct {
 	mu             sync.RWMutex
 	instanceID     string
@@ -100,9 +99,6 @@ func (r *Runtime) AttachClient(client *whatsmeow.Client) {
 	}
 
 	handlerID := client.AddEventHandler(r.handleEvent)
-
-	// A reconnect can race with event-handler registration. Keep the handler only
-	// when this client is still the currently attached one.
 	r.mu.Lock()
 	if r.client == client {
 		r.eventHandlerID = handlerID
@@ -119,8 +115,6 @@ func (r *Runtime) Client() *whatsmeow.Client {
 	return r.client
 }
 
-// Close detaches the runtime event handler. Media teardown will be added by the
-// AstraCalls driver when its transport and WebRTC resources are ported.
 func (r *Runtime) Close() {
 	r.mu.Lock()
 	client := r.client
@@ -143,6 +137,9 @@ func (r *Runtime) UpsertCall(call Call) {
 	if current, ok := r.calls[call.ID]; ok {
 		if call.CreatedAt.IsZero() {
 			call.CreatedAt = current.CreatedAt
+		}
+		if call.Peer == "" {
+			call.Peer = current.Peer
 		}
 	} else if call.CreatedAt.IsZero() {
 		call.CreatedAt = now
@@ -172,7 +169,7 @@ func (r *Runtime) Transition(callID, peer string, direction Direction, state Sta
 			CreatedAt: now,
 		}
 	}
-	if peer != "" {
+	if shouldReplacePeer(call.Peer, peer) {
 		call.Peer = peer
 	}
 	if direction != "" && call.Direction == "" {
@@ -191,6 +188,19 @@ func (r *Runtime) Transition(callID, peer string, direction Direction, state Sta
 	r.calls[callID] = call
 }
 
+func shouldReplacePeer(current, candidate string) bool {
+	if candidate == "" {
+		return false
+	}
+	if current == "" {
+		return true
+	}
+	currentJID, currentErr := types.ParseJID(current)
+	candidateJID, candidateErr := types.ParseJID(candidate)
+	return currentErr == nil && candidateErr == nil &&
+		currentJID.Server == types.HiddenUserServer && candidateJID.Server == types.DefaultUserServer
+}
+
 func (r *Runtime) Call(callID string) (Call, bool) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
@@ -206,19 +216,24 @@ func (r *Runtime) RemoveCall(callID string) {
 
 func (r *Runtime) Snapshot() Snapshot {
 	r.mu.RLock()
-	defer r.mu.RUnlock()
-
 	calls := make([]Call, 0, len(r.calls))
 	for _, call := range r.calls {
 		calls = append(calls, call)
+	}
+	client := r.client
+	instanceID := r.instanceID
+	connected := client != nil && client.IsConnected()
+	r.mu.RUnlock()
+
+	for index := range calls {
+		calls[index].Peer = resolveDisplayPeer(client, calls[index].Peer)
 	}
 	sort.Slice(calls, func(i, j int) bool {
 		return calls[i].CreatedAt.Before(calls[j].CreatedAt)
 	})
 
-	connected := r.client != nil && r.client.IsConnected()
 	return Snapshot{
-		InstanceID: r.instanceID,
+		InstanceID: instanceID,
 		Connected:  connected,
 		Calls:      calls,
 	}
@@ -230,7 +245,7 @@ func (r *Runtime) handleEvent(rawEvent interface{}) {
 		video := callNodeContainsVideo(event.Data)
 		r.Transition(
 			event.CallID,
-			callPeer(event.CallCreator, event.From),
+			r.eventPeer(event.CallCreator, event.From),
 			DirectionIncoming,
 			StateRinging,
 			&video,
@@ -240,7 +255,7 @@ func (r *Runtime) handleEvent(rawEvent interface{}) {
 		video := strings.EqualFold(event.Media, "video") || callNodeContainsVideo(event.Data)
 		r.Transition(
 			event.CallID,
-			callPeer(event.CallCreator, event.From),
+			r.eventPeer(event.CallCreator, event.From),
 			DirectionIncoming,
 			StateRinging,
 			&video,
@@ -249,7 +264,7 @@ func (r *Runtime) handleEvent(rawEvent interface{}) {
 	case *events.CallPreAccept:
 		r.Transition(
 			event.CallID,
-			callPeer(event.CallCreator, event.From),
+			r.eventPeer(event.From, event.CallCreator),
 			DirectionOutgoing,
 			StateConnecting,
 			nil,
@@ -258,7 +273,7 @@ func (r *Runtime) handleEvent(rawEvent interface{}) {
 	case *events.CallAccept:
 		r.Transition(
 			event.CallID,
-			callPeer(event.CallCreator, event.From),
+			r.eventPeer(event.From, event.CallCreator),
 			DirectionOutgoing,
 			StateConnecting,
 			nil,
@@ -267,25 +282,40 @@ func (r *Runtime) handleEvent(rawEvent interface{}) {
 	case *events.CallTransport:
 		r.Transition(
 			event.CallID,
-			callPeer(event.CallCreator, event.From),
+			r.eventPeer(event.From, event.CallCreator),
 			"",
 			StateConnecting,
 			nil,
 			"",
 		)
 	case *events.CallReject:
+		call, exists := r.Call(event.CallID)
+		reason := "rejected"
+		direction := DirectionOutgoing
+		if exists {
+			direction = call.Direction
+			if call.Direction == DirectionIncoming {
+				if call.State == StateRinging {
+					reason = "caller_cancelled"
+				} else {
+					reason = "peer_ended"
+				}
+			} else if call.State != StateRinging {
+				reason = "peer_ended"
+			}
+		}
 		r.Transition(
 			event.CallID,
-			callPeer(event.CallCreator, event.From),
-			DirectionOutgoing,
+			r.eventPeer(event.CallCreator, event.From),
+			direction,
 			StateEnded,
 			nil,
-			"rejected",
+			reason,
 		)
 	case *events.CallTerminate:
 		r.Transition(
 			event.CallID,
-			callPeer(event.CallCreator, event.From),
+			r.eventPeer(event.CallCreator, event.From),
 			"",
 			StateEnded,
 			nil,
@@ -296,6 +326,60 @@ func (r *Runtime) handleEvent(rawEvent interface{}) {
 	case *events.LoggedOut:
 		r.failOpenCalls("whatsapp client logged out")
 	}
+}
+
+func (r *Runtime) eventPeer(primary, secondary types.JID) string {
+	r.mu.RLock()
+	client := r.client
+	r.mu.RUnlock()
+
+	candidates := []types.JID{primary, secondary}
+	for _, candidate := range candidates {
+		if candidate.IsEmpty() || isOwnJID(client, candidate) {
+			continue
+		}
+		resolved := resolveDisplayJID(client, candidate)
+		if resolved.Server == types.DefaultUserServer {
+			return resolved.String()
+		}
+	}
+	for _, candidate := range candidates {
+		if !candidate.IsEmpty() && !isOwnJID(client, candidate) {
+			return candidate.ToNonAD().String()
+		}
+	}
+	return ""
+}
+
+func resolveDisplayPeer(client *whatsmeow.Client, peer string) string {
+	jid, err := types.ParseJID(peer)
+	if err != nil || jid.IsEmpty() {
+		return peer
+	}
+	return resolveDisplayJID(client, jid).String()
+}
+
+func resolveDisplayJID(client *whatsmeow.Client, jid types.JID) types.JID {
+	jid = jid.ToNonAD()
+	if client == nil || jid.Server != types.HiddenUserServer {
+		return jid
+	}
+	return call_wa.NewSocket(client).ResolvePNForLID(context.Background(), jid).ToNonAD()
+}
+
+func isOwnJID(client *whatsmeow.Client, jid types.JID) bool {
+	if client == nil || client.Store == nil || jid.IsEmpty() {
+		return false
+	}
+	jid = jid.ToNonAD()
+	if client.Store.ID != nil {
+		ownPN := client.Store.ID.ToNonAD()
+		if jid.User == ownPN.User && jid.Server == ownPN.Server {
+			return true
+		}
+	}
+	ownLID := client.Store.LID.ToNonAD()
+	return !ownLID.IsEmpty() && jid.User == ownLID.User && jid.Server == ownLID.Server
 }
 
 func (r *Runtime) failOpenCalls(reason string) {
@@ -312,16 +396,6 @@ func (r *Runtime) failOpenCalls(reason string) {
 		call.UpdatedAt = now
 		r.calls[callID] = call
 	}
-}
-
-func callPeer(callCreator, from types.JID) string {
-	if !callCreator.IsEmpty() {
-		return callCreator.String()
-	}
-	if !from.IsEmpty() {
-		return from.String()
-	}
-	return ""
 }
 
 func callNodeContainsVideo(node *waBinary.Node) bool {
