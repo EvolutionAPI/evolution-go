@@ -22,6 +22,7 @@ import (
 	_ "modernc.org/sqlite"
 
 	call_handler "github.com/evolution-foundation/evolution-go/pkg/call/handler"
+	call_lifecycle "github.com/evolution-foundation/evolution-go/pkg/call/lifecycle"
 	call_service "github.com/evolution-foundation/evolution-go/pkg/call/service"
 	chat_handler "github.com/evolution-foundation/evolution-go/pkg/chat/handler"
 	chat_service "github.com/evolution-foundation/evolution-go/pkg/chat/service"
@@ -179,6 +180,9 @@ func setupRouter(db *gorm.DB, authDB *sql.DB, sqliteDB *sql.DB, config *config.C
 		natsProducer,
 		loggerWrapper,
 	)
+	callCoordinator := call_lifecycle.NewCoordinator()
+	whatsmeowService.SetClientLifecycle(callCoordinator)
+
 	instanceService := instance_service.NewInstanceService(
 		instanceRepository,
 		killChannel,
@@ -192,7 +196,7 @@ func setupRouter(db *gorm.DB, authDB *sql.DB, sqliteDB *sql.DB, config *config.C
 	messageService := message_service.NewMessageService(clientPointer, messageRepository, whatsmeowService, loggerWrapper)
 	chatService := chat_service.NewChatService(clientPointer, whatsmeowService, loggerWrapper)
 	groupService := group_service.NewGroupService(clientPointer, whatsmeowService, loggerWrapper)
-	callService := call_service.NewCallService(clientPointer, whatsmeowService, loggerWrapper)
+	callService := call_service.NewCallService(clientPointer, whatsmeowService, loggerWrapper, callCoordinator)
 	communityService := community_service.NewCommunityService(clientPointer, whatsmeowService, loggerWrapper)
 	labelService := label_service.NewLabelService(clientPointer, whatsmeowService, labelRepository, loggerWrapper)
 	newsletterService := newsletter_service.NewNewsletterService(clientPointer, whatsmeowService, loggerWrapper)

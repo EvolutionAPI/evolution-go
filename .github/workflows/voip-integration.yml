@@ -1,0 +1,47 @@
+name: VoIP integration
+
+on:
+  push:
+    branches:
+      - dev/astracalls-integration
+  pull_request:
+    paths:
+      - "cmd/evolution-go/main.go"
+      - "pkg/call/**"
+      - "pkg/routes/routes.go"
+      - "go.mod"
+      - "go.sum"
+      - ".github/workflows/voip-integration.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  test-call-module:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Download dependencies
+        run: go mod download
+
+      - name: Test default call build
+        run: go test -race ./pkg/call/...
+
+      - name: Test experimental Pion relay build
+        run: go test -race -tags=voip_pion ./pkg/call/...
+
+      - name: Build default server
+        run: go build -o /tmp/evolution-go-default ./cmd/evolution-go
+
+      - name: Build experimental Pion server
+        run: go build -tags=voip_pion -o /tmp/evolution-go-pion ./cmd/evolution-go

@@ -15,7 +15,10 @@ RUN go mod download
 COPY . .
 
 ARG VERSION=dev
-RUN CGO_ENABLED=1 go build -ldflags "-X main.version=${VERSION}" -o server ./cmd/evolution-go
+# Mantém a imagem padrão sem tags. Para habilitar chamadas com Pion, use:
+# docker build --build-arg GO_BUILD_TAGS=voip_pion ...
+ARG GO_BUILD_TAGS=""
+RUN CGO_ENABLED=1 go build -tags "${GO_BUILD_TAGS}" -ldflags "-X main.version=${VERSION}" -o server ./cmd/evolution-go
 
 FROM alpine:3.19.1 AS final
 
