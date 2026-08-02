@@ -9,8 +9,8 @@ import (
 	"go.mau.fi/whatsmeow/types/events"
 )
 
-func TestCallKeyPeerCandidatesPreservesDeviceOrderAndDeduplicates(t *testing.T) {
-	from := types.NewADJID("5511999999999", 7, 3)
+func TestCallKeyPeerCandidatesPreservesOrderAndDeduplicates(t *testing.T) {
+	from := types.NewJID("5511999999999", types.HiddenUserServer)
 	creator := types.NewJID("5511888888888", types.HiddenUserServer)
 	alt := types.NewJID("5511777777777", types.DefaultUserServer)
 	event := &events.CallAccept{}
@@ -20,7 +20,7 @@ func TestCallKeyPeerCandidatesPreservesDeviceOrderAndDeduplicates(t *testing.T) 
 
 	got := callKeyPeerCandidates(event)
 	if len(got) != 3 {
-		t.Fatalf("unexpected candidate count: %d", len(got))
+		t.Fatalf("unexpected candidate count: %d (%#v)", len(got), got)
 	}
 	if got[0].String() != from.String() || got[1].String() != creator.String() || got[2].String() != alt.String() {
 		t.Fatalf("unexpected candidate order: %#v", got)
