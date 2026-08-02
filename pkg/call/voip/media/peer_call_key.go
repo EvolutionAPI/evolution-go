@@ -1,7 +1,10 @@
 package media
 
 import (
+	"bytes"
 	"context"
+	"crypto/sha256"
+	"errors"
 	"fmt"
 	"log/slog"
 	"sync"
@@ -11,6 +14,7 @@ import (
 	"github.com/evolution-foundation/evolution-go/pkg/call/voip/signaling"
 	"github.com/evolution-foundation/evolution-go/pkg/call/voip/wa"
 	"go.mau.fi/whatsmeow"
+	waBinary "go.mau.fi/whatsmeow/binary"
 	"go.mau.fi/whatsmeow/types"
 	"go.mau.fi/whatsmeow/types/events"
 )
@@ -18,8 +22,8 @@ import (
 const peerCallKeyDecryptTimeout = 5 * time.Second
 
 type storedPeerCallKey struct {
-	key  []byte
-	peer types.JID
+	key   []byte
+	peers []types.JID
 }
 
 type peerCallKeyObserver struct {
@@ -87,16 +91,28 @@ func attachPeerCallKeyObserver(registry *PacketRegistry, instanceID string, clie
 }
 
 func capturePeerCallKey(registry *PacketRegistry, instanceID string, client *whatsmeow.Client, event *events.CallAccept) {
-	if registry == nil || client == nil || event == nil || event.CallID == "" || event.Data == nil || event.From.IsEmpty() {
+	if registry == nil || client == nil || event == nil || event.CallID == "" || event.Data == nil {
 		return
 	}
+	peerCandidates := callKeyPeerCandidates(event)
+	if len(peerCandidates) == 0 {
+		return
+	}
+
 	ctx, cancel := context.WithTimeout(context.Background(), peerCallKeyDecryptTimeout)
 	defer cancel()
-	key, err := signaling.DecryptCallKeyInNode(ctx, wa.NewSocket(client), event.Data, event.From)
+	key, decryptedPeer, err := decryptPeerCallKey(ctx, wa.NewSocket(client), event.Data, peerCandidates)
 	if err != nil || len(key) != 32 {
+		slog.Debug("WhatsApp peer call key not available",
+			"instance", instanceID,
+			"call_id", event.CallID,
+			"candidates", len(peerCandidates),
+			"err", err,
+		)
 		return
 	}
 	defer zeroBytes(key)
+	peerCandidates = uniqueCallKeyPeers(append([]types.JID{decryptedPeer}, peerCandidates...)...)
 
 	peerCallKeyObservers.Lock()
 	observer := peerCallKeyObservers.registries[registry][instanceID]
@@ -105,53 +121,84 @@ func capturePeerCallKey(registry *PacketRegistry, instanceID string, client *wha
 		return
 	}
 	if previous, exists := observer.keys[event.CallID]; exists {
+		if equalPeerCallKeys(previous.key, key) && equalCallKeyPeers(previous.peers, peerCandidates) {
+			peerCallKeyObservers.Unlock()
+			return
+		}
 		zeroBytes(previous.key)
 	}
 	observer.keys[event.CallID] = storedPeerCallKey{
-		key:  append([]byte(nil), key...),
-		peer: event.From,
+		key:   append([]byte(nil), key...),
+		peers: append([]types.JID(nil), peerCandidates...),
 	}
 	peerCallKeyObservers.Unlock()
 
-	// A relay may have pre-connected on CallPreAccept. Rebuild only the packet
-	// session, preserving the peer key that was just stored.
-	removePacketSessionOnly(registry, instanceID, event.CallID)
+	// A relay may have pre-connected on CallPreAccept. Rebuild any early packet
+	// session now so the first post-accept RTP frame can use the peer-provided key.
+	registry.dropSession(instanceID, event.CallID)
 	if err = registry.Prepare(instanceID, event.CallID); err != nil {
 		slog.Debug("defer peer call-key SRTP refresh", "instance", instanceID, "call_id", event.CallID, "err", err)
 		return
 	}
-	slog.Info("WhatsApp peer call key applied", "instance", instanceID, "call_id", event.CallID, "peer", event.From.String())
+	slog.Info("WhatsApp peer call key applied",
+		"instance", instanceID,
+		"call_id", event.CallID,
+		"peer", decryptedPeer.String(),
+		"candidates", len(peerCandidates),
+	)
 }
 
-func removePacketSessionOnly(registry *PacketRegistry, instanceID, callID string) {
-	if registry == nil || instanceID == "" || callID == "" {
-		return
+func callKeyPeerCandidates(event *events.CallAccept) []types.JID {
+	if event == nil {
+		return nil
 	}
-	registry.mu.Lock()
-	calls := registry.sessions[instanceID]
-	session := calls[callID]
-	delete(calls, callID)
-	if len(calls) == 0 {
-		delete(registry.sessions, instanceID)
-	}
-	registry.mu.Unlock()
-	if session != nil {
-		session.close()
-	}
+	return uniqueCallKeyPeers(event.From, event.CallCreator, event.CallCreatorAlt)
 }
 
-func peerCallKey(registry *PacketRegistry, instanceID, callID string) ([]byte, types.JID, bool) {
+func uniqueCallKeyPeers(values ...types.JID) []types.JID {
+	seen := make(map[string]struct{}, len(values))
+	output := make([]types.JID, 0, len(values))
+	for _, value := range values {
+		if value.IsEmpty() {
+			continue
+		}
+		identity := value.String()
+		if _, exists := seen[identity]; exists {
+			continue
+		}
+		seen[identity] = struct{}{}
+		output = append(output, value)
+	}
+	return output
+}
+
+func decryptPeerCallKey(ctx context.Context, socket core.VoipSocket, node *waBinary.Node, peers []types.JID) ([]byte, types.JID, error) {
+	if socket == nil || node == nil || len(peers) == 0 {
+		return nil, types.JID{}, fmt.Errorf("peer call-key inputs are incomplete")
+	}
+	attemptErrors := make([]error, 0, len(peers))
+	for _, peer := range peers {
+		key, err := signaling.DecryptCallKeyInNode(ctx, socket, node, peer)
+		if err == nil {
+			return key, peer, nil
+		}
+		attemptErrors = append(attemptErrors, fmt.Errorf("peer=%s: %w", peer.String(), err))
+	}
+	return nil, types.JID{}, fmt.Errorf("decrypt peer call key with %d candidates: %w", len(peers), errors.Join(attemptErrors...))
+}
+
+func peerCallKey(registry *PacketRegistry, instanceID, callID string) ([]byte, []types.JID, bool) {
 	peerCallKeyObservers.Lock()
 	defer peerCallKeyObservers.Unlock()
 	observer := peerCallKeyObservers.registries[registry][instanceID]
 	if observer == nil {
-		return nil, types.JID{}, false
+		return nil, nil, false
 	}
 	stored, ok := observer.keys[callID]
-	if !ok || len(stored.key) != 32 || stored.peer.IsEmpty() {
-		return nil, types.JID{}, false
+	if !ok || len(stored.key) != 32 || len(stored.peers) == 0 {
+		return nil, nil, false
 	}
-	return append([]byte(nil), stored.key...), stored.peer, true
+	return append([]byte(nil), stored.key...), append([]types.JID(nil), stored.peers...), true
 }
 
 func removePeerCallKey(registry *PacketRegistry, instanceID, callID string) {
@@ -225,18 +272,22 @@ func buildPacketSRTPCandidates(
 		return nil, ErrPacketSessionNotReady
 	}
 
-	peerKey, acceptedPeer, hasPeerKey := peerCallKey(registry, instanceID, callID)
+	peerKey, acceptedPeers, hasPeerKey := peerCallKey(registry, instanceID, callID)
 	defer zeroBytes(peerKey)
-	peerKeyJIDs := []string(nil)
+	candidateJIDs := append([]string(nil), receiveJIDs...)
 	if hasPeerKey {
-		peerKeyJIDs = uniqueJIDStrings(acceptedPeer.String(), ensureDeviceJIDString(acceptedPeer.String()))
-		peerKeyJIDs = uniqueJIDStrings(append(peerKeyJIDs, receiveJIDs...)...)
+		peerJIDs := make([]string, 0, len(acceptedPeers)*2+len(receiveJIDs))
+		for _, peer := range acceptedPeers {
+			peerJIDs = append(peerJIDs, peer.String(), ensureDeviceJIDString(peer.String()))
+		}
+		peerJIDs = append(peerJIDs, candidateJIDs...)
+		candidateJIDs = uniqueDeviceJIDs(peerJIDs...)
 	}
 
-	keyings := make([]packetSRTPCandidateKeying, 0, len(peerKeyJIDs)+len(receiveJIDs))
-	seenMaterial := make(map[string]struct{})
+	keyings := make([]packetSRTPCandidateKeying, 0, len(candidateJIDs)+len(receiveJIDs))
+	seenMaterial := make(map[[sha256.Size]byte]struct{})
 	appendCandidate := func(receiveJID string, send, receive core.SRTPKeyingMaterial) {
-		identity := fmt.Sprintf("%x:%x", receive.MasterKey, receive.MasterSalt)
+		identity := packetKeyingFingerprint(receive)
 		if _, exists := seenMaterial[identity]; exists {
 			send.Wipe()
 			receive.Wipe()
@@ -247,7 +298,7 @@ func buildPacketSRTPCandidates(
 	}
 
 	if hasPeerKey {
-		for _, receiveJID := range peerKeyJIDs {
+		for _, receiveJID := range candidateJIDs {
 			send, originalReceive, err := registry.source.SRTPKeying(instanceID, callID, selfDeviceJID, receiveJID)
 			if err != nil {
 				wipePacketCandidateKeyings(keyings)
@@ -278,19 +329,14 @@ func buildPacketSRTPCandidates(
 	return keyings, nil
 }
 
-func uniqueJIDStrings(values ...string) []string {
-	seen := make(map[string]struct{}, len(values))
-	output := make([]string, 0, len(values))
-	for _, value := range values {
-		if value == "" {
-			continue
-		}
-		if _, exists := seen[value]; exists {
-			continue
-		}
-		seen[value] = struct{}{}
-		output = append(output, value)
-	}
+func packetKeyingFingerprint(keying core.SRTPKeyingMaterial) [sha256.Size]byte {
+	hash := sha256.New()
+	_, _ = hash.Write([]byte{byte(len(keying.MasterKey))})
+	_, _ = hash.Write(keying.MasterKey)
+	_, _ = hash.Write([]byte{byte(len(keying.MasterSalt))})
+	_, _ = hash.Write(keying.MasterSalt)
+	var output [sha256.Size]byte
+	copy(output[:], hash.Sum(nil))
 	return output
 }
 
@@ -299,4 +345,20 @@ func wipePacketCandidateKeyings(keyings []packetSRTPCandidateKeying) {
 		keyings[index].send.Wipe()
 		keyings[index].receive.Wipe()
 	}
+}
+
+func equalPeerCallKeys(left, right []byte) bool {
+	return bytes.Equal(left, right)
+}
+
+func equalCallKeyPeers(left, right []types.JID) bool {
+	if len(left) != len(right) {
+		return false
+	}
+	for index := range left {
+		if left[index].String() != right[index].String() {
+			return false
+		}
+	}
+	return true
 }
