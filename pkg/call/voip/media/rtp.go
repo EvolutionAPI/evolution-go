@@ -14,6 +14,11 @@ const (
 	rtpVersion       uint8 = 2
 	rtpMinHeaderSize       = 12
 	maxCSRCCount           = 15
+
+	// WhatsApp audio RTP uses the RFC 5285 one-byte extension profile even when
+	// the current packet carries no extension elements. Native clients include
+	// this empty DEBE block on outbound voice packets.
+	whatsAppRTPDEBEProfile uint16 = 0xbede
 )
 
 type RTPHeader struct {
@@ -230,6 +235,8 @@ type RTPSession struct {
 	sequenceNumber   uint16
 	timestamp        uint32
 	samplesPerPacket uint32
+	extension        bool
+	extensionProfile uint16
 }
 
 func NewRTPSession(ssrc uint32, payloadType uint8, samplesPerPacket uint32) (*RTPSession, error) {
@@ -260,7 +267,13 @@ func NewRTPSession(ssrc uint32, payloadType uint8, samplesPerPacket uint32) (*RT
 }
 
 func NewWhatsAppOpusRTPSession(ssrc uint32) (*RTPSession, error) {
-	return NewRTPSession(ssrc, core.PayloadTypeWhatsAppOpus, 960)
+	session, err := NewRTPSession(ssrc, core.PayloadTypeWhatsAppOpus, 960)
+	if err != nil {
+		return nil, err
+	}
+	session.extension = true
+	session.extensionProfile = whatsAppRTPDEBEProfile
+	return session, nil
 }
 
 func (s *RTPSession) CreatePacket(payload []byte, marker bool) *RTPPacket {
@@ -271,6 +284,8 @@ func (s *RTPSession) CreatePacketWithDuration(payload []byte, durationSamples ui
 	s.mu.Lock()
 	header := NewRTPHeader(s.payloadType, s.sequenceNumber, s.timestamp, s.ssrc)
 	header.Marker = marker
+	header.Extension = s.extension
+	header.ExtensionProfile = s.extensionProfile
 	s.sequenceNumber++
 	s.timestamp += durationSamples
 	s.mu.Unlock()
