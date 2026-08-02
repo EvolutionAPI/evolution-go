@@ -149,26 +149,59 @@ func TestPacketRegistryHandleInvokesCallbackAndRejectsNonRTP(t *testing.T) {
 	}
 }
 
-func TestPacketRegistryRejectsUnexpectedPeerSSRC(t *testing.T) {
+func TestPacketRegistryAdoptsFirstAuthenticatedPeerSSRC(t *testing.T) {
 	callKey := bytes.Repeat([]byte{0x7c}, 32)
 	registry := NewPacketRegistry(&fakePacketSource{callKey: callKey})
-	if err := registry.PrepareWithDevices("instance", "call", "self@lid", "peer@lid", 11, 22); err != nil {
+	const (
+		instanceID  = "instance"
+		callID      = "call"
+		selfDevice  = "self:1@lid"
+		peerDevice  = "peer:2@lid"
+		selfSSRC    = uint32(11)
+		predicted   = uint32(22)
+		actual      = uint32(99)
+	)
+	if err := registry.PrepareWithDevices(instanceID, callID, selfDevice, peerDevice, selfSSRC, predicted); err != nil {
 		t.Fatal(err)
 	}
-	defer registry.Close("instance")
+	defer registry.Close(instanceID)
 
-	peerSend, _ := DerivePerJIDSRTPKey(callKey, "peer@lid")
-	peerReceive, _ := DerivePerJIDSRTPKey(callKey, "self@lid")
+	peerSend, _ := DerivePerJIDSRTPKey(callKey, peerDevice)
+	peerReceive, _ := DerivePerJIDSRTPKey(callKey, selfDevice)
 	defer peerSend.Wipe()
 	defer peerReceive.Wipe()
 	peerSession, _ := NewSRTPSession(peerSend, peerReceive, 4, 4)
 	defer peerSession.Close()
-	wrongRTP, _ := NewWhatsAppOpusRTPSession(99)
-	frame, err := peerSession.Protect(wrongRTP.CreatePacket([]byte{1}, false))
+	actualRTP, _ := NewWhatsAppOpusRTPSession(actual)
+	frame, err := peerSession.Protect(actualRTP.CreatePacket([]byte{1}, false))
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err = registry.Unprotect("instance", "call", frame); err == nil {
-		t.Fatal("expected unexpected SSRC error")
+
+	var gotPrevious, gotActual uint32
+	registry.SetOnPeerSSRC(func(_, _ string, previous, observed uint32) {
+		gotPrevious, gotActual = previous, observed
+	})
+	packet, err := registry.Unprotect(instanceID, callID, frame)
+	if err != nil {
+		t.Fatalf("first authenticated SSRC should be adopted: %v", err)
+	}
+	packet.Wipe()
+	if gotPrevious != predicted || gotActual != actual {
+		t.Fatalf("unexpected SSRC callback: previous=%d actual=%d", gotPrevious, gotActual)
+	}
+
+	session, err := registry.packetSession(instanceID, callID, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	otherFrame := make([]byte, 12)
+	otherFrame[0] = 0x80
+	otherFrame[8] = 0
+	otherFrame[9] = 0
+	otherFrame[10] = 0
+	otherFrame[11] = 100
+	if _, _, _, err = session.peerSSRCCandidate(otherFrame); err == nil {
+		t.Fatal("expected later peer SSRC changes to be rejected")
 	}
 }
