@@ -243,9 +243,11 @@ func (r *PacketRegistry) Attach(instanceID string, client *whatsmeow.Client) {
 		delete(r.sessions, instanceID)
 		r.mu.Unlock()
 		closePacketSessions(sessions)
+		attachPeerCallKeyObserver(r, instanceID, client)
 		return
 	}
 	r.mu.Unlock()
+	attachPeerCallKeyObserver(r, instanceID, client)
 }
 
 func (r *PacketRegistry) Prepare(instanceID, callID string) error {
@@ -336,28 +338,11 @@ func (r *PacketRegistry) PrepareWithDeviceCandidates(instanceID, callID, selfDev
 		return fmt.Errorf("call %s has no SRTP receive JID candidates", callID)
 	}
 
-	keyings := make([]packetSRTPCandidateKeying, 0, len(receiveJIDs))
-	for _, receiveJID := range receiveJIDs {
-		sendKeying, receiveKeying, err := r.source.SRTPKeying(instanceID, callID, selfDeviceJID, receiveJID)
-		if err != nil {
-			for index := range keyings {
-				keyings[index].send.Wipe()
-				keyings[index].receive.Wipe()
-			}
-			return fmt.Errorf("derive SRTP candidate %s: %w", receiveJID, err)
-		}
-		keyings = append(keyings, packetSRTPCandidateKeying{
-			receiveJID: receiveJID,
-			send:       sendKeying,
-			receive:    receiveKeying,
-		})
+	keyings, err := buildPacketSRTPCandidates(r, instanceID, callID, selfDeviceJID, receiveJIDs)
+	if err != nil {
+		return err
 	}
-	defer func() {
-		for index := range keyings {
-			keyings[index].send.Wipe()
-			keyings[index].receive.Wipe()
-		}
-	}()
+	defer wipePacketCandidateKeyings(keyings)
 
 	candidate, err := newPacketSessionCandidates(keyings, selfSSRC, peerSSRC)
 	if err != nil {
@@ -377,11 +362,15 @@ func (r *PacketRegistry) PrepareWithDeviceCandidates(instanceID, callID, selfDev
 		previous.close()
 	}
 
+	labels := make([]string, 0, len(keyings))
+	for _, keying := range keyings {
+		labels = append(labels, keying.receiveJID)
+	}
 	slog.Info("WhatsApp SRTP receive candidates prepared",
 		"instance", instanceID,
 		"call_id", callID,
 		"self_jid", selfDeviceJID,
-		"receive_jids", receiveJIDs,
+		"receive_jids", labels,
 	)
 	return nil
 }
@@ -477,12 +466,14 @@ func (r *PacketRegistry) Remove(instanceID, callID string) {
 	if session != nil {
 		session.close()
 	}
+	removePeerCallKey(r, instanceID, callID)
 }
 
 func (r *PacketRegistry) Close(instanceID string) {
 	if r == nil {
 		return
 	}
+	detachPeerCallKeyObserver(r, instanceID)
 	r.mu.Lock()
 	delete(r.clients, instanceID)
 	sessions := r.sessions[instanceID]
