@@ -19,11 +19,10 @@ func relayRTPSSRC(frame []byte) (uint32, bool) {
 	return ssrc, ssrc != 0
 }
 
-// observePeerSSRC adopts the first real remote SSRC seen on the relay. The
-// negotiation-derived value is only a prediction: account-level LIDs received
-// in call events may omit the device suffix used by WhatsApp's SSRC derivation.
-// After the first remote stream is fixed, later SSRC changes are rejected.
-func (s *packetSession) observePeerSSRC(frame []byte) (previous, actual uint32, changed bool, err error) {
+// peerSSRCCandidate validates whether a relay frame can belong to the remote
+// stream. The first non-local SSRC is allowed as a candidate, but it is only
+// committed after SRTP authentication succeeds.
+func (s *packetSession) peerSSRCCandidate(frame []byte) (previous, actual uint32, first bool, err error) {
 	if s == nil {
 		return 0, 0, false, ErrPacketSessionNotReady
 	}
@@ -31,23 +30,20 @@ func (s *packetSession) observePeerSSRC(frame []byte) (previous, actual uint32, 
 	if !ok {
 		return 0, 0, false, ErrNonRTPFrame
 	}
-
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	if s.srtp == nil {
-		return 0, 0, false, ErrPacketSessionNotReady
-	}
 	if actual == s.selfSSRC {
 		return s.peerSSRC, actual, false, ErrSelfRTPFrame
 	}
-	if !s.peerObserved {
-		previous = s.peerSSRC
-		s.peerSSRC = actual
-		s.peerObserved = true
-		return previous, actual, previous != actual, nil
-	}
-	if actual != s.peerSSRC {
+	if s.peerObserved && actual != s.peerSSRC {
 		return s.peerSSRC, actual, false, fmt.Errorf("unexpected RTP SSRC: got %d, want %d", actual, s.peerSSRC)
 	}
-	return s.peerSSRC, actual, false, nil
+	return s.peerSSRC, actual, !s.peerObserved, nil
+}
+
+func (s *packetSession) commitPeerSSRC(actual uint32) (previous uint32, changed bool) {
+	previous = s.peerSSRC
+	if !s.peerObserved {
+		s.peerSSRC = actual
+		s.peerObserved = true
+	}
+	return previous, previous != actual
 }
