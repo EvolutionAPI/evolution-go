@@ -10,30 +10,38 @@ import (
 	call_state "github.com/evolution-foundation/evolution-go/pkg/call/voip/call"
 	"github.com/evolution-foundation/evolution-go/pkg/call/voip/core"
 	"go.mau.fi/whatsmeow"
+	waBinary "go.mau.fi/whatsmeow/binary"
 	"go.mau.fi/whatsmeow/types"
 )
 
-func installPostAcceptTestHooks(
-	t *testing.T,
-	transport func(context.Context, *whatsmeow.Client, types.JID, types.JID, string) error,
-	mute func(context.Context, *whatsmeow.Client, types.JID, types.JID, string) error,
-) {
-	t.Helper()
-	previousResolve := resolvePostAcceptPeer
-	previousTransport := sendPostAcceptTransport
-	previousMute := sendPostAcceptMute
-	outgoingPostAcceptProgress.reset()
+type fakePostAcceptSocket struct {
+	resolve func(context.Context, types.JID) types.JID
+	send    func(context.Context, waBinary.Node) error
+}
 
-	resolvePostAcceptPeer = func(_ context.Context, _ *whatsmeow.Client, peer types.JID) types.JID {
-		return peer
+func (f *fakePostAcceptSocket) ResolveLIDForPN(ctx context.Context, peer types.JID) types.JID {
+	if f != nil && f.resolve != nil {
+		return f.resolve(ctx, peer)
 	}
-	sendPostAcceptTransport = transport
-	sendPostAcceptMute = mute
+	return peer
+}
 
+func (f *fakePostAcceptSocket) SendNode(ctx context.Context, node waBinary.Node) error {
+	if f != nil && f.send != nil {
+		return f.send(ctx, node)
+	}
+	return nil
+}
+
+func installPostAcceptTestSocket(t *testing.T, socket postAcceptSocket) {
+	t.Helper()
+	previousFactory := newPostAcceptSocket
+	outgoingPostAcceptProgress.reset()
+	newPostAcceptSocket = func(*whatsmeow.Client) postAcceptSocket {
+		return socket
+	}
 	t.Cleanup(func() {
-		resolvePostAcceptPeer = previousResolve
-		sendPostAcceptTransport = previousTransport
-		sendPostAcceptMute = previousMute
+		newPostAcceptSocket = previousFactory
 		outgoingPostAcceptProgress.reset()
 	})
 }
@@ -52,19 +60,28 @@ func newPostAcceptTestSession(t *testing.T, callID string) *relaySession {
 	return session
 }
 
+func postAcceptChildTag(node waBinary.Node) string {
+	children := node.GetChildren()
+	if len(children) == 0 {
+		return ""
+	}
+	return children[0].Tag
+}
+
 func TestOutgoingPostAcceptSuppressesDuplicateAccept(t *testing.T) {
 	transportCalls := 0
 	muteCalls := 0
-	installPostAcceptTestHooks(t,
-		func(context.Context, *whatsmeow.Client, types.JID, types.JID, string) error {
-			transportCalls++
+	installPostAcceptTestSocket(t, &fakePostAcceptSocket{
+		send: func(_ context.Context, node waBinary.Node) error {
+			switch postAcceptChildTag(node) {
+			case "transport":
+				transportCalls++
+			case "mute_v2":
+				muteCalls++
+			}
 			return nil
 		},
-		func(context.Context, *whatsmeow.Client, types.JID, types.JID, string) error {
-			muteCalls++
-			return nil
-		},
-	)
+	})
 
 	session := newPostAcceptTestSession(t, "call-duplicate-accept")
 	session.sendOutgoingPostAccept("call-duplicate-accept")
@@ -78,19 +95,20 @@ func TestOutgoingPostAcceptSuppressesDuplicateAccept(t *testing.T) {
 func TestOutgoingPostAcceptRetriesOnlyFailedMuteStage(t *testing.T) {
 	transportCalls := 0
 	muteCalls := 0
-	installPostAcceptTestHooks(t,
-		func(context.Context, *whatsmeow.Client, types.JID, types.JID, string) error {
-			transportCalls++
-			return nil
-		},
-		func(context.Context, *whatsmeow.Client, types.JID, types.JID, string) error {
-			muteCalls++
-			if muteCalls == 1 {
-				return errors.New("temporary mute sync failure")
+	installPostAcceptTestSocket(t, &fakePostAcceptSocket{
+		send: func(_ context.Context, node waBinary.Node) error {
+			switch postAcceptChildTag(node) {
+			case "transport":
+				transportCalls++
+			case "mute_v2":
+				muteCalls++
+				if muteCalls == 1 {
+					return errors.New("temporary mute sync failure")
+				}
 			}
 			return nil
 		},
-	)
+	})
 
 	session := newPostAcceptTestSession(t, "call-mute-retry")
 	session.sendOutgoingPostAccept("call-mute-retry")
@@ -111,18 +129,19 @@ func TestOutgoingPostAcceptSerializesConcurrentAccepts(t *testing.T) {
 	releaseTransport := make(chan struct{})
 	var startOnce sync.Once
 
-	installPostAcceptTestHooks(t,
-		func(context.Context, *whatsmeow.Client, types.JID, types.JID, string) error {
-			transportCalls.Add(1)
-			startOnce.Do(func() { close(transportStarted) })
-			<-releaseTransport
+	installPostAcceptTestSocket(t, &fakePostAcceptSocket{
+		send: func(_ context.Context, node waBinary.Node) error {
+			switch postAcceptChildTag(node) {
+			case "transport":
+				transportCalls.Add(1)
+				startOnce.Do(func() { close(transportStarted) })
+				<-releaseTransport
+			case "mute_v2":
+				muteCalls.Add(1)
+			}
 			return nil
 		},
-		func(context.Context, *whatsmeow.Client, types.JID, types.JID, string) error {
-			muteCalls.Add(1)
-			return nil
-		},
-	)
+	})
 
 	session := newPostAcceptTestSession(t, "call-concurrent-accept")
 	primaryDone := make(chan struct{})
