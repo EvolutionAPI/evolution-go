@@ -10,6 +10,7 @@ import (
 	"github.com/evolution-foundation/evolution-go/pkg/call/voip/signaling"
 	"github.com/evolution-foundation/evolution-go/pkg/call/voip/wa"
 	"go.mau.fi/whatsmeow"
+	waBinary "go.mau.fi/whatsmeow/binary"
 	"go.mau.fi/whatsmeow/types"
 )
 
@@ -17,6 +18,11 @@ const (
 	postAcceptSignalingTimeout = 5 * time.Second
 	postAcceptProgressTTL      = 10 * time.Minute
 )
+
+type postAcceptSocket interface {
+	ResolveLIDForPN(context.Context, types.JID) types.JID
+	SendNode(context.Context, waBinary.Node) error
+}
 
 type postAcceptProgressKey struct {
 	session *relaySession
@@ -39,26 +45,8 @@ var outgoingPostAcceptProgress = postAcceptProgressTracker{
 	calls: make(map[postAcceptProgressKey]*postAcceptProgress),
 }
 
-var resolvePostAcceptPeer = func(ctx context.Context, client *whatsmeow.Client, peer types.JID) types.JID {
-	return wa.NewSocket(client).ResolveLIDForPN(ctx, peer)
-}
-
-var sendPostAcceptTransport = func(
-	ctx context.Context,
-	client *whatsmeow.Client,
-	peer, creator types.JID,
-	callID string,
-) error {
-	return wa.NewSocket(client).SendNode(ctx, signaling.BuildPostAcceptTransportStanza(peer, creator, callID))
-}
-
-var sendPostAcceptMute = func(
-	ctx context.Context,
-	client *whatsmeow.Client,
-	peer, creator types.JID,
-	callID string,
-) error {
-	return wa.NewSocket(client).SendNode(ctx, signaling.BuildMuteV2Stanza(peer, creator, callID, 0))
+var newPostAcceptSocket = func(client *whatsmeow.Client) postAcceptSocket {
+	return wa.NewSocket(client)
 }
 
 func (t *postAcceptProgressTracker) begin(session *relaySession, callID string) (postAcceptProgress, bool) {
@@ -84,7 +72,7 @@ func (t *postAcceptProgressTracker) begin(session *relaySession, callID string) 
 		progress = &postAcceptProgress{}
 		t.calls[key] = progress
 	}
-	if progress.running || progress.muteSent {
+	if progress.running || (progress.transportSent && progress.muteSent) {
 		return postAcceptProgress{}, false
 	}
 	progress.running = true
@@ -170,6 +158,12 @@ func (s *relaySession) sendOutgoingPostAccept(callID string) {
 		return
 	}
 
+	socket := newPostAcceptSocket(client)
+	if socket == nil {
+		s.log.Warn("WhatsApp post-accept signaling skipped", "instance", s.instanceID, "call_id", callID, "err", "nil socket adapter")
+		return
+	}
+
 	progress, acquired := outgoingPostAcceptProgress.begin(s, callID)
 	if !acquired {
 		return
@@ -180,17 +174,17 @@ func (s *relaySession) sendOutgoingPostAccept(callID string) {
 
 	ctx, cancel := context.WithTimeout(context.Background(), postAcceptSignalingTimeout)
 	defer cancel()
-	peer = resolvePostAcceptPeer(ctx, client, peer)
+	peer = socket.ResolveLIDForPN(ctx, peer)
 
 	if !progress.transportSent {
-		if err = sendPostAcceptTransport(ctx, client, peer, creator, callID); err != nil {
+		if err = socket.SendNode(ctx, signaling.BuildPostAcceptTransportStanza(peer, creator, callID)); err != nil {
 			s.log.Warn("WhatsApp post-accept transport failed", "instance", s.instanceID, "call_id", callID, "err", err)
 			return
 		}
 		progress.transportSent = true
 	}
 	if !progress.muteSent {
-		if err = sendPostAcceptMute(ctx, client, peer, creator, callID); err != nil {
+		if err = socket.SendNode(ctx, signaling.BuildMuteV2Stanza(peer, creator, callID, 0)); err != nil {
 			s.log.Warn("WhatsApp post-accept mute sync failed", "instance", s.instanceID, "call_id", callID, "err", err)
 			return
 		}
