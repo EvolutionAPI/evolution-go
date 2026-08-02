@@ -2,33 +2,10 @@ package incoming
 
 import (
 	"fmt"
-	"strings"
 
 	"github.com/evolution-foundation/evolution-go/pkg/call/voip/core"
 	call_media "github.com/evolution-foundation/evolution-go/pkg/call/voip/media"
 )
-
-func ensureSRTPDeviceJID(value string) string {
-	at := strings.IndexByte(value, '@')
-	if at <= 0 {
-		return value
-	}
-	if strings.Contains(value[:at], ":") {
-		return value
-	}
-	return value[:at] + ":0" + value[at:]
-}
-
-// receiveDeviceJID keeps relay routing and SRTP key derivation separate.
-// WhatsApp relay participants may contain synthetic hosted.lid devices (for
-// example :99@hosted.lid) that are valid for SSRC subscription, but outgoing
-// receive keys are derived from the account/device that accepted the call.
-func receiveDeviceJID(material *callMaterial, relayPeerDeviceJID string) string {
-	if material != nil && material.state != nil && material.state.Direction == core.CallDirectionOutgoing && !material.peer.IsEmpty() {
-		return ensureSRTPDeviceJID(material.peer.String())
-	}
-	return ensureSRTPDeviceJID(relayPeerDeviceJID)
-}
 
 func (s *session) deriveSRTPKeying(callID, selfDeviceJID, peerDeviceJID string) (core.SRTPKeyingMaterial, core.SRTPKeyingMaterial, error) {
 	if callID == "" {
@@ -45,7 +22,6 @@ func (s *session) deriveSRTPKeying(callID, selfDeviceJID, peerDeviceJID string) 
 		return core.SRTPKeyingMaterial{}, core.SRTPKeyingMaterial{}, fmt.Errorf("call %s has no private encryption key", callID)
 	}
 	callKey := append([]byte(nil), material.callKey...)
-	receiveJID := receiveDeviceJID(material, peerDeviceJID)
 	s.mu.RUnlock()
 	defer zeroBytes(callKey)
 
@@ -53,10 +29,10 @@ func (s *session) deriveSRTPKeying(callID, selfDeviceJID, peerDeviceJID string) 
 	if err != nil {
 		return core.SRTPKeyingMaterial{}, core.SRTPKeyingMaterial{}, fmt.Errorf("derive send SRTP keying: %w", err)
 	}
-	receiveKeying, err := call_media.DerivePerJIDSRTPKey(callKey, receiveJID)
+	receiveKeying, err := call_media.DerivePerJIDSRTPKey(callKey, peerDeviceJID)
 	if err != nil {
 		sendKeying.Wipe()
-		return core.SRTPKeyingMaterial{}, core.SRTPKeyingMaterial{}, fmt.Errorf("derive receive SRTP keying for %s: %w", receiveJID, err)
+		return core.SRTPKeyingMaterial{}, core.SRTPKeyingMaterial{}, fmt.Errorf("derive receive SRTP keying for %s: %w", peerDeviceJID, err)
 	}
 	return sendKeying, receiveKeying, nil
 }
