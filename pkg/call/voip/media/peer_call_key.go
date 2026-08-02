@@ -73,13 +73,13 @@ func attachPeerCallKeyObserver(registry *PacketRegistry, instanceID string, clie
 		case *events.CallAccept:
 			capturePeerCallKey(registry, instanceID, client, event)
 		case *events.CallReject:
-			removePeerCallKey(registry, instanceID, event.CallID)
+			removePeerCallKeyForClient(registry, instanceID, client, event.CallID)
 		case *events.CallTerminate:
-			removePeerCallKey(registry, instanceID, event.CallID)
+			removePeerCallKeyForClient(registry, instanceID, client, event.CallID)
 		case *events.Disconnected:
-			clearPeerCallKeys(registry, instanceID)
+			clearPeerCallKeysForClient(registry, instanceID, client)
 		case *events.LoggedOut:
-			clearPeerCallKeys(registry, instanceID)
+			clearPeerCallKeysForClient(registry, instanceID, client)
 		}
 	})
 
@@ -207,12 +207,23 @@ func peerCallKey(registry *PacketRegistry, instanceID, callID string) ([]byte, [
 }
 
 func removePeerCallKey(registry *PacketRegistry, instanceID, callID string) {
+	removePeerCallKeyMatchingClient(registry, instanceID, nil, callID)
+}
+
+func removePeerCallKeyForClient(registry *PacketRegistry, instanceID string, client *whatsmeow.Client, callID string) {
+	if client == nil {
+		return
+	}
+	removePeerCallKeyMatchingClient(registry, instanceID, client, callID)
+}
+
+func removePeerCallKeyMatchingClient(registry *PacketRegistry, instanceID string, client *whatsmeow.Client, callID string) {
 	if registry == nil || instanceID == "" || callID == "" {
 		return
 	}
 	peerCallKeyObservers.Lock()
 	observer := peerCallKeyObservers.registries[registry][instanceID]
-	if observer != nil {
+	if observer != nil && (client == nil || observer.client == client) {
 		if stored, ok := observer.keys[callID]; ok {
 			zeroBytes(stored.key)
 			delete(observer.keys, callID)
@@ -222,12 +233,23 @@ func removePeerCallKey(registry *PacketRegistry, instanceID, callID string) {
 }
 
 func clearPeerCallKeys(registry *PacketRegistry, instanceID string) {
+	clearPeerCallKeysMatchingClient(registry, instanceID, nil)
+}
+
+func clearPeerCallKeysForClient(registry *PacketRegistry, instanceID string, client *whatsmeow.Client) {
+	if client == nil {
+		return
+	}
+	clearPeerCallKeysMatchingClient(registry, instanceID, client)
+}
+
+func clearPeerCallKeysMatchingClient(registry *PacketRegistry, instanceID string, client *whatsmeow.Client) {
 	if registry == nil || instanceID == "" {
 		return
 	}
 	peerCallKeyObservers.Lock()
 	observer := peerCallKeyObservers.registries[registry][instanceID]
-	if observer != nil {
+	if observer != nil && (client == nil || observer.client == client) {
 		for callID, stored := range observer.keys {
 			zeroBytes(stored.key)
 			delete(observer.keys, callID)
