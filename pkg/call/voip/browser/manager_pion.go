@@ -86,7 +86,7 @@ func (m *pionManager) Create(ctx context.Context, instanceID, callID string, req
 	sessionID := uuid.NewString()
 	m.mu.Unlock()
 
-	pc, err := webrtc.NewPeerConnection(webrtc.Configuration{})
+	pc, err := newBrowserPeerConnection()
 	if err != nil {
 		return CreateResponse{}, fmt.Errorf("create browser peer connection: %w", err)
 	}
