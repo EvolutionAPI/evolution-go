@@ -1,7 +1,30 @@
 export interface EvolutionConnection {
   baseUrl: string;
   apiKey: string;
+  adminApiKey: string;
+  instanceId: string;
   remember: boolean;
+}
+
+export type ApiAuthMode = "instance" | "admin" | "none";
+
+export interface ApiExecutionRequest {
+  method: string;
+  path: string;
+  auth?: ApiAuthMode;
+  body?: BodyInit | null;
+  headers?: HeadersInit;
+}
+
+export interface ApiExecutionResult {
+  ok: boolean;
+  status: number;
+  statusText: string;
+  durationMs: number;
+  url: string;
+  headers: Record<string, string>;
+  data: unknown;
+  rawText: string;
 }
 
 export type CallDirection = "incoming" | "outgoing";
@@ -64,8 +87,10 @@ interface CheckUserCollection {
   users?: CheckedUser[];
 }
 
-const PERSISTENT_KEY = "evolution.managerV2.connection.v1";
-const SESSION_KEY = "evolution.managerV2.connection.session.v1";
+const PERSISTENT_KEY = "evolution.managerV2.connection.v2";
+const SESSION_KEY = "evolution.managerV2.connection.session.v2";
+const LEGACY_PERSISTENT_KEY = "evolution.managerV2.connection.v1";
+const LEGACY_SESSION_KEY = "evolution.managerV2.connection.session.v1";
 
 export function loadConnection(): EvolutionConnection {
   const parse = (value: string | null): Partial<EvolutionConnection> | null => {
@@ -76,12 +101,14 @@ export function loadConnection(): EvolutionConnection {
       return null;
     }
   };
-  const persistent = parse(localStorage.getItem(PERSISTENT_KEY));
-  const temporary = parse(sessionStorage.getItem(SESSION_KEY));
+  const persistent = parse(localStorage.getItem(PERSISTENT_KEY)) ?? parse(localStorage.getItem(LEGACY_PERSISTENT_KEY));
+  const temporary = parse(sessionStorage.getItem(SESSION_KEY)) ?? parse(sessionStorage.getItem(LEGACY_SESSION_KEY));
   const value = persistent ?? temporary ?? {};
   return {
     baseUrl: normalizeBaseUrl(value.baseUrl || window.location.origin),
     apiKey: value.apiKey || "",
+    adminApiKey: value.adminApiKey || "",
+    instanceId: value.instanceId || "",
     remember: Boolean(persistent),
   };
 }
@@ -95,6 +122,8 @@ export function saveConnection(connection: EvolutionConnection): void {
     sessionStorage.setItem(SESSION_KEY, JSON.stringify(normalized));
     localStorage.removeItem(PERSISTENT_KEY);
   }
+  localStorage.removeItem(LEGACY_PERSISTENT_KEY);
+  sessionStorage.removeItem(LEGACY_SESSION_KEY);
 }
 
 export function normalizeBaseUrl(value: string): string {
@@ -111,32 +140,77 @@ export function displayPhone(value: string): string {
 
 export class EvolutionApi {
   private readonly baseUrl: string;
-  private readonly apiKey: string;
+  private readonly instanceApiKey: string;
+  private readonly adminApiKey: string;
 
   constructor(connection: EvolutionConnection) {
     this.baseUrl = normalizeBaseUrl(connection.baseUrl);
-    this.apiKey = connection.apiKey.trim();
+    this.instanceApiKey = connection.apiKey.trim();
+    this.adminApiKey = connection.adminApiKey.trim();
+  }
+
+  async execute(request: ApiExecutionRequest): Promise<ApiExecutionResult> {
+    const path = request.path.startsWith("/") ? request.path : `/${request.path}`;
+    const url = `${this.baseUrl}${path}`;
+    const headers = new Headers(request.headers);
+    const auth = request.auth ?? "instance";
+    const key = auth === "admin" ? (this.adminApiKey || this.instanceApiKey) : this.instanceApiKey;
+    if (auth !== "none") {
+      if (!key) throw new Error(auth === "admin" ? "Informe a API key global" : "Informe a API key da instância");
+      headers.set("apikey", key);
+    }
+    const isFormData = typeof FormData !== "undefined" && request.body instanceof FormData;
+    if (request.body !== undefined && request.body !== null && !isFormData && !headers.has("Content-Type")) {
+      headers.set("Content-Type", "application/json");
+    }
+
+    const startedAt = performance.now();
+    const response = await fetch(url, {
+      method: request.method.toUpperCase(),
+      headers,
+      body: ["GET", "HEAD"].includes(request.method.toUpperCase()) ? undefined : request.body,
+    });
+    const rawText = await response.text();
+    let data: unknown = rawText;
+    if (rawText) {
+      try {
+        data = JSON.parse(rawText) as unknown;
+      } catch {
+        data = rawText;
+      }
+    } else {
+      data = null;
+    }
+    return {
+      ok: response.ok,
+      status: response.status,
+      statusText: response.statusText,
+      durationMs: Math.round(performance.now() - startedAt),
+      url,
+      headers: Object.fromEntries(response.headers.entries()),
+      data,
+      rawText,
+    };
   }
 
   private async request<T>(path: string, init: RequestInit = {}): Promise<T> {
-    if (!this.apiKey) throw new Error("Informe a API key da instância");
-    const headers = new Headers(init.headers);
-    headers.set("apikey", this.apiKey);
-    const isFormData = typeof FormData !== "undefined" && init.body instanceof FormData;
-    if (init.body !== undefined && !isFormData && !headers.has("Content-Type")) {
-      headers.set("Content-Type", "application/json");
-    }
-    const response = await fetch(`${this.baseUrl}${path}`, { ...init, headers });
-    const body = (await response.json().catch(() => ({}))) as Record<string, unknown>;
-    if (!response.ok) {
-      const message = typeof body.error === "string"
+    const result = await this.execute({
+      path,
+      method: init.method || "GET",
+      body: init.body,
+      headers: init.headers,
+      auth: "instance",
+    });
+    if (!result.ok) {
+      const body = result.data as Record<string, unknown> | null;
+      const message = body && typeof body === "object" && typeof body.error === "string"
         ? body.error
-        : typeof body.message === "string"
+        : body && typeof body === "object" && typeof body.message === "string"
           ? body.message
-          : `HTTP ${response.status}`;
+          : `HTTP ${result.status}`;
       throw new Error(message);
     }
-    return body as T;
+    return result.data as T;
   }
 
   callStatus(): Promise<CallStatusSnapshot> {
