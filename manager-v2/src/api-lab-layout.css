@@ -1,0 +1,4 @@
+.api-route-row.editable { grid-template-columns: 90px minmax(0, 1fr) 180px 130px; }
+.multipart-file-row { display: grid; grid-template-columns: minmax(150px, .4fr) minmax(0, 1fr); gap: 9px; }
+@media (max-width: 900px) { .api-route-row.editable { grid-template-columns: 90px minmax(0, 1fr); } }
+@media (max-width: 620px) { .api-route-row.editable, .multipart-file-row { grid-template-columns: 1fr; } }
