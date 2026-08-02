@@ -1,9 +1,9 @@
 package media
 
 import (
-	"bytes"
 	"context"
 	"crypto/sha256"
+	"crypto/subtle"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -42,24 +42,33 @@ func attachPeerCallKeyObserver(registry *PacketRegistry, instanceID string, clie
 		return
 	}
 
+	observer := &peerCallKeyObserver{client: client, keys: make(map[string]storedPeerCallKey)}
+
+	// Reserve the instance slot before registering the callback. This serializes
+	// rapid reconnects: a later client replaces the earlier reservation, while
+	// duplicate attaches of the same client become no-ops.
 	peerCallKeyObservers.Lock()
 	instances := peerCallKeyObservers.registries[registry]
 	if instances == nil {
 		instances = make(map[string]*peerCallKeyObserver)
 		peerCallKeyObservers.registries[registry] = instances
 	}
-	current := instances[instanceID]
-	if current != nil && current.client == client {
+	previous := instances[instanceID]
+	if previous != nil && previous.client == client {
 		peerCallKeyObservers.Unlock()
 		return
 	}
+	instances[instanceID] = observer
 	peerCallKeyObservers.Unlock()
-	if current != nil {
-		detachPeerCallKeyObserver(registry, instanceID)
+
+	if previous != nil {
+		if previous.client != nil && previous.handlerID != 0 {
+			previous.client.RemoveEventHandler(previous.handlerID)
+		}
+		wipePeerObserver(previous)
 	}
 
-	observer := &peerCallKeyObserver{client: client, keys: make(map[string]storedPeerCallKey)}
-	observer.handlerID = client.AddEventHandler(func(rawEvent interface{}) {
+	handlerID := client.AddEventHandler(func(rawEvent interface{}) {
 		switch event := rawEvent.(type) {
 		case *events.CallAccept:
 			capturePeerCallKey(registry, instanceID, client, event)
@@ -76,17 +85,13 @@ func attachPeerCallKeyObserver(registry *PacketRegistry, instanceID string, clie
 
 	peerCallKeyObservers.Lock()
 	instances = peerCallKeyObservers.registries[registry]
-	if instances == nil {
-		instances = make(map[string]*peerCallKeyObserver)
-		peerCallKeyObservers.registries[registry] = instances
-	}
-	if previous := instances[instanceID]; previous != nil && previous.client != client {
+	if instances == nil || instances[instanceID] != observer {
 		peerCallKeyObservers.Unlock()
-		client.RemoveEventHandler(observer.handlerID)
+		client.RemoveEventHandler(handlerID)
 		wipePeerObserver(observer)
 		return
 	}
-	instances[instanceID] = observer
+	observer.handlerID = handlerID
 	peerCallKeyObservers.Unlock()
 }
 
@@ -348,7 +353,7 @@ func wipePacketCandidateKeyings(keyings []packetSRTPCandidateKeying) {
 }
 
 func equalPeerCallKeys(left, right []byte) bool {
-	return bytes.Equal(left, right)
+	return len(left) == len(right) && subtle.ConstantTimeCompare(left, right) == 1
 }
 
 func equalCallKeyPeers(left, right []types.JID) bool {
