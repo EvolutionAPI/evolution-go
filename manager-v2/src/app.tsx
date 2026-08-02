@@ -24,15 +24,19 @@ function connectionHost(value: string): string {
 export function App() {
   const [view, setView] = useState<View>("instance");
   const [connection, setConnection] = useState(loadConnection);
-  const api = useMemo(
-    () => connection.apiKey || connection.adminApiKey ? new EvolutionApi(connection) : null,
-    [connection],
-  );
+  const hasAnyKey = Boolean(connection.apiKey || connection.adminApiKey);
+  const api = useMemo(() => hasAnyKey ? new EvolutionApi(connection) : null, [connection, hasAnyKey]);
 
   const updateConnection = (next: EvolutionConnection) => {
     saveConnection(next);
     setConnection(next);
   };
+
+  const connectionLabel = connection.apiKey
+    ? "Chave da instância salva"
+    : connection.adminApiKey
+      ? "Chave global salva"
+      : "Configuração necessária";
 
   return (
     <div className="app-shell">
@@ -49,9 +53,9 @@ export function App() {
           ))}
         </nav>
         <div className="sidebar-foot">
-          <span className={`status-dot ${connection.apiKey ? "online" : "offline"}`} />
+          <span className={`status-dot ${hasAnyKey ? "online" : "offline"}`} />
           <div>
-            <strong>{connection.instanceId || (connection.apiKey ? "Instância configurada" : "Sem instância")}</strong>
+            <strong>{connection.instanceId || (hasAnyKey ? "Acesso configurado" : "Sem acesso")}</strong>
             <small>{connectionHost(connection.baseUrl)}</small>
           </div>
         </div>
@@ -61,9 +65,7 @@ export function App() {
         <header className="topbar">
           <div><span className="breadcrumb">Manager V2 /</span><strong>{NAV_ITEMS.find((item) => item.id === view)?.label}</strong></div>
           <div className="top-actions">
-            <span className={`connection-pill ${connection.apiKey ? "connected" : "disconnected"}`}>
-              {connection.apiKey ? "Chave da instância salva" : "Configuração necessária"}
-            </span>
+            <span className={`connection-pill ${hasAnyKey ? "connected" : "disconnected"}`}>{connectionLabel}</span>
             <button className="profile-button" title="API Test Manager">API</button>
           </div>
         </header>
@@ -74,7 +76,7 @@ export function App() {
           {view === "calls" && <CallWorkspace api={api} />}
           {view === "settings" && <ConnectionEditor value={connection} onSave={updateConnection} />}
 
-          {!connection.apiKey && !["instance", "settings"].includes(view) && (
+          {!hasAnyKey && !["instance", "settings"].includes(view) && (
             <div className="setup-overlay">
               <ConnectionEditor value={connection} onSave={updateConnection} compact />
             </div>
