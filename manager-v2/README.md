@@ -1,53 +1,124 @@
-# Evolution GO Manager V2
+# Evolution GO API Test Manager
 
-Novo frontend do Evolution GO, escrito do zero em React e TypeScript.
+Interface de desenvolvimento do Evolution GO, escrita do zero em React e TypeScript.
+
+O Manager V2 não é uma caixa de entrada nem um sistema de atendimento. Ele existe para:
+
+- criar ou configurar o acesso a uma instância;
+- conectar e salvar a sessão do WhatsApp;
+- gerar QR Code ou código de pareamento;
+- testar as funções públicas da API;
+- inspecionar respostas e erros;
+- reproduzir chamadas com cURL;
+- validar telefonia WebRTC no navegador.
 
 ## Princípios
 
-- nenhuma dependência do bundle compilado do Manager antigo;
+- nenhuma dependência do bundle compilado do Manager legado;
 - nenhuma cópia de componentes do AstraCalls/AGPL;
-- APIs, autenticação e protocolo WebRTC pertencem ao Evolution GO;
-- migração gradual: `/manager` permanece intacto enquanto o V2 evolui;
-- telefonia e mensageria fazem parte da mesma área operacional.
+- `/manager` permanece disponível como fallback;
+- `/manager-v2` é uma ferramenta técnica de conexão e testes;
+- nenhuma API nova é inventada apenas para alimentar a interface;
+- cada rota nova registrada no backend deve entrar no catálogo do API Lab.
 
-## Recursos atuais
+## Áreas
 
-### Telefonia
+### Instância
 
-- consulta periódica de `/call/status`;
-- início, aceite, recusa e encerramento de chamadas;
-- ponte WebRTC PCM `evolution-call-pcm` / `evcall.pcm.v1`;
-- captura e reprodução com AudioWorklet;
-- mute, estatísticas e diagnóstico local;
-- integração entre contatos, conversas e discador.
+O perfil de conexão armazena:
 
-### Mensageria
+- URL do Evolution GO;
+- ID da instância;
+- API key da instância;
+- API key global opcional;
+- preferência para salvar permanentemente ou apenas durante a sessão do navegador.
 
-- contatos reais carregados de `GET /user/contacts`;
-- busca por nome, empresa ou número;
-- validação de novo destinatário por `POST /user/check`;
-- envio de texto por `POST /send/text`;
-- envio multipart de imagem, vídeo, áudio e documento por `POST /send/media`;
-- legenda opcional para anexos;
-- estado local de envio, sucesso e falha;
-- histórico dos envios mantido em `sessionStorage` durante a sessão do navegador;
-- botão para iniciar chamada diretamente da conversa ou contato.
+A tela possui ações rápidas para:
 
-O backend atual não expõe uma rota de caixa de entrada/histórico completo. Portanto, o Manager V2 ainda não tenta inventar mensagens recebidas: ele mostra os envios locais e deixa a arquitetura preparada para consumir WebSocket, webhook persistido ou uma futura API de conversas.
+- consultar status;
+- conectar;
+- gerar QR Code;
+- reconectar;
+- desconectar;
+- fazer logout.
+
+O API Lab também contém as rotas administrativas para criar, listar, consultar, excluir e configurar proxy de instâncias.
+
+### API Lab
+
+O catálogo cobre as rotas registradas atualmente no roteador Go, incluindo:
+
+- servidor e instâncias;
+- texto, link, mídia, figurinha, localização e contato;
+- botões reply, copy, URL, call e PIX;
+- listas e carrosséis;
+- enquetes e status;
+- usuários, privacidade, perfil e bloqueios;
+- ações de mensagens e chats;
+- grupos e comunidades;
+- labels;
+- newsletters;
+- chamadas e sessões WebRTC.
+
+Cada operação fornece:
+
+- exemplo inicial de payload;
+- método HTTP editável;
+- caminho editável;
+- autenticação por chave da instância, global ou sem chave;
+- corpo JSON, multipart ou sem corpo;
+- upload de arquivo com nome de campo editável;
+- status HTTP e duração;
+- resposta completa;
+- cURL equivalente;
+- histórico dos últimos testes da sessão.
+
+A operação **Requisição personalizada** permite testar rotas novas ou variações sem esperar uma tela específica.
+
+### Chamadas
+
+A central de voz é um teste especializado para recursos que não podem ser validados apenas com JSON:
+
+- início, aceite, recusa e encerramento;
+- acompanhamento de `/call/status`;
+- criação da sessão WebRTC;
+- captura e reprodução PCM por AudioWorklet;
+- mute;
+- contadores de frames enviados, recebidos e descartados;
+- diagnóstico local de WebRTC, relay e SRTP.
+
+HTTPS é necessário para acesso ao microfone fora de `localhost`.
+
+## Cobertura automática das rotas
+
+O comando abaixo compara `pkg/routes/routes.go` com o catálogo do frontend:
+
+```bash
+npm run check:catalog
+```
+
+O CI falha quando uma rota registrada no Evolution GO não possui entrada no API Lab. Rotas de interface, favicon e Swagger são ignoradas.
 
 ## Desenvolvimento
 
 ```bash
 cd manager-v2
 npm install
+npm run check:catalog
+npm run typecheck
 npm run dev
 ```
 
-O Vite inicia em `http://localhost:5173/manager-v2/`. Para testar contra uma API remota, informe a URL HTTPS e a API key da instância no próprio Manager V2.
+O Vite inicia em:
 
-## Build local
+```text
+http://localhost:5173/manager-v2/
+```
+
+## Build
 
 ```bash
+npm run check:catalog
 npm run typecheck
 npm run build
 ```
@@ -56,33 +127,21 @@ O resultado é criado em `manager-v2/dist`.
 
 ## Docker e publicação
 
-O `Dockerfile` compila o frontend em um estágio Node separado e copia o resultado para a imagem final. O servidor Go publica:
+O Dockerfile compila o frontend em um estágio Node separado e copia o resultado para a imagem final. O servidor Go publica:
 
 ```text
 /manager     Manager legado
-/manager-v2  Manager novo
+/manager-v2  API Test Manager
 ```
 
-Para testar a imagem com telefonia Pion:
+Para compilar com telefonia Pion:
 
 ```bash
 docker build --build-arg GO_BUILD_TAGS=voip_pion -t evolution-go:manager-v2 .
 ```
 
-Depois do deploy, acesse:
+Depois do deploy:
 
 ```text
 https://SEU_DOMINIO/manager-v2
 ```
-
-HTTPS é necessário para acesso ao microfone fora de `localhost`.
-
-## Próximas fases
-
-1. gerenciamento de instâncias, QR Code, conexão e reconexão;
-2. API persistente de conversas e mensagens recebidas;
-3. eventos em tempo real por WebSocket/SSE;
-4. confirmação de entrega e leitura;
-5. resposta, edição, exclusão, reações e marcação como lida;
-6. envio de localização, contato, enquete, botões e listas;
-7. testes de interface e homologação ponta a ponta.
