@@ -116,7 +116,7 @@ func TestPacketRegistryAcceptsPeerProvidedCallKey(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	peerSend, err := DerivePerJIDSRTPKey(remoteCallKey, acceptedPeer.String())
+	peerSend, err := DerivePerJIDSRTPKey(remoteCallKey, peerDevice)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -156,7 +156,7 @@ func TestPacketRegistryAcceptsPeerProvidedCallKey(t *testing.T) {
 	session.mu.RLock()
 	selected := session.srtpCandidates[session.activeCandidate].receiveJID
 	session.mu.RUnlock()
-	if selected != acceptedPeer.String()+" (peer-key)" {
+	if selected != peerDevice+" (peer-key)" {
 		t.Fatalf("unexpected peer-key candidate selected: %s", selected)
 	}
 }
