@@ -425,6 +425,7 @@ func callNodeContainsVideo(node *waBinary.Node) bool {
 			if callNodeContainsVideo(&content[index]) {
 				return true
 			}
+		}
 	case *waBinary.Node:
 		return callNodeContainsVideo(content)
 	}
