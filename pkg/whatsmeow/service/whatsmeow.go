@@ -463,6 +463,10 @@ func (w whatsmeowService) StartClient(cd *ClientData) {
 
 	client.EnableAutoReconnect = false
 	client.AutoTrustIdentity = true
+	// FIX (MEGA): recupera mensagens indecifráveis (1ª msg de leads CTWA) pedindo o reenvio
+	// ao próprio telefone (device primário). Sem isso, UndecryptableMessage é descartada sem
+	// webhook. whatsmeow espera RequestFromPhoneDelay (~5s) o remetente reenviar; senão pede ao phone.
+	client.AutomaticMessageRerequestFromPhone = true
 
 	mycli := &MyClient{
 		service:            &w,
