@@ -9,15 +9,23 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-// isSecretEncryptedEdit reports whether the message is an edit sealed in a
-// secretEncryptedMessage envelope.
+// secretEncryptedEdit returns the envelope carrying a sealed message edit, or nil when the
+// message is not one.
 //
 // WhatsApp no longer sends message edits as a plaintext protocolMessage: the new content is
 // encrypted with a key derived from the target message secret. Without decrypting it, the
 // envelope reaches consumers as an opaque blob with no text at all.
-func isSecretEncryptedEdit(message *waE2E.Message) bool {
-	enc := message.GetSecretEncryptedMessage()
-	return enc != nil && enc.GetSecretEncType() == waE2E.SecretEncryptedMessage_MESSAGE_EDIT
+func secretEncryptedEdit(message *waE2E.Message) *waE2E.SecretEncryptedMessage {
+	if message == nil {
+		return nil
+	}
+
+	envelope := message.GetSecretEncryptedMessage()
+	if envelope == nil || envelope.GetSecretEncType() != waE2E.SecretEncryptedMessage_MESSAGE_EDIT {
+		return nil
+	}
+
+	return envelope
 }
 
 // buildEditProtocolMessage rebuilds the plaintext shape consumers already handle —
@@ -48,7 +56,12 @@ func buildEditProtocolMessage(target *waCommon.MessageKey, decrypted *waE2E.Mess
 // Every failure path leaves the event untouched on purpose: forwarding the original envelope
 // is what happens today, while dropping the event would lose the edit signal entirely.
 func (mycli *MyClient) unwrapSecretEncryptedEdit(evt *events.Message) {
-	if evt == nil || !isSecretEncryptedEdit(evt.Message) {
+	if evt == nil {
+		return
+	}
+
+	envelope := secretEncryptedEdit(evt.Message)
+	if envelope == nil {
 		return
 	}
 
@@ -57,7 +70,7 @@ func (mycli *MyClient) unwrapSecretEncryptedEdit(evt *events.Message) {
 		return
 	}
 
-	targetKey := evt.Message.GetSecretEncryptedMessage().GetTargetMessageKey()
+	targetKey := envelope.GetTargetMessageKey()
 
 	decrypted, err := client.DecryptSecretEncryptedMessage(context.Background(), evt)
 	if err != nil {

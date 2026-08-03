@@ -19,20 +19,25 @@ func secretEditEnvelope(encType waE2E.SecretEncryptedMessage_SecretEncType) *waE
 	}
 }
 
-func TestIsSecretEncryptedEdit(t *testing.T) {
-	if !isSecretEncryptedEdit(secretEditEnvelope(waE2E.SecretEncryptedMessage_MESSAGE_EDIT)) {
+func TestSecretEncryptedEdit(t *testing.T) {
+	envelope := secretEncryptedEdit(secretEditEnvelope(waE2E.SecretEncryptedMessage_MESSAGE_EDIT))
+	if envelope == nil {
 		t.Fatal("expected MESSAGE_EDIT envelope to be detected as an edit")
 	}
 
-	if isSecretEncryptedEdit(secretEditEnvelope(waE2E.SecretEncryptedMessage_POLL_EDIT)) {
+	if envelope.GetTargetMessageKey().GetID() != "ORIGINAL_ID" {
+		t.Fatalf("expected the target message key to be reachable, got %q", envelope.GetTargetMessageKey().GetID())
+	}
+
+	if secretEncryptedEdit(secretEditEnvelope(waE2E.SecretEncryptedMessage_POLL_EDIT)) != nil {
 		t.Fatal("expected POLL_EDIT envelope not to be treated as a message edit")
 	}
 
-	if isSecretEncryptedEdit(&waE2E.Message{Conversation: stringPtr("plain text")}) {
+	if secretEncryptedEdit(&waE2E.Message{Conversation: stringPtr("plain text")}) != nil {
 		t.Fatal("expected a plain message not to be treated as an edit")
 	}
 
-	if isSecretEncryptedEdit(nil) {
+	if secretEncryptedEdit(nil) != nil {
 		t.Fatal("expected a nil message not to be treated as an edit")
 	}
 }
@@ -91,13 +96,13 @@ func TestBuildEditProtocolMessageRequiresTargetAndContent(t *testing.T) {
 // The envelope is typed as "secret encrypted", which carries no text. Rebuilding it as a
 // protocolMessage is what makes the pipeline treat it as an edit.
 func TestRebuiltEditIsTypedAsEdit(t *testing.T) {
-	envelope := secretEditEnvelope(waE2E.SecretEncryptedMessage_MESSAGE_EDIT)
-	if got := utils.GetMessageType(envelope); got == "edit" {
+	sealed := secretEditEnvelope(waE2E.SecretEncryptedMessage_MESSAGE_EDIT)
+	if got := utils.GetMessageType(sealed); got == "edit" {
 		t.Fatalf("expected the sealed envelope not to be typed as an edit, got %q", got)
 	}
 
 	rebuilt := buildEditProtocolMessage(
-		envelope.GetSecretEncryptedMessage().GetTargetMessageKey(),
+		secretEncryptedEdit(sealed).GetTargetMessageKey(),
 		&waE2E.Message{Conversation: stringPtr("corrected text")},
 		0,
 	)
