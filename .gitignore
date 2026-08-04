@@ -1,9 +1,27 @@
+# Local environment and editor settings
 .env
-logs/*
-build/
-*.prof
-coverage.*
-.air.toml
+.env.*
+!.env.example
 .idea/
 .vscode/
 .DS_Store
+
+# Logs, coverage and temporary development files
+*.log
+logs/
+**/logs/
+tmp/
+**/tmp/
+build/
+*.prof
+coverage.*
+
+# Go build artifacts
+*.exe
+*.test
+*.out
+
+# Front-end dependencies and generated output
+**/node_modules/
+manager-v2/dist/
+*.tsbuildinfo
