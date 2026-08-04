@@ -1,0 +1,39 @@
+.guided-request-layout { display: grid; grid-template-columns: minmax(0, 1fr) 280px; gap: 18px; align-items: start; }
+.guided-form { display: grid; gap: 14px; }
+.guided-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.guided-grid.compact { grid-template-columns: repeat(3, minmax(0, 1fr)); padding-top: 4px; }
+.guided-field { display: grid; gap: 7px; min-width: 0; }
+.guided-field > span { color: var(--muted); font-size: 12px; font-weight: 700; }
+.guided-field small { color: #66857c; font-size: 10px; line-height: 1.45; }
+.guided-field input, .guided-field select, .guided-field textarea { width: 100%; border: 1px solid var(--line); border-radius: 12px; background: rgba(2,12,9,.55); color: var(--text); padding: 11px 13px; outline: none; }
+.guided-field input:focus, .guided-field select:focus, .guided-field textarea:focus { border-color: rgba(40,209,124,.65); box-shadow: 0 0 0 3px rgba(40,209,124,.08); }
+.guided-field textarea { resize: vertical; min-height: 92px; line-height: 1.45; }
+.guided-check { min-height: 45px; display: flex; align-items: center; gap: 9px; border: 1px solid var(--line); border-radius: 12px; padding: 0 12px; background: rgba(2,12,9,.35); color: var(--muted); font-size: 12px; }
+.guided-check input { width: auto; min-height: auto; padding: 0; }
+.guided-preview { position: sticky; top: 92px; display: grid; gap: 12px; border: 1px solid var(--line); border-radius: 15px; padding: 14px; background: rgba(0,0,0,.13); }
+.guided-preview > p { margin: 0; color: var(--muted); font-size: 10px; line-height: 1.5; }
+.preview-phone { border-radius: 16px; overflow: hidden; border: 1px solid rgba(255,255,255,.08); background: #0b1714; }
+.preview-header { padding: 10px 12px; background: #10251e; color: #a8c0b8; font-size: 11px; font-weight: 800; }
+.preview-bubble { margin: 18px 12px 20px 30px; padding: 11px 12px 8px; border-radius: 13px 13px 4px 13px; background: #155c43; box-shadow: 0 8px 22px rgba(0,0,0,.2); }
+.preview-bubble strong { display: block; font-size: 13px; }
+.preview-bubble p { margin: 5px 0 8px; font-size: 12px; color: #e4f4ee; white-space: pre-wrap; overflow-wrap: anywhere; }
+.preview-bubble small { display: block; text-align: right; color: rgba(255,255,255,.58); font-size: 9px; margin-top: 7px; }
+.preview-bubble ul { margin: 8px 0; padding-left: 18px; color: #dcefe8; font-size: 11px; }
+.preview-buttons { display: grid; gap: 5px; margin-top: 9px; }
+.preview-buttons span { padding: 7px 8px; text-align: center; border-top: 1px solid rgba(255,255,255,.12); color: #9df0c3; font-size: 10px; }
+.preview-chip { display: inline-flex; width: fit-content; margin-top: 8px; padding: 5px 8px; border-radius: 99px; background: rgba(255,255,255,.1); font-size: 10px; }
+.guided-invalid { display: grid; gap: 5px; border: 1px solid rgba(255,92,108,.22); border-radius: 13px; padding: 14px; background: rgba(255,92,108,.07); color: #ffb3bb; }
+.guided-invalid span { font-size: 11px; overflow-wrap: anywhere; }
+.request-mode-row { display: flex; gap: 7px; align-items: center; flex-wrap: wrap; margin: 0 0 14px; }
+.request-mode-row button { border: 1px solid var(--line); border-radius: 10px; padding: 7px 10px; background: var(--panel-3); color: var(--muted); cursor: pointer; font-size: 11px; font-weight: 750; }
+.request-mode-row button.active { color: var(--accent-2); border-color: rgba(40,209,124,.35); background: rgba(40,209,124,.09); }
+.request-mode-row span { margin-left: auto; color: var(--muted); font-size: 10px; }
+.request-validation { display: grid; gap: 7px; margin-top: 13px; }
+.request-validation div { padding: 9px 11px; border-radius: 10px; font-size: 11px; }
+.request-validation .validation-error { color: #ffb2ba; background: rgba(255,92,108,.08); border: 1px solid rgba(255,92,108,.2); }
+.request-validation .validation-warning { color: #ffe0a2; background: rgba(246,200,95,.08); border: 1px solid rgba(246,200,95,.2); }
+.api-inline-actions { display: flex; gap: 7px; flex-wrap: wrap; margin-bottom: 10px; }
+.api-inline-actions button { border: 1px solid var(--line); border-radius: 9px; background: rgba(255,255,255,.025); color: var(--muted); padding: 6px 9px; font-size: 10px; cursor: pointer; }
+.api-inline-actions button:hover { color: var(--text); }
+@media (max-width: 1080px) { .guided-request-layout { grid-template-columns: 1fr; } .guided-preview { position: static; } }
+@media (max-width: 680px) { .guided-grid, .guided-grid.compact { grid-template-columns: 1fr; } .request-mode-row span { width: 100%; margin-left: 0; } }
