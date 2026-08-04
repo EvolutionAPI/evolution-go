@@ -1,6 +1,8 @@
 import { useMemo, useState } from "react";
 import { API_OPERATIONS, type ApiOperation, type BodyMode } from "./api-catalog";
 import type { ApiAuthMode, ApiExecutionResult, EvolutionApi, EvolutionConnection } from "./api";
+import { GuidedRequestEditor, supportsGuidedRequest, validateRequestDraft } from "./guided-request";
+import { RequestPresetPanel, type RequestPresetDraft } from "./request-presets";
 
 function replaceInstanceId(path: string, connection: EvolutionConnection): string {
   return path.replaceAll(":instanceId", connection.instanceId || "INSTANCE_ID");
@@ -61,12 +63,15 @@ export function ApiLab({ api, connection }: { api: EvolutionApi | null; connecti
   const [auth, setAuth] = useState<ApiAuthMode>(initial.auth);
   const [file, setFile] = useState<File | null>(null);
   const [fileField, setFileField] = useState(initial.fileField || "file");
+  const [editorMode, setEditorMode] = useState<"guided" | "json">(supportsGuidedRequest(initial.id) ? "guided" : "json");
   const [running, setRunning] = useState(false);
   const [error, setError] = useState("");
   const [result, setResult] = useState<ApiExecutionResult | null>(null);
   const [history, setHistory] = useState<Array<{ id: number; title: string; status: number; duration: number }>>([]);
 
   const selected = API_OPERATIONS.find((item) => item.id === selectedId) ?? initial;
+  const guidedAvailable = supportsGuidedRequest(selected.id);
+  const validation = useMemo(() => validateRequestDraft(selected.id, bodyMode, body, file), [body, bodyMode, file, selected.id]);
   const categories = useMemo(() => ["Todos", ...Array.from(new Set(API_OPERATIONS.map((item) => item.category)))], []);
   const visible = useMemo(() => {
     const normalized = query.trim().toLocaleLowerCase("pt-BR");
@@ -86,12 +91,52 @@ export function ApiLab({ api, connection }: { api: EvolutionApi | null; connecti
     setAuth(item.auth);
     setFile(null);
     setFileField(item.fileField || "file");
+    setEditorMode(supportsGuidedRequest(item.id) ? "guided" : "json");
     setError("");
     setResult(null);
   };
 
+  const applyPreset = (preset: RequestPresetDraft) => {
+    const operation = API_OPERATIONS.find((item) => item.id === preset.operationId);
+    if (!operation) {
+      setError(`A operação ${preset.operationId} não existe mais no catálogo.`);
+      return;
+    }
+    setSelectedId(operation.id);
+    setMethod(preset.method);
+    setPath(preset.path);
+    setBodyMode(preset.bodyMode);
+    setBody(preset.body);
+    setAuth(preset.auth);
+    setFile(null);
+    setFileField(preset.fileField || operation.fileField || "file");
+    setEditorMode(supportsGuidedRequest(operation.id) ? "guided" : "json");
+    setError("");
+    setResult(null);
+  };
+
+  const resetPayload = () => {
+    setBody(stringifySample(selected.sample));
+    setFile(null);
+    setFileField(selected.fileField || "file");
+    setError("");
+  };
+
+  const formatPayload = () => {
+    try {
+      setBody(JSON.stringify(JSON.parse(body || "{}") as unknown, null, 2));
+      setError("");
+    } catch (cause) {
+      setError(cause instanceof Error ? `JSON inválido: ${cause.message}` : "JSON inválido");
+    }
+  };
+
   const run = async () => {
     if (!api || running) return;
+    if (validation.errors.length) {
+      setError(validation.errors.join(" "));
+      return;
+    }
     setRunning(true);
     setError("");
     try {
@@ -116,6 +161,17 @@ export function ApiLab({ api, connection }: { api: EvolutionApi | null; connecti
   };
 
   const curl = buildCurl(connection, { auth, fileField }, method, bodyMode, path, body);
+  const renderedResponse = responseText(result);
+  const presetDraft: RequestPresetDraft = {
+    operationId: selected.id,
+    operationTitle: selected.title,
+    method,
+    path,
+    auth,
+    bodyMode,
+    body,
+    fileField,
+  };
 
   return (
     <div className="api-lab-layout">
@@ -160,10 +216,31 @@ export function ApiLab({ api, connection }: { api: EvolutionApi | null; connecti
           </div>
 
           {bodyMode !== "none" && (
-            <label className="api-editor-label">
-              <span>{bodyMode === "multipart" ? "Campos multipart em JSON" : "Corpo JSON"}</span>
-              <textarea value={body} onChange={(event) => setBody(event.target.value)} spellCheck={false} rows={16} />
-            </label>
+            <>
+              <div className="request-mode-row">
+                {guidedAvailable && <button type="button" className={editorMode === "guided" ? "active" : ""} onClick={() => setEditorMode("guided")}>Formulário guiado</button>}
+                <button type="button" className={editorMode === "json" ? "active" : ""} onClick={() => setEditorMode("json")}>JSON avançado</button>
+                <span>{guidedAvailable ? "Os dois modos usam o mesmo payload." : "Esta operação usa o editor JSON livre."}</span>
+              </div>
+
+              {guidedAvailable && editorMode === "guided" ? (
+                <GuidedRequestEditor operationId={selected.id} body={body} onChange={setBody} />
+              ) : (
+                <label className="api-editor-label">
+                  <span>{bodyMode === "multipart" ? "Campos multipart em JSON" : "Corpo JSON"}</span>
+                  <div className="api-inline-actions">
+                    <button type="button" onClick={formatPayload}>Formatar JSON</button>
+                    <button type="button" onClick={resetPayload}>Restaurar exemplo</button>
+                  </div>
+                  <textarea value={body} onChange={(event) => setBody(event.target.value)} spellCheck={false} rows={16} />
+                </label>
+              )}
+
+              <div className="request-validation">
+                {validation.errors.map((item) => <div className="validation-error" key={item}>Erro: {item}</div>)}
+                {validation.warnings.map((item) => <div className="validation-warning" key={item}>Atenção: {item}</div>)}
+              </div>
+            </>
           )}
           {bodyMode === "multipart" && (
             <label className="api-file-field">
@@ -178,18 +255,22 @@ export function ApiLab({ api, connection }: { api: EvolutionApi | null; connecti
 
           {error && <div className="alert error">{error}</div>}
           <div className="api-actions">
+            <button type="button" className="button secondary" onClick={resetPayload}>Restaurar exemplo</button>
             <button type="button" className="button secondary" onClick={() => void navigator.clipboard.writeText(curl)}>Copiar cURL</button>
-            <button type="button" className="button primary" disabled={!api || running} onClick={() => void run()}>{running ? "Executando…" : "Executar teste"}</button>
+            <button type="button" className="button primary" disabled={!api || running || validation.errors.length > 0} onClick={() => void run()}>{running ? "Executando…" : "Executar teste"}</button>
           </div>
         </section>
 
         <section className="card api-response-card">
           <div className="section-heading">
             <div><span className="eyebrow">Resposta</span><h2>{result ? `${result.status} ${result.statusText}` : "Aguardando execução"}</h2></div>
-            {result && <span className={`response-status ${result.ok ? "ok" : "failed"}`}>{result.durationMs} ms</span>}
+            <div className="api-inline-actions">
+              {result && <button type="button" onClick={() => void navigator.clipboard.writeText(renderedResponse)}>Copiar resposta</button>}
+              {result && <span className={`response-status ${result.ok ? "ok" : "failed"}`}>{result.durationMs} ms</span>}
+            </div>
           </div>
           {result && <div className="api-response-meta"><span>{result.url}</span><span>{result.ok ? "Sucesso" : "Erro HTTP"}</span></div>}
-          <pre>{responseText(result)}</pre>
+          <pre>{renderedResponse}</pre>
         </section>
 
         <section className="card api-curl-card">
@@ -199,6 +280,7 @@ export function ApiLab({ api, connection }: { api: EvolutionApi | null; connecti
       </section>
 
       <aside className="card api-history">
+        <RequestPresetPanel current={presetDraft} onApply={applyPreset} />
         <div className="section-heading"><div><span className="eyebrow">Sessão</span><h2>Últimos testes</h2></div></div>
         {history.length === 0 ? <p>Nenhuma requisição executada.</p> : history.map((item) => (
           <div className="api-history-item" key={item.id}>
