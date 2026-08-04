@@ -10,12 +10,24 @@ export interface ManagedInstance {
   name: string;
   token?: string;
   webhook?: string;
+  events?: string;
+  rabbitmqEnable?: string;
+  websocketEnable?: string;
+  natsEnable?: string;
   jid?: string;
   connected: boolean;
   createdAt?: string;
   clientName?: string;
   osName?: string;
   disconnect_reason?: string;
+}
+
+export interface InstanceLogEntry {
+  timestamp: string;
+  level: "INFO" | "WARN" | "ERROR" | "DEBUG" | string;
+  instance_id: string;
+  message: string;
+  metadata?: unknown;
 }
 
 export interface AdvancedInstanceSettings {
@@ -29,7 +41,51 @@ export interface AdvancedInstanceSettings {
 
 export interface CreateInstanceInput {
   name: string;
-  token: string;
+  token?: string;
+  proxy?: InstanceProxy;
+}
+
+export interface InstanceProxy {
+  protocol: "http" | "https" | "socks5";
+  host: string;
+  port: string;
+  username?: string;
+  password?: string;
+}
+
+export interface InstanceConnectionSettings {
+  webhookUrl: string;
+  subscribe: string[];
+  rabbitmqEnable: string;
+  websocketEnable: string;
+  natsEnable: string;
+}
+
+export interface InstanceQRCode {
+  qrcode?: string;
+  code?: string;
+  passkeyStage?: string;
+  passkeyCode?: string;
+  passkeyOpenUrl?: string;
+}
+
+export interface InfrastructureSettings {
+  amqpEnabled: boolean;
+  amqpUrl: string;
+  amqpGlobalEnabled: boolean;
+  webhookUrl: string;
+  proxyEnabled: boolean;
+  proxyProtocol: "http" | "https" | "socks5" | "";
+  proxyHost: string;
+  proxyPort: string;
+  proxyUsername: string;
+  proxyPassword: string;
+  minioEnabled: boolean;
+  minioEndpoint: string;
+  minioAccessKey: string;
+  minioSecretKey: string;
+  minioBucket: string;
+  minioUseSsl: boolean;
 }
 
 export type ApiAuthMode = "instance" | "admin" | "none";
@@ -130,12 +186,16 @@ export function loadConnection(): EvolutionConnection {
   const persistent = parse(localStorage.getItem(PERSISTENT_KEY)) ?? parse(localStorage.getItem(LEGACY_PERSISTENT_KEY));
   const temporary = parse(sessionStorage.getItem(SESSION_KEY)) ?? parse(sessionStorage.getItem(LEGACY_SESSION_KEY));
   const value = persistent ?? temporary ?? {};
-  return {
+  const connection = {
     baseUrl: normalizeBaseUrl(value.baseUrl || window.location.origin),
     apiKey: value.apiKey || "",
     instanceId: value.instanceId || "",
     remember: Boolean(persistent),
   };
+  // Older Manager versions persisted the global API key in the browser. Keep
+  // the instance settings, but immediately rewrite the profile without it.
+  if ("adminApiKey" in value) saveConnection(connection);
+  return connection;
 }
 
 export function saveConnection(connection: EvolutionConnection): void {
@@ -147,6 +207,13 @@ export function saveConnection(connection: EvolutionConnection): void {
     sessionStorage.setItem(SESSION_KEY, JSON.stringify(normalized));
     localStorage.removeItem(PERSISTENT_KEY);
   }
+  localStorage.removeItem(LEGACY_PERSISTENT_KEY);
+  sessionStorage.removeItem(LEGACY_SESSION_KEY);
+}
+
+export function clearConnection(): void {
+  localStorage.removeItem(PERSISTENT_KEY);
+  sessionStorage.removeItem(SESSION_KEY);
   localStorage.removeItem(LEGACY_PERSISTENT_KEY);
   sessionStorage.removeItem(LEGACY_SESSION_KEY);
 }
@@ -268,18 +335,38 @@ export class EvolutionApi {
     const response = await this.adminRequest<ApiEnvelope<ManagedInstance>>("/instance/create", {
       method: "POST",
       body: JSON.stringify({
-        instanceId: input.name,
         name: input.name,
-        token: input.token,
-        proxy: null,
+        token: input.token?.trim() || "",
+        proxy: input.proxy ?? null,
         advancedSettings: null,
       }),
     });
     return "data" in response ? response.data : response;
   }
 
-  deleteInstance(instanceId: string): Promise<unknown> {
-    return this.adminRequest(`/instance/delete/${encodeURIComponent(instanceId)}`, { method: "DELETE" });
+  async deleteInstance(instanceId: string): Promise<void> {
+    const response = await this.adminRequest<{ message?: string }>(`/instance/delete/${encodeURIComponent(instanceId)}`, { method: "DELETE" });
+    if (response.message !== "success") {
+      throw new Error("O servidor não confirmou a exclusão da instância.");
+    }
+  }
+
+  async getInstanceLogs(instanceId: string, limit = 250): Promise<InstanceLogEntry[]> {
+    const response = await this.adminRequest<InstanceLogEntry[] | ApiEnvelope<InstanceLogEntry[]>>(
+      `/instance/logs/${encodeURIComponent(instanceId)}?limit=${Math.max(1, Math.min(limit, 500))}`,
+    );
+    return Array.isArray(response) ? response : Array.isArray(response.data) ? response.data : [];
+  }
+
+  infrastructureSettings(): Promise<InfrastructureSettings> {
+    return this.adminRequest<InfrastructureSettings>("/manager-v2/settings/infrastructure");
+  }
+
+  saveInfrastructureSettings(settings: InfrastructureSettings): Promise<{ restartRequired: boolean }> {
+    return this.adminRequest<{ restartRequired: boolean }>("/manager-v2/settings/infrastructure", {
+      method: "PUT",
+      body: JSON.stringify(settings),
+    });
   }
 
   getAdvancedSettings(instanceId: string): Promise<AdvancedInstanceSettings> {
@@ -291,6 +378,26 @@ export class EvolutionApi {
       method: "PUT",
       body: JSON.stringify(settings),
     });
+  }
+
+  configureInstance(settings: InstanceConnectionSettings): Promise<unknown> {
+    return this.request("/instance/connect", {
+      method: "POST",
+      body: JSON.stringify({
+        ...settings,
+        immediate: false,
+        phone: "",
+      }),
+    });
+  }
+
+  async getInstanceQr(): Promise<InstanceQRCode> {
+    const response = await this.request<ApiEnvelope<InstanceQRCode> | InstanceQRCode>("/instance/qr");
+    return "data" in response ? response.data : response;
+  }
+
+  reconnectInstance(): Promise<unknown> {
+    return this.request("/instance/reconnect", { method: "POST", body: JSON.stringify({}) });
   }
 
   disconnectInstance(): Promise<unknown> {

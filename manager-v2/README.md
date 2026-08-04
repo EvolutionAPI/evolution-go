@@ -30,7 +30,7 @@ O perfil de conexão armazena:
 - URL do Evolution GO;
 - ID da instância;
 - API key da instância;
-- API key global opcional;
+- a chave global é obtida no servidor pelo `.env`, sem ser enviada ao navegador;
 - preferência para salvar permanentemente ou apenas durante a sessão do navegador.
 
 A tela possui ações rápidas para:
@@ -43,6 +43,22 @@ A tela possui ações rápidas para:
 - fazer logout.
 
 O API Lab também contém as rotas administrativas para criar, listar, consultar, excluir e configurar proxy de instâncias.
+
+### Acesso ao Manager
+
+O Manager V2 possui uma conta administrativa local, independente das chaves de
+cada instância:
+
+- no primeiro acesso a `/manager-v2`, o navegador solicita o cadastro do
+  administrador;
+- os próximos acessos exigem e-mail e senha;
+- a sessão é um JWT guardado em cookie `HttpOnly`, portanto a chave global não
+  é exposta ao JavaScript ou ao armazenamento do navegador;
+- `GLOBAL_API_KEY` continua sendo carregada pelo servidor a partir do `.env`;
+- `MANAGER_JWT_SECRET` é opcional e permite usar um segredo separado para
+  assinar as sessões. Se não for definido, o servidor usa `GLOBAL_API_KEY`.
+
+Use uma senha de pelo menos 12 caracteres na criação da conta administrativa.
 
 ### API Lab
 

@@ -53,7 +53,7 @@ export const API_OPERATIONS: ApiOperation[] = [
   op("instance-proxy-delete", "Instância", "Remover proxy", "DELETE", "/instance/proxy/:instanceId", "Remove a configuração de proxy.", { auth: "admin" }),
   op("instance-force", "Instância", "Forçar reconexão", "POST", "/instance/forcereconnect/:instanceId", "Força a atualização e reconexão administrativa.", { auth: "admin", sample: { number: "5562999999999" } }),
   op("instance-logs", "Instância", "Logs da instância", "GET", "/instance/logs/:instanceId", "Consulta logs; parâmetros de data, nível e limite podem ser adicionados na query string.", { auth: "admin" }),
-  op("instance-connect", "Instância", "Conectar", "POST", "/instance/connect", "Inicia a conexão da sessão.", { sample: { webhookUrl: "", subscribe: [], immediate: false, phone: "", rabbitmqEnable: "", webSocketEnable: "", natsEnable: "" } }),
+  op("instance-connect", "Instância", "Conectar", "POST", "/instance/connect", "Inicia a conexão da sessão.", { sample: { webhookUrl: "", subscribe: [], immediate: false, phone: "", rabbitmqEnable: "", websocketEnable: "", natsEnable: "" } }),
   op("instance-status", "Instância", "Status", "GET", "/instance/status", "Consulta estado conectado/logado."),
   op("instance-qr", "Instância", "QR Code", "GET", "/instance/qr", "Obtém QR Code, código ou etapa de passkey."),
   op("instance-pair", "Instância", "Parear por telefone", "POST", "/instance/pair", "Solicita código de pareamento.", { sample: { phone: "5562999999999", subscribe: [] } }),

@@ -47,6 +47,7 @@ import (
 	label_service "github.com/evolution-foundation/evolution-go/pkg/label/service"
 	logger_wrapper "github.com/evolution-foundation/evolution-go/pkg/logger"
 	managerauth "github.com/evolution-foundation/evolution-go/pkg/managerauth"
+	managerconfig "github.com/evolution-foundation/evolution-go/pkg/managerconfig"
 	message_handler "github.com/evolution-foundation/evolution-go/pkg/message/handler"
 	message_model "github.com/evolution-foundation/evolution-go/pkg/message/model"
 	message_repository "github.com/evolution-foundation/evolution-go/pkg/message/repository"
@@ -84,7 +85,48 @@ func init() {
 	}
 }
 
-func setupRouter(db *gorm.DB, authDB *sql.DB, sqliteDB *sql.DB, config *config.Config, conn *amqp.Connection, exPath string, runtimeCtx *core.RuntimeContext) *gin.Engine {
+// loadDotEnv makes local executions work whether they start from the project
+// root, a package directory (for example, `go run ./cmd/evolution-go`), or
+// beside the compiled executable. Existing process environment values keep
+// precedence because godotenv.Load does not overwrite them.
+func loadDotEnv() error {
+	candidates := make([]string, 0, 8)
+	if workdir, err := os.Getwd(); err == nil {
+		for {
+			candidates = append(candidates, filepath.Join(workdir, ".env"))
+			parent := filepath.Dir(workdir)
+			if parent == workdir {
+				break
+			}
+			workdir = parent
+		}
+	}
+	if executable, err := os.Executable(); err == nil {
+		candidates = append(candidates, filepath.Join(filepath.Dir(executable), ".env"))
+	}
+
+	seen := make(map[string]struct{}, len(candidates))
+	for _, candidate := range candidates {
+		if _, checked := seen[candidate]; checked {
+			continue
+		}
+		seen[candidate] = struct{}{}
+		if _, err := os.Stat(candidate); err != nil {
+			if os.IsNotExist(err) {
+				continue
+			}
+			return fmt.Errorf("check .env at %s: %w", candidate, err)
+		}
+		if err := godotenv.Load(candidate); err != nil {
+			return fmt.Errorf("load .env at %s: %w", candidate, err)
+		}
+		log.Printf("Loaded environment from %s", candidate)
+		return nil
+	}
+	return nil
+}
+
+func setupRouter(db *gorm.DB, authDB *sql.DB, sqliteDB *sql.DB, config *config.Config, managerConfig *managerconfig.Service, conn *amqp.Connection, exPath string, runtimeCtx *core.RuntimeContext) *gin.Engine {
 	killChannel := make(map[string](chan bool))
 	clientPointer := make(map[string]*whatsmeow.Client)
 
@@ -231,6 +273,7 @@ func setupRouter(db *gorm.DB, authDB *sql.DB, sqliteDB *sql.DB, config *config.C
 	// web.whatsapp.com origin, gated only by an opaque ephemeral token).
 	passkey_handler.RegisterRoutes(r, whatsmeowService)
 	managerauth.NewHandler(managerAuth).RegisterRoutes(r)
+	managerconfig.NewHandler(managerConfig, managerAuth).RegisterRoutes(r)
 
 	routes.NewRouter(
 		auth_middleware.NewMiddleware(config, instanceService, managerAuth),
@@ -269,7 +312,7 @@ func setupRouter(db *gorm.DB, authDB *sql.DB, sqliteDB *sql.DB, config *config.C
 }
 
 func migrate(db *gorm.DB) {
-	err := db.AutoMigrate(&instance_model.Instance{}, &message_model.Message{}, &label_model.Label{}, &managerauth.Administrator{})
+	err := db.AutoMigrate(&instance_model.Instance{}, &message_model.Message{}, &label_model.Label{}, &managerauth.Administrator{}, &managerconfig.StoredInfrastructureSettings{})
 
 	if err != nil {
 		log.Fatal(err)
@@ -338,11 +381,8 @@ func initPostgresAuthDB(config *config.Config) (*sql.DB, error) {
 // @description Evolution GO - whatsmeow
 func main() {
 	flag.Parse()
-	if *devMode {
-		err := godotenv.Load(".env")
-		if err != nil {
-			log.Fatal(err)
-		}
+	if err := loadDotEnv(); err != nil {
+		log.Fatal(err)
 	}
 
 	cfg := config.Load()
@@ -375,6 +415,10 @@ func main() {
 	}
 
 	migrate(db)
+	managerConfig := managerconfig.NewService(db, cfg, cfg.ManagerJWTSecret)
+	if err := managerConfig.LoadAndApply(context.Background()); err != nil {
+		log.Fatal("Failed to load Manager infrastructure settings: ", err)
+	}
 
 	// Initialize core DB + license runtime
 	core.SetDB(db)
@@ -412,7 +456,7 @@ func main() {
 		logger.LogInfo("RabbitMQ URL not configured, skipping RabbitMQ connection")
 	}
 
-	r := setupRouter(db, authDB, sqliteDB, cfg, conn, exPath, runtimeCtx)
+	r := setupRouter(db, authDB, sqliteDB, cfg, managerConfig, conn, exPath, runtimeCtx)
 
 	// Graceful shutdown with heartbeat
 	heartbeatCtx, heartbeatCancel := context.WithCancel(context.Background())

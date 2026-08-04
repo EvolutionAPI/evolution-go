@@ -205,7 +205,7 @@ export function ApiLab({ api, connection }: { api: EvolutionApi | null; connecti
             <input value={path} onChange={(event) => setPath(event.target.value)} aria-label="Caminho da API" />
             <select value={auth} onChange={(event) => setAuth(event.target.value as ApiAuthMode)} aria-label="Tipo de autenticação">
               <option value="instance">Chave da instância</option>
-              <option value="admin">Chave global</option>
+              <option value="admin">Sessão administrativa</option>
               <option value="none">Sem autenticação</option>
             </select>
             <select value={bodyMode} onChange={(event) => setBodyMode(event.target.value as BodyMode)} aria-label="Formato do corpo">
