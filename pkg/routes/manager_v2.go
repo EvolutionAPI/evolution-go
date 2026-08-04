@@ -9,4 +9,5 @@ func registerManagerV2Routes(eng *gin.Engine) {
 	}
 	eng.GET("/manager-v2", serveIndex)
 	eng.GET("/manager-v2/", serveIndex)
+	eng.GET("/manager-v2/instances/:instanceId/settings", serveIndex)
 }

@@ -51,6 +51,8 @@ export function useCallDesk(api: EvolutionApi | null): CallDeskState {
   }, [api, chooseCall]);
 
   useEffect(() => {
+    setSnapshot(EMPTY_SNAPSHOT);
+    setSelectedCallId("");
     void refresh(false);
     if (!api) return;
     const timer = window.setInterval(() => void refresh(true), POLL_INTERVAL_MS);

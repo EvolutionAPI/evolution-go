@@ -3,6 +3,7 @@ package instance_service
 import (
 	"bufio"
 	"context"
+	"crypto/rand"
 	"encoding/base64"
 	"encoding/json"
 	"errors"
@@ -163,6 +164,16 @@ func (i *instances) ensureClientConnected(instanceId string) (*whatsmeow.Client,
 }
 
 func (i instances) Create(data *CreateStruct) (*instance_model.Instance, error) {
+	data.Name = strings.TrimSpace(data.Name)
+	data.Token = strings.TrimSpace(data.Token)
+	if data.Token == "" {
+		generatedToken := make([]byte, 32)
+		if _, err := rand.Read(generatedToken); err != nil {
+			return nil, fmt.Errorf("generate instance token: %w", err)
+		}
+		data.Token = base64.RawURLEncoding.EncodeToString(generatedToken)
+	}
+
 	if data.Proxy != nil {
 		data.Proxy.Protocol = utils.NormalizeProxyProtocol(data.Proxy.Protocol, data.Proxy.Port)
 	}
@@ -300,11 +311,6 @@ func (i instances) Connect(data *ConnectStruct, instance *instance_model.Instanc
 }
 
 func (i instances) Reconnect(instance *instance_model.Instance) error {
-	_, err := i.ensureClientConnected(instance.Id)
-	if err != nil {
-		return err
-	}
-
 	return i.whatsmeowService.ReconnectClient(instance.Id)
 }
 
@@ -415,84 +421,57 @@ func (i instances) GetQr(instance *instance_model.Instance) (*QrcodeStruct, erro
 	logger := i.loggerWrapper.GetLogger(instance.Id)
 	client := i.clientPointer[instance.Id]
 
-	// Se não há cliente ou o cliente está logado, precisamos iniciar um novo cliente
-	if client == nil || client.IsLoggedIn() {
-		if client != nil && client.IsLoggedIn() {
-			logger.LogInfo("[%s] Client is logged in, starting new instance for QR code", instance.Id)
-		} else {
-			logger.LogInfo("[%s] No client found, starting new instance for QR code", instance.Id)
-		}
-
-		// Iniciar nova instância para gerar QR code
+	// Start the client only when no connection exists. A client with a persisted
+	// device can still be in the middle of reconnecting, so replacing it here
+	// would race the connection and make QR creation unreliable.
+	if client == nil {
+		logger.LogInfo("[%s] No client found, starting instance for QR code", instance.Id)
 		err := i.whatsmeowService.StartInstance(instance.Id)
 		if err != nil {
 			logger.LogError("[%s] Failed to start instance: %v", instance.Id, err)
 			return nil, fmt.Errorf("failed to start instance: %w", err)
 		}
+	}
 
-		// Aguardar um pouco para o cliente iniciar e gerar QR code
-		logger.LogInfo("[%s] Waiting for QR code generation...", instance.Id)
-		time.Sleep(3 * time.Second)
-
-		// Verificar novamente se há cliente
+	// QR generation happens asynchronously in the WhatsApp event handler. Poll
+	// for up to 20 seconds instead of returning a false negative after two.
+	deadline := time.Now().Add(20 * time.Second)
+	for time.Now().Before(deadline) {
 		client = i.clientPointer[instance.Id]
 		if client != nil && client.IsLoggedIn() {
-			return nil, fmt.Errorf("session already logged in")
+			return nil, fmt.Errorf("session already linked; reconnect the instance instead of generating a QR code")
 		}
-	} else if !client.IsConnected() {
-		// Se o cliente existe mas não está conectado, pode estar aguardando QR code
-		logger.LogInfo("[%s] Client exists but not connected, checking for existing QR code", instance.Id)
-	}
 
-	// Buscar instância atualizada do banco para pegar o QR code mais recente
-	instance, err := i.instanceRepository.GetInstanceByID(instance.Id)
-	if err != nil {
-		return nil, err
-	}
-
-	// If a passkey ceremony is in progress, there is no QR to scan — return the
-	// passkey stage + the #wapk openUrl so the manager can render the
-	// "Abrir WhatsApp Web" button. Checked before the empty-QR branch because
-	// during a passkey ceremony instance.Qrcode is empty.
-	if store := i.whatsmeowService.PasskeyCeremonyStore(); store != nil {
-		if token, state, ok := store.StateByInstance(instance.Id); ok {
-			logger.LogInfo("[%s] Passkey ceremony active (stage=%s) — returning passkey info instead of QR", instance.Id, state.Stage)
-			return &QrcodeStruct{
-				PasskeyStage:   state.Stage,
-				PasskeyCode:    state.Code,
-				PasskeyOpenURL: buildPasskeyOpenURL(token),
-			}, nil
-		}
-	}
-
-	code := instance.Qrcode
-	if code == "" {
-		// Se não há QR code ainda, aguardar um pouco mais e tentar novamente
-		logger.LogInfo("[%s] No QR code available yet, waiting a bit more...", instance.Id)
-		time.Sleep(2 * time.Second)
-
-		instance, err = i.instanceRepository.GetInstanceByID(instance.Id)
+		updatedInstance, err := i.instanceRepository.GetInstanceByID(instance.Id)
 		if err != nil {
 			return nil, err
 		}
 
-		code = instance.Qrcode
-		if code == "" {
-			return nil, fmt.Errorf("no QR code available. Please wait a moment and try again")
+		// If a passkey ceremony is in progress, there is no QR to scan — return
+		// the passkey stage + the #wapk open URL for the Manager to render.
+		if store := i.whatsmeowService.PasskeyCeremonyStore(); store != nil {
+			if token, state, ok := store.StateByInstance(updatedInstance.Id); ok {
+				logger.LogInfo("[%s] Passkey ceremony active (stage=%s) — returning passkey info instead of QR", updatedInstance.Id, state.Stage)
+				return &QrcodeStruct{
+					PasskeyStage:   state.Stage,
+					PasskeyCode:    state.Code,
+					PasskeyOpenURL: buildPasskeyOpenURL(token),
+				}, nil
+			}
 		}
+
+		if updatedInstance.Qrcode != "" {
+			parts := strings.Split(updatedInstance.Qrcode, "|")
+			if len(parts) < 2 {
+				return nil, fmt.Errorf("invalid QR code format")
+			}
+			return &QrcodeStruct{Qrcode: parts[0], Code: parts[1]}, nil
+		}
+
+		time.Sleep(time.Second)
 	}
 
-	parts := strings.Split(code, "|")
-	if len(parts) < 2 {
-		return nil, fmt.Errorf("invalid QR code format")
-	}
-
-	qr := &QrcodeStruct{
-		Qrcode: parts[0],
-		Code:   parts[1],
-	}
-
-	return qr, nil
+	return nil, fmt.Errorf("QR code is still being generated; try again in a few seconds")
 }
 
 // buildPasskeyOpenURL builds the URL the manager opens to start the passkey
@@ -587,21 +566,15 @@ func (i instances) Delete(id string) error {
 		return err
 	}
 
-	if i.clientPointer[instance.Id] != nil && i.clientPointer[instance.Id].IsConnected() {
-		if i.clientPointer[instance.Id].IsLoggedIn() {
-			i.clientPointer[instance.Id].Logout(context.Background())
-		}
-		i.clientPointer[instance.Id].Disconnect()
+	if client := i.clientPointer[instance.Id]; client != nil && client.IsConnected() {
+		// Deleting an instance must not wait for a WhatsApp network logout. A
+		// remote logout can block for a long time and leave the Manager with no
+		// response even though the user requested a local deletion.
+		client.Disconnect()
 	}
 
-	// Limpar todos os recursos da instância antes de deletar
-	delete(i.clientPointer, instance.Id)
-	if i.killChannel[instance.Id] != nil {
-		close(i.killChannel[instance.Id])
-		delete(i.killChannel, instance.Id)
-	}
-
-	// Limpar cache via whatsmeow service
+	// Limpar todas as referências de execução em um só lugar. Remover os maps
+	// manualmente antes daqui podia competir com a limpeza do cliente WhatsApp.
 	err = i.whatsmeowService.ClearInstanceCache(instance.Id, instance.Token)
 	if err != nil {
 		i.loggerWrapper.GetLogger(instance.Id).LogWarn("[%s] Failed to clear instance cache: %v", instance.Id, err)

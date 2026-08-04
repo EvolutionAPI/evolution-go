@@ -19,6 +19,7 @@ func TestRegisterManagerV2Routes(t *testing.T) {
 	for _, expected := range []string{
 		"GET /manager-v2",
 		"GET /manager-v2/",
+		"GET /manager-v2/instances/:instanceId/settings",
 		"GET /manager-v2/assets/*filepath",
 		"HEAD /manager-v2/assets/*filepath",
 	} {

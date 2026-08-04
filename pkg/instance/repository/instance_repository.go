@@ -158,9 +158,13 @@ func (i *instanceRepository) Delete(instanceId string) error {
 			return fmt.Errorf("erro ao deletar mensagens: %v", err)
 		}
 
-		// Deleta a instância
-		if err := tx.Where("id = ?", instanceId).Delete(&instance_model.Instance{}).Error; err != nil {
-			return fmt.Errorf("erro ao deletar instância: %v", err)
+		// Deleta a instância e confirma que o registro solicitado existia.
+		result := tx.Where("id = ?", instanceId).Delete(&instance_model.Instance{})
+		if result.Error != nil {
+			return fmt.Errorf("erro ao deletar instância: %v", result.Error)
+		}
+		if result.RowsAffected != 1 {
+			return fmt.Errorf("instância não encontrada para exclusão")
 		}
 
 		return nil

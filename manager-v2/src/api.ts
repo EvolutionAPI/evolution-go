@@ -1,9 +1,91 @@
 export interface EvolutionConnection {
   baseUrl: string;
   apiKey: string;
-  adminApiKey: string;
   instanceId: string;
   remember: boolean;
+}
+
+export interface ManagedInstance {
+  id: string;
+  name: string;
+  token?: string;
+  webhook?: string;
+  events?: string;
+  rabbitmqEnable?: string;
+  websocketEnable?: string;
+  natsEnable?: string;
+  jid?: string;
+  connected: boolean;
+  createdAt?: string;
+  clientName?: string;
+  osName?: string;
+  disconnect_reason?: string;
+}
+
+export interface InstanceLogEntry {
+  timestamp: string;
+  level: "INFO" | "WARN" | "ERROR" | "DEBUG" | string;
+  instance_id: string;
+  message: string;
+  metadata?: unknown;
+}
+
+export interface AdvancedInstanceSettings {
+  alwaysOnline: boolean;
+  rejectCall: boolean;
+  msgRejectCall: string;
+  readMessages: boolean;
+  ignoreGroups: boolean;
+  ignoreStatus: boolean;
+}
+
+export interface CreateInstanceInput {
+  name: string;
+  token?: string;
+  proxy?: InstanceProxy;
+}
+
+export interface InstanceProxy {
+  protocol: "http" | "https" | "socks5";
+  host: string;
+  port: string;
+  username?: string;
+  password?: string;
+}
+
+export interface InstanceConnectionSettings {
+  webhookUrl: string;
+  subscribe: string[];
+  rabbitmqEnable: string;
+  websocketEnable: string;
+  natsEnable: string;
+}
+
+export interface InstanceQRCode {
+  qrcode?: string;
+  code?: string;
+  passkeyStage?: string;
+  passkeyCode?: string;
+  passkeyOpenUrl?: string;
+}
+
+export interface InfrastructureSettings {
+  amqpEnabled: boolean;
+  amqpUrl: string;
+  amqpGlobalEnabled: boolean;
+  webhookUrl: string;
+  proxyEnabled: boolean;
+  proxyProtocol: "http" | "https" | "socks5" | "";
+  proxyHost: string;
+  proxyPort: string;
+  proxyUsername: string;
+  proxyPassword: string;
+  minioEnabled: boolean;
+  minioEndpoint: string;
+  minioAccessKey: string;
+  minioSecretKey: string;
+  minioBucket: string;
+  minioUseSsl: boolean;
 }
 
 export type ApiAuthMode = "instance" | "admin" | "none";
@@ -104,13 +186,16 @@ export function loadConnection(): EvolutionConnection {
   const persistent = parse(localStorage.getItem(PERSISTENT_KEY)) ?? parse(localStorage.getItem(LEGACY_PERSISTENT_KEY));
   const temporary = parse(sessionStorage.getItem(SESSION_KEY)) ?? parse(sessionStorage.getItem(LEGACY_SESSION_KEY));
   const value = persistent ?? temporary ?? {};
-  return {
+  const connection = {
     baseUrl: normalizeBaseUrl(value.baseUrl || window.location.origin),
     apiKey: value.apiKey || "",
-    adminApiKey: value.adminApiKey || "",
     instanceId: value.instanceId || "",
     remember: Boolean(persistent),
   };
+  // Older Manager versions persisted the global API key in the browser. Keep
+  // the instance settings, but immediately rewrite the profile without it.
+  if ("adminApiKey" in value) saveConnection(connection);
+  return connection;
 }
 
 export function saveConnection(connection: EvolutionConnection): void {
@@ -122,6 +207,13 @@ export function saveConnection(connection: EvolutionConnection): void {
     sessionStorage.setItem(SESSION_KEY, JSON.stringify(normalized));
     localStorage.removeItem(PERSISTENT_KEY);
   }
+  localStorage.removeItem(LEGACY_PERSISTENT_KEY);
+  sessionStorage.removeItem(LEGACY_SESSION_KEY);
+}
+
+export function clearConnection(): void {
+  localStorage.removeItem(PERSISTENT_KEY);
+  sessionStorage.removeItem(SESSION_KEY);
   localStorage.removeItem(LEGACY_PERSISTENT_KEY);
   sessionStorage.removeItem(LEGACY_SESSION_KEY);
 }
@@ -141,23 +233,22 @@ export function displayPhone(value: string): string {
 export class EvolutionApi {
   private readonly baseUrl: string;
   private readonly instanceApiKey: string;
-  private readonly adminApiKey: string;
+  private readonly managerBaseUrl: string;
 
   constructor(connection: EvolutionConnection) {
     this.baseUrl = normalizeBaseUrl(connection.baseUrl);
     this.instanceApiKey = connection.apiKey.trim();
-    this.adminApiKey = connection.adminApiKey.trim();
+    this.managerBaseUrl = normalizeBaseUrl(window.location.origin);
   }
 
   async execute(request: ApiExecutionRequest): Promise<ApiExecutionResult> {
     const path = request.path.startsWith("/") ? request.path : `/${request.path}`;
-    const url = `${this.baseUrl}${path}`;
-    const headers = new Headers(request.headers);
     const auth = request.auth ?? "instance";
-    const key = auth === "admin" ? (this.adminApiKey || this.instanceApiKey) : this.instanceApiKey;
-    if (auth !== "none") {
-      if (!key) throw new Error(auth === "admin" ? "Informe a API key global" : "Informe a API key da instância");
-      headers.set("apikey", key);
+    const url = `${auth === "admin" ? this.managerBaseUrl : this.baseUrl}${path}`;
+    const headers = new Headers(request.headers);
+    if (auth === "instance") {
+      if (!this.instanceApiKey) throw new Error("Informe a API key da instância em Configurações");
+      headers.set("apikey", this.instanceApiKey);
     }
     const isFormData = typeof FormData !== "undefined" && request.body instanceof FormData;
     if (request.body !== undefined && request.body !== null && !isFormData && !headers.has("Content-Type")) {
@@ -169,6 +260,7 @@ export class EvolutionApi {
       method: request.method.toUpperCase(),
       headers,
       body: ["GET", "HEAD"].includes(request.method.toUpperCase()) ? undefined : request.body,
+      credentials: "include",
     });
     const rawText = await response.text();
     let data: unknown = rawText;
@@ -211,6 +303,105 @@ export class EvolutionApi {
       throw new Error(message);
     }
     return result.data as T;
+  }
+
+  private async adminRequest<T>(path: string, init: RequestInit = {}): Promise<T> {
+    const result = await this.execute({
+      path,
+      method: init.method || "GET",
+      body: init.body,
+      headers: init.headers,
+      auth: "admin",
+    });
+    if (!result.ok) {
+      const body = result.data as Record<string, unknown> | null;
+      const message = body && typeof body === "object" && typeof body.error === "string"
+        ? body.error
+        : body && typeof body === "object" && typeof body.message === "string"
+          ? body.message
+          : `HTTP ${result.status}`;
+      throw new Error(message);
+    }
+    return result.data as T;
+  }
+
+  async listInstances(): Promise<ManagedInstance[]> {
+    const response = await this.adminRequest<ApiEnvelope<ManagedInstance[]> | ManagedInstance[]>("/instance/all");
+    const instances = Array.isArray(response) ? response : response.data;
+    return Array.isArray(instances) ? instances : [];
+  }
+
+  async createInstance(input: CreateInstanceInput): Promise<ManagedInstance> {
+    const response = await this.adminRequest<ApiEnvelope<ManagedInstance>>("/instance/create", {
+      method: "POST",
+      body: JSON.stringify({
+        name: input.name,
+        token: input.token?.trim() || "",
+        proxy: input.proxy ?? null,
+        advancedSettings: null,
+      }),
+    });
+    return "data" in response ? response.data : response;
+  }
+
+  async deleteInstance(instanceId: string): Promise<void> {
+    const response = await this.adminRequest<{ message?: string }>(`/instance/delete/${encodeURIComponent(instanceId)}`, { method: "DELETE" });
+    if (response.message !== "success") {
+      throw new Error("O servidor não confirmou a exclusão da instância.");
+    }
+  }
+
+  async getInstanceLogs(instanceId: string, limit = 250): Promise<InstanceLogEntry[]> {
+    const response = await this.adminRequest<InstanceLogEntry[] | ApiEnvelope<InstanceLogEntry[]>>(
+      `/instance/logs/${encodeURIComponent(instanceId)}?limit=${Math.max(1, Math.min(limit, 500))}`,
+    );
+    return Array.isArray(response) ? response : Array.isArray(response.data) ? response.data : [];
+  }
+
+  infrastructureSettings(): Promise<InfrastructureSettings> {
+    return this.adminRequest<InfrastructureSettings>("/manager-v2/settings/infrastructure");
+  }
+
+  saveInfrastructureSettings(settings: InfrastructureSettings): Promise<{ restartRequired: boolean }> {
+    return this.adminRequest<{ restartRequired: boolean }>("/manager-v2/settings/infrastructure", {
+      method: "PUT",
+      body: JSON.stringify(settings),
+    });
+  }
+
+  getAdvancedSettings(instanceId: string): Promise<AdvancedInstanceSettings> {
+    return this.request<AdvancedInstanceSettings>(`/instance/${encodeURIComponent(instanceId)}/advanced-settings`);
+  }
+
+  updateAdvancedSettings(instanceId: string, settings: AdvancedInstanceSettings): Promise<unknown> {
+    return this.request(`/instance/${encodeURIComponent(instanceId)}/advanced-settings`, {
+      method: "PUT",
+      body: JSON.stringify(settings),
+    });
+  }
+
+  configureInstance(settings: InstanceConnectionSettings): Promise<unknown> {
+    return this.request("/instance/connect", {
+      method: "POST",
+      body: JSON.stringify({
+        ...settings,
+        immediate: false,
+        phone: "",
+      }),
+    });
+  }
+
+  async getInstanceQr(): Promise<InstanceQRCode> {
+    const response = await this.request<ApiEnvelope<InstanceQRCode> | InstanceQRCode>("/instance/qr");
+    return "data" in response ? response.data : response;
+  }
+
+  reconnectInstance(): Promise<unknown> {
+    return this.request("/instance/reconnect", { method: "POST", body: JSON.stringify({}) });
+  }
+
+  disconnectInstance(): Promise<unknown> {
+    return this.request("/instance/disconnect", { method: "POST", body: JSON.stringify({}) });
   }
 
   callStatus(): Promise<CallStatusSnapshot> {

@@ -1856,23 +1856,12 @@ func (s *sendService) SendButton(data *ButtonStruct, instance *instance_model.In
 	var msgType string
 
 	if hasReply && !hasOtherTypes && !hasPix {
-		// Reply-only: native ButtonsMessage wrapped in DocumentWithCaptionMessage (Baileys PR #36).
-		var replyButtons []*waE2E.ButtonsMessage_Button
-		for _, v := range data.Buttons {
-			replyButtons = append(replyButtons, &waE2E.ButtonsMessage_Button{
-				ButtonID: proto.String(v.Id),
-				ButtonText: &waE2E.ButtonsMessage_Button_ButtonText{
-					DisplayText: proto.String(v.DisplayText),
-				},
-				Type: waE2E.ButtonsMessage_Button_RESPONSE.Enum(),
-			})
-		}
-
-		buttonsMsg := &waE2E.ButtonsMessage{
-			ContentText: proto.String(data.Description),
-			FooterText:  proto.String(data.Footer),
-			HeaderType:  waE2E.ButtonsMessage_EMPTY.Enum(),
-			Buttons:     replyButtons,
+		// ButtonsMessage is a legacy protocol message and WhatsApp currently
+		// rejects it for some clients with a 405. Reply buttons use the same
+		// native-flow envelope as CTA buttons, with quick_reply entries.
+		header := &waE2E.InteractiveMessage_Header{
+			Title:              proto.String(data.Title),
+			HasMediaAttachment: proto.Bool(false),
 		}
 
 		// Optional media header (image or video URL).
@@ -1882,8 +1871,8 @@ func (s *sendService) SendButton(data *ButtonStruct, instance *instance_model.In
 				resp.Body.Close()
 				if readErr == nil {
 					if uploaded, upErr := client.Upload(context.Background(), fileData, whatsmeow.MediaImage); upErr == nil {
-						buttonsMsg.HeaderType = waE2E.ButtonsMessage_IMAGE.Enum()
-						buttonsMsg.Header = &waE2E.ButtonsMessage_ImageMessage{
+						header.HasMediaAttachment = proto.Bool(true)
+						header.Media = &waE2E.InteractiveMessage_Header_ImageMessage{
 							ImageMessage: &waE2E.ImageMessage{
 								URL:           proto.String(uploaded.URL),
 								DirectPath:    proto.String(uploaded.DirectPath),
@@ -1892,6 +1881,7 @@ func (s *sendService) SendButton(data *ButtonStruct, instance *instance_model.In
 								FileEncSHA256: uploaded.FileEncSHA256,
 								FileSHA256:    uploaded.FileSHA256,
 								FileLength:    proto.Uint64(uint64(len(fileData))),
+								JPEGThumbnail: makeJPEGThumbnail(fileData, 72),
 							},
 						}
 					}
@@ -1903,8 +1893,8 @@ func (s *sendService) SendButton(data *ButtonStruct, instance *instance_model.In
 				resp.Body.Close()
 				if readErr == nil {
 					if uploaded, upErr := client.Upload(context.Background(), fileData, whatsmeow.MediaVideo); upErr == nil {
-						buttonsMsg.HeaderType = waE2E.ButtonsMessage_VIDEO.Enum()
-						buttonsMsg.Header = &waE2E.ButtonsMessage_VideoMessage{
+						header.HasMediaAttachment = proto.Bool(true)
+						header.Media = &waE2E.InteractiveMessage_Header_VideoMessage{
 							VideoMessage: &waE2E.VideoMessage{
 								URL:           proto.String(uploaded.URL),
 								DirectPath:    proto.String(uploaded.DirectPath),
@@ -1923,14 +1913,29 @@ func (s *sendService) SendButton(data *ButtonStruct, instance *instance_model.In
 		msg = &waE2E.Message{
 			DocumentWithCaptionMessage: &waE2E.FutureProofMessage{
 				Message: &waE2E.Message{
-					ButtonsMessage: buttonsMsg,
+					InteractiveMessage: &waE2E.InteractiveMessage{
+						Body: &waE2E.InteractiveMessage_Body{
+							Text: proto.String(data.Description),
+						},
+						Footer: &waE2E.InteractiveMessage_Footer{
+							Text: proto.String(data.Footer),
+						},
+						Header: header,
+						InteractiveMessage: &waE2E.InteractiveMessage_NativeFlowMessage_{
+							NativeFlowMessage: &waE2E.InteractiveMessage_NativeFlowMessage{
+								Buttons:           buttons,
+								MessageParamsJSON: &messageParamsJSON,
+								MessageVersion:    proto.Int32(1),
+							},
+						},
+					},
 				},
 			},
 			MessageContextInfo: &waE2E.MessageContextInfo{
 				MessageSecret: btnMsgSecret,
 			},
 		}
-		msgType = "ButtonsMessage"
+		msgType = "InteractiveMessage"
 	} else if hasPix {
 		// Pix: NativeFlowMessage wrapped in DocumentWithCaptionMessage.
 		paymentMsgParams := `{"native_flow_name":"order_details","version":1}`
@@ -2770,8 +2775,20 @@ func (s *sendService) SendMessage(instance *instance_model.Instance, msg *waE2E.
 		sendExtra.AdditionalNodes = data.AdditionalNodes
 	}
 
-	response, err := s.clientPointer[instance.Id].SendMessage(context.Background(), recipient, msg, sendExtra)
+	// WhatsApp sends are synchronous while waiting for a server ACK. Never use
+	// context.Background here: an unavailable or stalled WhatsApp connection
+	// would otherwise keep the HTTP request (and API Lab) loading indefinitely.
+	const sendConfirmationTimeout = 25 * time.Second
+	sendCtx, cancel := context.WithTimeout(context.Background(), sendConfirmationTimeout)
+	defer cancel()
+
+	response, err := s.clientPointer[instance.Id].SendMessage(sendCtx, recipient, msg, sendExtra)
 	if err != nil {
+		if errors.Is(err, context.DeadlineExceeded) {
+			confirmationErr := fmt.Errorf("WhatsApp did not confirm the message within %s; delivery status is unknown", sendConfirmationTimeout)
+			s.loggerWrapper.GetLogger(instance.Id).LogError("[%s] %v", instance.Id, confirmationErr)
+			return nil, confirmationErr
+		}
 		s.loggerWrapper.GetLogger(instance.Id).LogError("[%s] Error sending message: %v", instance.Id, err)
 		return nil, err
 	}

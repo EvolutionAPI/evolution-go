@@ -2,6 +2,7 @@ package instance_handler
 
 import (
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -56,29 +57,14 @@ func (i *instanceHandler) Create(ctx *gin.Context) {
 		return
 	}
 
-	if data.Name == "" {
+	if strings.TrimSpace(data.Name) == "" {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": "name is required"})
-		return
-	}
-
-	if data.Token == "" {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": "token is required"})
 		return
 	}
 
 	if data.Proxy != nil {
 		if data.Proxy.Port == "" {
 			ctx.JSON(http.StatusBadRequest, gin.H{"error": "proxy port is required"})
-			return
-		}
-
-		if data.Proxy.Password == "" {
-			ctx.JSON(http.StatusBadRequest, gin.H{"error": "proxy password is required"})
-			return
-		}
-
-		if data.Proxy.Username == "" {
-			ctx.JSON(http.StatusBadRequest, gin.H{"error": "proxy username is required"})
 			return
 		}
 

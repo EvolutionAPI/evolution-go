@@ -5,6 +5,7 @@ import (
 
 	"github.com/evolution-foundation/evolution-go/pkg/config"
 	instance_service "github.com/evolution-foundation/evolution-go/pkg/instance/service"
+	managerauth "github.com/evolution-foundation/evolution-go/pkg/managerauth"
 	"github.com/gin-gonic/gin"
 )
 
@@ -16,6 +17,7 @@ type Middleware interface {
 type middleware struct {
 	config          *config.Config
 	instanceService instance_service.InstanceService
+	managerAuth     *managerauth.Service
 }
 
 func (m middleware) Auth(ctx *gin.Context) {
@@ -37,6 +39,11 @@ func (m middleware) Auth(ctx *gin.Context) {
 }
 
 func (m middleware) AuthAdmin(ctx *gin.Context) {
+	if m.managerAuth != nil && m.managerAuth.IsAuthorized(ctx.Request.Context(), ctx.Request) {
+		ctx.Next()
+		return
+	}
+
 	token := ctx.GetHeader("apikey")
 	if token == "" {
 		ctx.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "not authorized"})
@@ -51,6 +58,6 @@ func (m middleware) AuthAdmin(ctx *gin.Context) {
 	ctx.Next()
 }
 
-func NewMiddleware(config *config.Config, instanceService instance_service.InstanceService) *middleware {
-	return &middleware{config: config, instanceService: instanceService}
+func NewMiddleware(config *config.Config, instanceService instance_service.InstanceService, managerAuth *managerauth.Service) *middleware {
+	return &middleware{config: config, instanceService: instanceService, managerAuth: managerAuth}
 }
