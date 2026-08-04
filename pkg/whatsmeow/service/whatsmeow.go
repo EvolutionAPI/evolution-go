@@ -1212,6 +1212,26 @@ func (mycli *MyClient) myEventHandler(rawEvt interface{}) {
 			return
 		}
 
+		// Resolve LID sem alt pelo mapa local (whatsmeow_lid_map) antes do swap.
+		// Quando o stanza vem sem sender_pn, o whatsmeow deixa SenderAlt vazio e o
+		// evento seria publicado só com o @lid — o backend não consegue resolver o
+		// contato e a mensagem se perde. O mapa local já guarda todo par LID↔número
+		// que a lib viu (StoreLIDPNMapping); consultá-lo preenche o SenderAlt e o
+		// bloco de swap logo abaixo faz o resto. Falha aqui degrada para o
+		// comportamento antigo (publicar o LID), nunca bloqueia a mensagem.
+		if strings.Contains(evt.Info.Sender.String(), "@lid") && evt.Info.SenderAlt.IsEmpty() {
+			if mycli.WAClient != nil && mycli.WAClient.Store != nil && mycli.WAClient.Store.LIDs != nil {
+				if pn, err := mycli.WAClient.Store.LIDs.GetPNForLID(context.Background(), evt.Info.Sender); err != nil {
+					mycli.loggerWrapper.GetLogger(mycli.userID).LogError("[%s] LID map lookup failed for %s: %v", mycli.userID, evt.Info.Sender.String(), err)
+				} else if !pn.IsEmpty() {
+					mycli.loggerWrapper.GetLogger(mycli.userID).LogInfo("[%s] Resolved LID %s to %s via local map", mycli.userID, evt.Info.Sender.String(), pn.String())
+					evt.Info.SenderAlt = pn
+				} else {
+					mycli.loggerWrapper.GetLogger(mycli.userID).LogWarn("[%s] No PN in local map for LID %s — publishing as-is", mycli.userID, evt.Info.Sender.String())
+				}
+			}
+		}
+
 		// Trata o caso especial onde Sender é @lid e SenderAlt é @s.whatsapp.net
 		// Neste caso, devemos inverter: Sender e Chat devem ser @s.whatsapp.net, SenderAlt deve ser @lid
 		senderStr := evt.Info.Sender.String()
