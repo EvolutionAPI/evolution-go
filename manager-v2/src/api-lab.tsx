@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { API_OPERATIONS, type ApiOperation, type BodyMode } from "./api-catalog";
 import type { ApiAuthMode, ApiExecutionResult, EvolutionApi, EvolutionConnection } from "./api";
 import { GuidedRequestEditor, supportsGuidedRequest, validateRequestDraft } from "./guided-request";
+import { RequestPresetPanel, type RequestPresetDraft } from "./request-presets";
 
 function replaceInstanceId(path: string, connection: EvolutionConnection): string {
   return path.replaceAll(":instanceId", connection.instanceId || "INSTANCE_ID");
@@ -95,6 +96,25 @@ export function ApiLab({ api, connection }: { api: EvolutionApi | null; connecti
     setResult(null);
   };
 
+  const applyPreset = (preset: RequestPresetDraft) => {
+    const operation = API_OPERATIONS.find((item) => item.id === preset.operationId);
+    if (!operation) {
+      setError(`A operação ${preset.operationId} não existe mais no catálogo.`);
+      return;
+    }
+    setSelectedId(operation.id);
+    setMethod(preset.method);
+    setPath(preset.path);
+    setBodyMode(preset.bodyMode);
+    setBody(preset.body);
+    setAuth(preset.auth);
+    setFile(null);
+    setFileField(preset.fileField || operation.fileField || "file");
+    setEditorMode(supportsGuidedRequest(operation.id) ? "guided" : "json");
+    setError("");
+    setResult(null);
+  };
+
   const resetPayload = () => {
     setBody(stringifySample(selected.sample));
     setFile(null);
@@ -142,6 +162,16 @@ export function ApiLab({ api, connection }: { api: EvolutionApi | null; connecti
 
   const curl = buildCurl(connection, { auth, fileField }, method, bodyMode, path, body);
   const renderedResponse = responseText(result);
+  const presetDraft: RequestPresetDraft = {
+    operationId: selected.id,
+    operationTitle: selected.title,
+    method,
+    path,
+    auth,
+    bodyMode,
+    body,
+    fileField,
+  };
 
   return (
     <div className="api-lab-layout">
@@ -250,6 +280,7 @@ export function ApiLab({ api, connection }: { api: EvolutionApi | null; connecti
       </section>
 
       <aside className="card api-history">
+        <RequestPresetPanel current={presetDraft} onApply={applyPreset} />
         <div className="section-heading"><div><span className="eyebrow">Sessão</span><h2>Últimos testes</h2></div></div>
         {history.length === 0 ? <p>Nenhuma requisição executada.</p> : history.map((item) => (
           <div className="api-history-item" key={item.id}>
