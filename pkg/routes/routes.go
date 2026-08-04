@@ -63,7 +63,7 @@ func (r *Routes) AssignRoutes(eng *gin.Engine) {
 		c.Status(http.StatusNoContent)
 	})
 
-	// Rotas para o gerenciador React (sem autenticação)
+	// Rotas para o gerenciador React legado (sem autenticação)
 	eng.Static("/assets", "./manager/dist/assets")
 
 	// Ajuste nas rotas do manager para suportar client-side routing do React
@@ -74,6 +74,9 @@ func (r *Routes) AssignRoutes(eng *gin.Engine) {
 	eng.GET("/manager", func(c *gin.Context) {
 		c.File("manager/dist/index.html")
 	})
+
+	// Novo Manager V2. Mantém /manager intacto durante a migração gradual.
+	registerManagerV2Routes(eng)
 
 	eng.GET("/server/ok", r.serverHandler.ServerOk)
 

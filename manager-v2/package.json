@@ -1,0 +1,23 @@
+{
+  "name": "evolution-go-manager-v2",
+  "private": true,
+  "version": "0.2.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host 0.0.0.0",
+    "build": "tsc -b && vite build",
+    "typecheck": "tsc -b --pretty false",
+    "check:catalog": "node scripts/check-api-catalog.mjs",
+    "preview": "vite preview --host 0.0.0.0"
+  },
+  "dependencies": {
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8"
+  },
+  "devDependencies": {
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "typescript": "^5.9.2",
+    "vite": "^8.1.5"
+  }
+}
