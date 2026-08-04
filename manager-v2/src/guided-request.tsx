@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import type { BodyMode } from "./api-catalog";
 import "./guided-request.css";
 
@@ -142,6 +142,42 @@ function TextAreaField({ label, value, onChange, placeholder, hint, rows = 4 }: 
   return <Field label={label} hint={hint}><textarea value={value} placeholder={placeholder} rows={rows} onChange={(event) => onChange(event.target.value)} /></Field>;
 }
 
+function JsonArrayField({ label, value, onChange, hint, rows = 9 }: {
+  label: string;
+  value: unknown;
+  onChange: (value: unknown[]) => void;
+  hint?: string;
+  rows?: number;
+}) {
+  const serialized = JSON.stringify(arrayValue(value), null, 2);
+  const [draft, setDraft] = useState(serialized);
+  const [draftError, setDraftError] = useState("");
+
+  useEffect(() => {
+    setDraft(serialized);
+    setDraftError("");
+  }, [serialized]);
+
+  const updateDraft = (next: string) => {
+    setDraft(next);
+    try {
+      const parsed = JSON.parse(next) as unknown;
+      if (!Array.isArray(parsed)) throw new Error("Informe um array JSON.");
+      onChange(parsed);
+      setDraftError("");
+    } catch (cause) {
+      setDraftError(cause instanceof Error ? cause.message : "JSON inválido");
+    }
+  };
+
+  return (
+    <Field label={label} hint={hint}>
+      <textarea value={draft} rows={rows} spellCheck={false} onChange={(event) => updateDraft(event.target.value)} />
+      {draftError && <span className="guided-json-error">Rascunho ainda inválido: {draftError}</span>}
+    </Field>
+  );
+}
+
 function SelectField({ label, value, onChange, options }: {
   label: string;
   value: string;
@@ -155,8 +191,8 @@ function CommonFields({ data, patch }: { data: JsonObject; patch: (key: string, 
   return (
     <div className="guided-grid compact">
       <NumberField label="Atraso (ms)" value={numberValue(data.delay)} onChange={(value) => patch("delay", value)} />
-      <Field label="Formatação do JID"><label className="guided-check"><input type="checkbox" checked={data.formatJid !== false} onChange={(event) => patch("formatJid", event.target.checked)} /><span>Formatar automaticamente</span></label></Field>
-      <Field label="Menções"><label className="guided-check"><input type="checkbox" checked={booleanValue(data.mentionAll)} onChange={(event) => patch("mentionAll", event.target.checked)} /><span>Mencionar todos</span></label></Field>
+      <Field label="Formatação do JID"><span className="guided-check"><input type="checkbox" checked={data.formatJid !== false} onChange={(event) => patch("formatJid", event.target.checked)} /><span>Formatar automaticamente</span></span></Field>
+      <Field label="Menções"><span className="guided-check"><input type="checkbox" checked={booleanValue(data.mentionAll)} onChange={(event) => patch("mentionAll", event.target.checked)} /><span>Mencionar todos</span></span></Field>
     </div>
   );
 }
@@ -224,6 +260,13 @@ export function GuidedRequestEditor({ operationId, body, onChange }: GuidedReque
   const commit = (next: JsonObject) => onChange(JSON.stringify(next, null, 2));
   const patch = (key: string, value: unknown) => commit({ ...data, [key]: value });
   const patchNested = (parent: string, key: string, value: unknown) => commit({ ...data, [parent]: { ...objectValue(data[parent]), [key]: value } });
+  const patchObjectArrayItem = (key: string, index: number, update: (current: JsonObject) => JsonObject) => {
+    const items = arrayValue(data[key]).map(objectValue);
+    while (items.length <= index) items.push({});
+    const next = [...items];
+    next[index] = update(next[index]);
+    patch(key, next);
+  };
   const numberField = !operationId.startsWith("send-status");
 
   let fields: ReactNode;
@@ -278,7 +321,7 @@ export function GuidedRequestEditor({ operationId, body, onChange }: GuidedReque
         <div className="guided-grid"><TextField label="Título" value={stringValue(data.title)} onChange={(value) => patch("title", value)} /><TextField label="Rodapé" value={stringValue(data.footer)} onChange={(value) => patch("footer", value)} /></div>
         <TextAreaField label="Descrição" value={stringValue(data.description)} onChange={(value) => patch("description", value)} />
         <SelectField label="Combinação segura" value={preset} onChange={(value) => patch("buttons", presetButtons(value as "reply" | "cta" | "pix"))} options={[{ value: "reply", label: "Até 3 respostas rápidas" }, { value: "cta", label: "Copiar + URL + ligar" }, { value: "pix", label: "PIX isolado" }]} />
-        <TextAreaField label="Botões em JSON" rows={9} value={JSON.stringify(data.buttons ?? [], null, 2)} onChange={(value) => { try { patch("buttons", JSON.parse(value) as unknown); } catch { /* allow editing only when valid */ } }} hint="Use o editor JSON avançado para alterações incompletas." />
+        <JsonArrayField label="Botões em JSON" value={data.buttons} onChange={(value) => patch("buttons", value)} hint="O rascunho pode ficar temporariamente inválido sem perder o texto digitado." />
       </>;
       break;
     }
@@ -287,8 +330,8 @@ export function GuidedRequestEditor({ operationId, body, onChange }: GuidedReque
       fields = <>
         <div className="guided-grid"><TextField label="Título" value={stringValue(data.title)} onChange={(value) => patch("title", value)} /><TextField label="Texto do botão" value={stringValue(data.buttonText)} onChange={(value) => patch("buttonText", value)} /></div>
         <TextAreaField label="Descrição" value={stringValue(data.description)} onChange={(value) => patch("description", value)} />
-        <TextField label="Título da seção" value={stringValue(section.title)} onChange={(value) => patch("sections", [{ ...section, title: value }])} />
-        <TextAreaField label="Linhas da lista" rows={7} value={rowsToText(section.rows)} onChange={(value) => patch("sections", [{ ...section, rows: textToRows(value) }])} hint="Uma linha por item: Título|Descrição|rowId" />
+        <TextField label="Título da seção" value={stringValue(section.title)} onChange={(value) => patchObjectArrayItem("sections", 0, (current) => ({ ...current, title: value }))} />
+        <TextAreaField label="Linhas da lista" rows={7} value={rowsToText(section.rows)} onChange={(value) => patchObjectArrayItem("sections", 0, (current) => ({ ...current, rows: textToRows(value) }))} hint="Uma linha por item: Título|Descrição|rowId" />
       </>;
       break;
     }
@@ -298,8 +341,8 @@ export function GuidedRequestEditor({ operationId, body, onChange }: GuidedReque
       const cardBody = objectValue(card.body);
       fields = <>
         <TextAreaField label="Texto principal" value={stringValue(data.body)} onChange={(value) => patch("body", value)} />
-        <div className="guided-grid"><TextField label="Título do primeiro card" value={stringValue(header.title)} onChange={(value) => patch("cards", [{ ...card, header: { ...header, title: value } }])} /><TextField label="Imagem" value={stringValue(header.imageUrl)} onChange={(value) => patch("cards", [{ ...card, header: { ...header, imageUrl: value } }])} /></div>
-        <TextAreaField label="Texto do card" value={stringValue(cardBody.text)} onChange={(value) => patch("cards", [{ ...card, body: { ...cardBody, text: value } }])} />
+        <div className="guided-grid"><TextField label="Título do primeiro card" value={stringValue(header.title)} onChange={(value) => patchObjectArrayItem("cards", 0, (current) => ({ ...current, header: { ...objectValue(current.header), title: value } }))} /><TextField label="Imagem" value={stringValue(header.imageUrl)} onChange={(value) => patchObjectArrayItem("cards", 0, (current) => ({ ...current, header: { ...objectValue(current.header), imageUrl: value } }))} /></div>
+        <TextAreaField label="Texto do card" value={stringValue(cardBody.text)} onChange={(value) => patchObjectArrayItem("cards", 0, (current) => ({ ...current, body: { ...objectValue(current.body), text: value } }))} />
       </>;
       break;
     }
