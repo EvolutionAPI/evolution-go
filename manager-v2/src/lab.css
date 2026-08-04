@@ -24,8 +24,28 @@ code { color: #9ccbbb; font-family: "SFMono-Regular", Consolas, "Liberation Mono
 .qr-card p { color: var(--muted); text-align: center; font-size: 12px; }
 .session-response pre { max-height: 500px; }
 
+.api-lab-workspace { display: grid; gap: 20px; }
+.api-lab-hero { position: relative; display: flex; align-items: end; justify-content: space-between; gap: 20px; padding: 25px; overflow: hidden; background: linear-gradient(115deg, rgba(18,47,38,.98), rgba(10,27,23,.96)); }
+.api-lab-hero::after { content: ""; position: absolute; right: -110px; top: -180px; width: 370px; height: 370px; border: 1px solid rgba(117,240,172,.15); border-radius: 50%; box-shadow: 0 0 0 54px rgba(40,209,124,.035); }
+.api-lab-hero-copy, .api-lab-hero-note, .api-lab-instance-status { position: relative; z-index: 1; }
+.api-lab-hero h1 { margin: 5px 0 8px; font-size: clamp(31px, 4vw, 44px); line-height: 1; letter-spacing: -.055em; }
+.api-lab-hero p { max-width: 540px; margin: 0; color: var(--muted); font-size: 13px; line-height: 1.55; }
+.api-lab-hero-note { display: grid; gap: 4px; min-width: 235px; padding: 13px; border: 1px solid rgba(155,199,186,.16); border-radius: 13px; background: rgba(2,12,9,.22); }
+.api-lab-hero-note span { color: var(--accent-2); font-size: 10px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
+.api-lab-hero-note strong { font-size: 13px; }
+.api-lab-hero-note small, .api-lab-instance-error { color: var(--muted); font-size: 10px; line-height: 1.4; }
+.api-lab-instance-error { display: block; margin-top: 7px; color: #ffb2ba; }
+.api-lab-instance-status { display: flex; align-items: center; gap: 10px; min-width: 0; padding: 13px; border: 1px solid rgba(155,199,186,.16); border-radius: 13px; background: rgba(2,12,9,.22); }
+.api-lab-instance-status .status-dot { width: 8px; height: 8px; }
+.api-lab-instance-status.connected .status-dot { background: var(--accent); box-shadow: 0 0 0 4px rgba(40,209,124,.13); }
+.api-lab-instance-status.disconnected .status-dot { background: var(--danger); box-shadow: 0 0 0 4px rgba(255,92,108,.1); }
+.api-lab-instance-status div { min-width: 0; }
+.api-lab-instance-status strong, .api-lab-instance-status small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.api-lab-instance-status strong { font-size: 12px; }
+.api-lab-instance-status small { margin-top: 3px; color: var(--muted); font-size: 10px; }
 .api-lab-layout { display: grid; grid-template-columns: 300px minmax(0, 1fr) 230px; gap: 18px; align-items: start; }
 .api-catalog, .api-history { position: sticky; top: 92px; padding: 18px; max-height: calc(100vh - 116px); overflow: hidden; }
+.api-catalog { border-color: rgba(155,199,186,.18); }
 .api-catalog { display: flex; flex-direction: column; }
 .api-catalog > input { min-height: 42px; }
 .api-category-strip { display: flex; gap: 6px; overflow-x: auto; padding: 11px 0; }
@@ -43,8 +63,13 @@ code { color: #9ccbbb; font-family: "SFMono-Regular", Consolas, "Liberation Mono
 .method-delete { background: rgba(255,92,108,.12); color: #ff9aa5; }
 .api-console { display: grid; gap: 18px; min-width: 0; }
 .api-request-card, .api-response-card, .api-curl-card { padding: 22px; }
+.api-request-card { border-color: rgba(40,209,124,.18); }
 .api-description { color: var(--muted); line-height: 1.55; font-size: 13px; }
 .api-route-row { display: grid; grid-template-columns: 90px minmax(0, 1fr) 180px; gap: 9px; margin: 17px 0; }
+.api-instance-auth-card { display: grid; grid-template-columns: minmax(0, 1fr) minmax(220px, 310px) minmax(170px, 220px); align-items: end; gap: 16px; margin: 0 0 18px; padding: 16px; border: 1px solid rgba(40,209,124,.22); border-radius: 15px; background: linear-gradient(100deg, rgba(40,209,124,.08), rgba(40,209,124,.025)); }
+.api-instance-auth-card h3 { margin: 4px 0 5px; font-size: 16px; }
+.api-instance-auth-card p { margin: 0; color: var(--muted); font-size: 12px; line-height: 1.45; }
+.api-instance-auth-card label > span { display: block; margin-bottom: 7px; color: var(--muted); font-size: 11px; font-weight: 800; }
 .api-editor-label > span, .api-file-field > span { display: block; margin-bottom: 7px; color: var(--muted); font-size: 12px; }
 .api-file-field { display: block; margin-top: 13px; padding: 13px; border: 1px dashed var(--line); border-radius: 13px; }
 .api-file-field input { min-height: 40px; padding: 8px; }
@@ -61,20 +86,30 @@ code { color: #9ccbbb; font-family: "SFMono-Regular", Consolas, "Liberation Mono
 .api-history-item strong { font-size: 11px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .api-history-item span { font-size: 11px; font-weight: 900; }
 .api-history-item small { grid-column: 1 / -1; color: var(--muted); font-size: 9px; }
+.api-presets-dialog { width: min(720px, calc(100vw - 32px)); max-height: calc(100vh - 40px); overflow: auto; padding: 24px; }
+.api-presets-dialog .section-heading { align-items: start; }
+.api-presets-dialog .request-presets { margin: 0; padding: 0; border: 0; }
+.api-presets-dialog .request-preset-list { max-height: min(390px, calc(100vh - 360px)); }
 
 @media (max-width: 1320px) {
+  .api-instance-auth-card { grid-template-columns: minmax(0, 1fr) minmax(220px, 310px); }
+  .api-instance-auth-card .api-lab-instance-status { grid-column: 1 / -1; justify-self: start; min-width: 220px; }
   .api-lab-layout { grid-template-columns: 280px minmax(0, 1fr); }
   .api-history { position: static; max-height: none; grid-column: 1 / -1; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
   .api-history .section-heading { grid-column: 1 / -1; }
   .api-history-item { border: 1px solid var(--line); border-radius: 11px; padding: 10px; }
 }
 @media (max-width: 960px) {
+  .api-lab-hero { align-items: stretch; flex-direction: column; }
+  .api-instance-auth-card { grid-template-columns: 1fr; align-items: stretch; }
+  .api-instance-auth-card .api-lab-instance-status { grid-column: auto; justify-self: stretch; }
   .api-lab-layout { grid-template-columns: 1fr; }
   .api-catalog { position: static; max-height: 430px; }
   .api-history { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .session-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 @media (max-width: 700px) {
+  .api-lab-hero { padding: 21px 17px; border-radius: 17px; }
   .connection-form-grid, .session-result-grid { grid-template-columns: 1fr; }
   .session-grid { grid-template-columns: 1fr; }
   .api-route-row { grid-template-columns: 76px minmax(0, 1fr); }
@@ -82,4 +117,5 @@ code { color: #9ccbbb; font-family: "SFMono-Regular", Consolas, "Liberation Mono
   .api-actions { flex-direction: column-reverse; }
   .api-actions .button { width: 100%; }
   .api-history { grid-template-columns: 1fr; }
+  .api-presets-dialog { width: min(100%, calc(100vw - 22px)); padding: 20px 16px; }
 }

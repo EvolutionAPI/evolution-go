@@ -1,6 +1,6 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { API_OPERATIONS, type ApiOperation, type BodyMode } from "./api-catalog";
-import type { ApiAuthMode, ApiExecutionResult, EvolutionApi, EvolutionConnection } from "./api";
+import type { ApiAuthMode, ApiExecutionResult, EvolutionApi, EvolutionConnection, ManagedInstance } from "./api";
 import { GuidedRequestEditor, supportsGuidedRequest, validateRequestDraft } from "./guided-request";
 import { RequestPresetPanel, type RequestPresetDraft } from "./request-presets";
 
@@ -51,7 +51,15 @@ function buildCurl(
   return parts.join(" \\\n  ");
 }
 
-export function ApiLab({ api, connection }: { api: EvolutionApi | null; connection: EvolutionConnection }) {
+export function ApiLab({
+  api,
+  connection,
+  onSelectInstance,
+}: {
+  api: EvolutionApi | null;
+  connection: EvolutionConnection;
+  onSelectInstance: (connection: EvolutionConnection) => void;
+}) {
   const initial = API_OPERATIONS.find((item) => item.id === "send-text") ?? API_OPERATIONS[0];
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState("Todos");
@@ -68,8 +76,14 @@ export function ApiLab({ api, connection }: { api: EvolutionApi | null; connecti
   const [error, setError] = useState("");
   const [result, setResult] = useState<ApiExecutionResult | null>(null);
   const [history, setHistory] = useState<Array<{ id: number; title: string; status: number; duration: number }>>([]);
+  const [showPresets, setShowPresets] = useState(false);
+  const [instances, setInstances] = useState<ManagedInstance[]>([]);
+  const [loadingInstances, setLoadingInstances] = useState(true);
+  const [instanceError, setInstanceError] = useState("");
 
   const selected = API_OPERATIONS.find((item) => item.id === selectedId) ?? initial;
+  const selectedInstance = instances.find((item) => item.id === connection.instanceId) ?? null;
+  const hasInstanceAccess = Boolean(connection.instanceId.trim() && connection.apiKey.trim());
   const guidedAvailable = supportsGuidedRequest(selected.id);
   const validation = useMemo(() => validateRequestDraft(selected.id, bodyMode, body, file), [body, bodyMode, file, selected.id]);
   const categories = useMemo(() => ["Todos", ...Array.from(new Set(API_OPERATIONS.map((item) => item.category)))], []);
@@ -81,6 +95,50 @@ export function ApiLab({ api, connection }: { api: EvolutionApi | null; connecti
       return `${item.title} ${item.path} ${item.description}`.toLocaleLowerCase("pt-BR").includes(normalized);
     });
   }, [category, query]);
+
+  useEffect(() => {
+    let active = true;
+    if (!api) {
+      setInstances([]);
+      setLoadingInstances(false);
+      return () => { active = false; };
+    }
+    setLoadingInstances(true);
+    void api.listInstances()
+      .then((items) => {
+        if (!active) return;
+        setInstances(items);
+        setInstanceError("");
+      })
+      .catch((cause) => {
+        if (!active) return;
+        setInstances([]);
+        setInstanceError(cause instanceof Error ? cause.message : "Não foi possível carregar as instâncias.");
+      })
+      .finally(() => { if (active) setLoadingInstances(false); });
+    return () => { active = false; };
+  }, [api]);
+
+  useEffect(() => {
+    if (selected.path.includes(":instanceId")) setPath(replaceInstanceId(selected.path, connection));
+  }, [connection.instanceId, selected.path]);
+
+  const chooseInstance = (instanceId: string) => {
+    const next = instances.find((item) => item.id === instanceId);
+    if (!next) {
+      onSelectInstance({ ...connection, instanceId: "", apiKey: "" });
+      return;
+    }
+    const token = next.token || (connection.instanceId === next.id ? connection.apiKey : "");
+    if (!token) {
+      setInstanceError("Não foi possível obter a chave desta instância.");
+      return;
+    }
+    setInstanceError("");
+    const nextConnection = { ...connection, instanceId: next.id, apiKey: token };
+    onSelectInstance(nextConnection);
+    if (selected.path.includes(":instanceId")) setPath(replaceInstanceId(selected.path, nextConnection));
+  };
 
   const choose = (item: ApiOperation) => {
     setSelectedId(item.id);
@@ -133,6 +191,10 @@ export function ApiLab({ api, connection }: { api: EvolutionApi | null; connecti
 
   const run = async () => {
     if (!api || running) return;
+    if (auth === "instance" && !hasInstanceAccess) {
+      setError("Selecione uma instância antes de executar uma rota autenticada.");
+      return;
+    }
     if (validation.errors.length) {
       setError(validation.errors.join(" "));
       return;
@@ -174,7 +236,21 @@ export function ApiLab({ api, connection }: { api: EvolutionApi | null; connecti
   };
 
   return (
-    <div className="api-lab-layout">
+    <div className="api-lab-workspace">
+      <section className="card api-lab-hero">
+        <div className="api-lab-hero-copy">
+          <span className="eyebrow">Ferramentas de desenvolvimento</span>
+          <h1>API Lab</h1>
+          <p>Monte, execute e confira requisições sem sair do Manager. Em rotas com chave da instância, escolha a instância no próprio formulário.</p>
+        </div>
+        <div className="api-lab-hero-note">
+          <span>Ambiente multi-instâncias</span>
+          <strong>Seleção por requisição</strong>
+          <small>A chave é aplicada somente à instância escolhida.</small>
+        </div>
+      </section>
+
+      <div className="api-lab-layout">
       <aside className="card api-catalog">
         <div className="section-heading"><div><span className="eyebrow">Catálogo completo</span><h2>{API_OPERATIONS.length} operações</h2></div></div>
         <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Buscar rota ou função" />
@@ -214,6 +290,28 @@ export function ApiLab({ api, connection }: { api: EvolutionApi | null; connecti
               <option value="multipart">Multipart</option>
             </select>
           </div>
+
+          {auth === "instance" && (
+            <section className="api-instance-auth-card" aria-label="Instância usada na autenticação">
+              <div>
+                <span className="eyebrow">Autenticação da rota</span>
+                <h3>Chave da instância</h3>
+                <p>Escolha a instância cuja chave será usada exclusivamente nesta requisição.</p>
+              </div>
+              <label>
+                <span>Instância</span>
+                <select value={connection.instanceId} disabled={loadingInstances || instances.length === 0} onChange={(event) => chooseInstance(event.target.value)}>
+                  <option value="">{loadingInstances ? "Carregando instâncias…" : "Selecione uma instância"}</option>
+                  {instances.map((item) => <option value={item.id} key={item.id}>{item.name || item.id}{item.connected ? " — conectada" : " — desconectada"}</option>)}
+                </select>
+                {instanceError && <small className="api-lab-instance-error">{instanceError}</small>}
+              </label>
+              <div className={`api-lab-instance-status ${selectedInstance?.connected ? "connected" : "disconnected"}`}>
+                <span className="status-dot" />
+                <div><strong>{selectedInstance?.name || "Nenhuma instância"}</strong><small>{selectedInstance ? (selectedInstance.connected ? "Chave pronta para uso" : "WhatsApp desconectado") : "Seleção obrigatória"}</small></div>
+              </div>
+            </section>
+          )}
 
           {bodyMode !== "none" && (
             <>
@@ -255,9 +353,10 @@ export function ApiLab({ api, connection }: { api: EvolutionApi | null; connecti
 
           {error && <div className="alert error">{error}</div>}
           <div className="api-actions">
+            <button type="button" className="button secondary" onClick={() => setShowPresets(true)}>Presets</button>
             <button type="button" className="button secondary" onClick={resetPayload}>Restaurar exemplo</button>
             <button type="button" className="button secondary" onClick={() => void navigator.clipboard.writeText(curl)}>Copiar cURL</button>
-            <button type="button" className="button primary" disabled={!api || running || validation.errors.length > 0} onClick={() => void run()}>{running ? "Executando…" : "Executar teste"}</button>
+            <button type="button" className="button primary" disabled={!api || running || validation.errors.length > 0 || (auth === "instance" && !hasInstanceAccess)} onClick={() => void run()}>{running ? "Executando…" : "Executar teste"}</button>
           </div>
         </section>
 
@@ -280,7 +379,6 @@ export function ApiLab({ api, connection }: { api: EvolutionApi | null; connecti
       </section>
 
       <aside className="card api-history">
-        <RequestPresetPanel current={presetDraft} onApply={applyPreset} />
         <div className="section-heading"><div><span className="eyebrow">Sessão</span><h2>Últimos testes</h2></div></div>
         {history.length === 0 ? <p>Nenhuma requisição executada.</p> : history.map((item) => (
           <div className="api-history-item" key={item.id}>
@@ -290,6 +388,29 @@ export function ApiLab({ api, connection }: { api: EvolutionApi | null; connecti
           </div>
         ))}
       </aside>
+      </div>
+
+      {showPresets && (
+        <div className="dialog-backdrop" role="presentation">
+          <section className="card api-presets-dialog" role="dialog" aria-modal="true" aria-labelledby="api-presets-title">
+            <div className="section-heading">
+              <div>
+                <span className="eyebrow">Coleção local</span>
+                <h2 id="api-presets-title">Presets de teste</h2>
+              </div>
+              <button type="button" className="text-button" onClick={() => setShowPresets(false)}>Fechar</button>
+            </div>
+            <RequestPresetPanel
+              current={presetDraft}
+              showHeading={false}
+              onApply={(preset) => {
+                applyPreset(preset);
+                setShowPresets(false);
+              }}
+            />
+          </section>
+        </div>
+      )}
     </div>
   );
 }

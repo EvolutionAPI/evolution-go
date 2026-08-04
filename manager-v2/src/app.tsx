@@ -136,7 +136,7 @@ export function App() {
         <div className="content">
           {view === "instances" && <InstanceWorkspace api={api} connection={connection} onSave={updateConnection} onOpenSettings={() => navigate({ view: "settings" })} onOpenInstanceSettings={(instanceId) => navigate({ view: "instance-settings", instanceId })} canManage />}
           {view === "instance-settings" && <InstanceSettingsWorkspace api={api} connection={connection} onSave={updateConnection} instanceId={route.instanceId} onBack={() => navigate({ view: "instances" })} />}
-          {view === "api" && <ApiLab api={api} connection={connection} />}
+          {view === "api" && <ApiLab api={api} connection={connection} onSelectInstance={updateConnection} />}
           {view === "calls" && <CallWorkspace api={api} connection={connection} onSelectInstance={updateConnection} />}
           {view === "settings" && (
             <div className="settings-workspace">

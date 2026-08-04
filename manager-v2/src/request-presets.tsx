@@ -23,6 +23,7 @@ type RequestPreset = RequestPresetDraft & {
 type RequestPresetPanelProps = {
   current: RequestPresetDraft;
   onApply: (preset: RequestPresetDraft) => void;
+  showHeading?: boolean;
 };
 
 const STORAGE_KEY = "evolution-go.manager-v2.request-presets.v1";
@@ -102,7 +103,7 @@ function importedPresets(value: unknown): RequestPreset[] {
   return normalized;
 }
 
-export function RequestPresetPanel({ current, onApply }: RequestPresetPanelProps) {
+export function RequestPresetPanel({ current, onApply, showHeading = true }: RequestPresetPanelProps) {
   const [presets, setPresets] = useState<RequestPreset[]>(loadPresets);
   const [name, setName] = useState("");
   const [message, setMessage] = useState("");
@@ -160,13 +161,15 @@ export function RequestPresetPanel({ current, onApply }: RequestPresetPanelProps
 
   return (
     <section className="request-presets">
-      <div className="request-presets-heading">
-        <div>
-          <span className="eyebrow">Coleção local</span>
-          <h3>Presets de teste</h3>
+      {showHeading && (
+        <div className="request-presets-heading">
+          <div>
+            <span className="eyebrow">Coleção local</span>
+            <h3>Presets de teste</h3>
+          </div>
+          <span>{presets.length}/100</span>
         </div>
-        <span>{presets.length}/100</span>
-      </div>
+      )}
       <p>Salva rota e payload sem armazenar chaves ou arquivos.</p>
       <div className="request-preset-save">
         <input value={name} onChange={(event) => setName(event.target.value)} placeholder="Nome do preset" />
