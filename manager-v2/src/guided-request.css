@@ -8,6 +8,7 @@
 .guided-field input, .guided-field select, .guided-field textarea { width: 100%; border: 1px solid var(--line); border-radius: 12px; background: rgba(2,12,9,.55); color: var(--text); padding: 11px 13px; outline: none; }
 .guided-field input:focus, .guided-field select:focus, .guided-field textarea:focus { border-color: rgba(40,209,124,.65); box-shadow: 0 0 0 3px rgba(40,209,124,.08); }
 .guided-field textarea { resize: vertical; min-height: 92px; line-height: 1.45; }
+.guided-json-error { color: #ffb2ba !important; font-size: 10px; overflow-wrap: anywhere; }
 .guided-check { min-height: 45px; display: flex; align-items: center; gap: 9px; border: 1px solid var(--line); border-radius: 12px; padding: 0 12px; background: rgba(2,12,9,.35); color: var(--muted); font-size: 12px; }
 .guided-check input { width: auto; min-height: auto; padding: 0; }
 .guided-preview { position: sticky; top: 92px; display: grid; gap: 12px; border: 1px solid var(--line); border-radius: 15px; padding: 14px; background: rgba(0,0,0,.13); }
