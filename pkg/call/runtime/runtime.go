@@ -126,13 +126,12 @@ func (r *Runtime) Close() {
 	if client != nil && handlerID != 0 {
 		client.RemoveEventHandler(handlerID)
 	}
+	r.closeWatchdogs()
 }
 
 // UpsertCall creates or updates a call while preserving its creation time.
 func (r *Runtime) UpsertCall(call Call) {
 	r.mu.Lock()
-	defer r.mu.Unlock()
-
 	now := time.Now().UTC()
 	if current, ok := r.calls[call.ID]; ok {
 		if call.CreatedAt.IsZero() {
@@ -149,6 +148,8 @@ func (r *Runtime) UpsertCall(call Call) {
 		call.UpdatedAt = now
 	}
 	r.calls[call.ID] = call
+	r.mu.Unlock()
+	r.syncWatchdog(call)
 }
 
 // Transition applies a partial lifecycle update without erasing metadata that
@@ -159,8 +160,6 @@ func (r *Runtime) Transition(callID, peer string, direction Direction, state Sta
 	}
 
 	r.mu.Lock()
-	defer r.mu.Unlock()
-
 	now := time.Now().UTC()
 	call, exists := r.calls[callID]
 	if !exists {
@@ -186,6 +185,8 @@ func (r *Runtime) Transition(callID, peer string, direction Direction, state Sta
 	}
 	call.UpdatedAt = now
 	r.calls[callID] = call
+	r.mu.Unlock()
+	r.syncWatchdog(call)
 }
 
 func shouldReplacePeer(current, candidate string) bool {
@@ -212,6 +213,7 @@ func (r *Runtime) RemoveCall(callID string) {
 	r.mu.Lock()
 	delete(r.calls, callID)
 	r.mu.Unlock()
+	r.cancelWatchdog(callID)
 }
 
 func (r *Runtime) Snapshot() Snapshot {
@@ -384,9 +386,8 @@ func isOwnJID(client *whatsmeow.Client, jid types.JID) bool {
 
 func (r *Runtime) failOpenCalls(reason string) {
 	r.mu.Lock()
-	defer r.mu.Unlock()
-
 	now := time.Now().UTC()
+	failedCallIDs := make([]string, 0)
 	for callID, call := range r.calls {
 		if call.State == StateEnded || call.State == StateFailed {
 			continue
@@ -395,6 +396,11 @@ func (r *Runtime) failOpenCalls(reason string) {
 		call.Error = reason
 		call.UpdatedAt = now
 		r.calls[callID] = call
+		failedCallIDs = append(failedCallIDs, callID)
+	}
+	r.mu.Unlock()
+	for _, callID := range failedCallIDs {
+		r.cancelWatchdog(callID)
 	}
 }
 

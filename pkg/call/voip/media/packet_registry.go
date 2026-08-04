@@ -3,6 +3,7 @@ package media
 import (
 	"errors"
 	"fmt"
+	"log/slog"
 	"sync"
 
 	call_state "github.com/evolution-foundation/evolution-go/pkg/call/voip/call"
@@ -23,29 +24,66 @@ type PacketSource interface {
 	SRTPKeying(instanceID, callID, selfDeviceJID, peerDeviceJID string) (core.SRTPKeyingMaterial, core.SRTPKeyingMaterial, error)
 }
 
+type packetSRTPCandidate struct {
+	receiveJID string
+	session    *SRTPSession
+}
+
 type packetSession struct {
-	mu           sync.RWMutex
-	srtp         *SRTPSession
-	rtp          *RTPSession
-	selfSSRC     uint32
-	peerSSRC     uint32
-	peerObserved bool
+	mu sync.RWMutex
+
+	srtpCandidates  []packetSRTPCandidate
+	activeCandidate int
+	receiveObserved bool
+	rtp             *RTPSession
+	selfSSRC        uint32
+	peerSSRC        uint32
+	peerObserved    bool
 }
 
 func newPacketSession(sendKeying, receiveKeying core.SRTPKeyingMaterial, selfSSRC, peerSSRC uint32) (*packetSession, error) {
+	return newPacketSessionCandidates([]packetSRTPCandidateKeying{{receiveJID: "", send: sendKeying, receive: receiveKeying}}, selfSSRC, peerSSRC)
+}
+
+type packetSRTPCandidateKeying struct {
+	receiveJID string
+	send       core.SRTPKeyingMaterial
+	receive    core.SRTPKeyingMaterial
+}
+
+func newPacketSessionCandidates(keyings []packetSRTPCandidateKeying, selfSSRC, peerSSRC uint32) (*packetSession, error) {
 	if selfSSRC == 0 || peerSSRC == 0 {
 		return nil, fmt.Errorf("RTP SSRC values must be non-zero")
 	}
-	srtp, err := NewSRTPSession(sendKeying, receiveKeying, core.SRTPSendAuthTagLen, core.SRTPRecvAuthTagLen)
-	if err != nil {
-		return nil, err
+	if len(keyings) == 0 {
+		return nil, fmt.Errorf("at least one SRTP receive candidate is required")
 	}
+
+	candidates := make([]packetSRTPCandidate, 0, len(keyings))
+	for _, keying := range keyings {
+		srtp, err := NewSRTPSession(keying.send, keying.receive, core.SRTPSendAuthTagLen, core.SRTPRecvAuthTagLen)
+		if err != nil {
+			for index := range candidates {
+				candidates[index].session.Close()
+			}
+			return nil, err
+		}
+		candidates = append(candidates, packetSRTPCandidate{receiveJID: keying.receiveJID, session: srtp})
+	}
+
 	rtp, err := NewWhatsAppOpusRTPSession(selfSSRC)
 	if err != nil {
-		srtp.Close()
+		for index := range candidates {
+			candidates[index].session.Close()
+		}
 		return nil, err
 	}
-	return &packetSession{srtp: srtp, rtp: rtp, selfSSRC: selfSSRC, peerSSRC: peerSSRC}, nil
+	return &packetSession{
+		srtpCandidates: candidates,
+		rtp:            rtp,
+		selfSSRC:       selfSSRC,
+		peerSSRC:       peerSSRC,
+	}, nil
 }
 
 func (s *packetSession) protectOpus(payload []byte, durationSamples uint32, marker bool) ([]byte, error) {
@@ -54,47 +92,92 @@ func (s *packetSession) protectOpus(payload []byte, durationSamples uint32, mark
 	}
 	s.mu.RLock()
 	defer s.mu.RUnlock()
-	if s.srtp == nil || s.rtp == nil {
+	if len(s.srtpCandidates) == 0 || s.srtpCandidates[0].session == nil || s.rtp == nil {
 		return nil, ErrPacketSessionNotReady
 	}
 	packet := s.rtp.CreatePacketWithDuration(payload, durationSamples, marker)
 	defer packet.Wipe()
-	return s.srtp.Protect(packet)
+	return s.srtpCandidates[0].session.Protect(packet)
 }
 
-func (s *packetSession) unprotect(frame []byte) (*RTPPacket, uint32, uint32, bool, error) {
+func (s *packetSession) unprotect(frame []byte) (*RTPPacket, uint32, uint32, bool, string, string, bool, error) {
 	if s == nil {
-		return nil, 0, 0, false, ErrPacketSessionNotReady
+		return nil, 0, 0, false, "", "", false, ErrPacketSessionNotReady
 	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	if s.srtp == nil {
-		return nil, 0, 0, false, ErrPacketSessionNotReady
+	if len(s.srtpCandidates) == 0 {
+		return nil, 0, 0, false, "", "", false, ErrPacketSessionNotReady
 	}
 
 	previous, actual, first, err := s.peerSSRCCandidate(frame)
 	if err != nil {
-		return nil, previous, actual, false, err
+		return nil, previous, actual, false, "", "", false, err
 	}
-	packet, err := s.srtp.Unprotect(frame)
-	if err != nil {
-		return nil, previous, actual, false, err
+
+	order := make([]int, 0, len(s.srtpCandidates))
+	if s.activeCandidate >= 0 && s.activeCandidate < len(s.srtpCandidates) {
+		order = append(order, s.activeCandidate)
 	}
+	for index := range s.srtpCandidates {
+		if index != s.activeCandidate {
+			order = append(order, index)
+		}
+	}
+
+	var packet *RTPPacket
+	var authErrors []error
+	selected := -1
+	for _, index := range order {
+		candidate := s.srtpCandidates[index]
+		if candidate.session == nil {
+			continue
+		}
+		packet, err = candidate.session.Unprotect(frame)
+		if err == nil {
+			selected = index
+			break
+		}
+		if !isSRTPAuthenticationFailure(err) {
+			return nil, previous, actual, false, "", "", false, err
+		}
+		authErrors = append(authErrors, fmt.Errorf("receive_jid=%s: %w", candidate.receiveJID, err))
+	}
+	if selected < 0 {
+		return nil, previous, actual, false, "", "", false,
+			fmt.Errorf("SRTP authentication failed for %d receive key candidates: %w", len(authErrors), errors.Join(authErrors...))
+	}
+
 	if packet.Header.SSRC != actual {
 		got := packet.Header.SSRC
 		packet.Wipe()
-		return nil, previous, actual, false, fmt.Errorf("authenticated RTP SSRC mismatch: header=%d frame=%d", got, actual)
+		return nil, previous, actual, false, "", "", false, fmt.Errorf("authenticated RTP SSRC mismatch: header=%d frame=%d", got, actual)
 	}
 	if packet.Header.PayloadType != core.PayloadTypeWhatsAppOpus {
 		got := packet.Header.PayloadType
 		packet.Wipe()
-		return nil, previous, actual, false, fmt.Errorf("unexpected RTP payload type: %d", got)
+		return nil, previous, actual, false, "", "", false, fmt.Errorf("unexpected RTP payload type: %d", got)
 	}
-	changed := false
+
+	previousReceiveJID := ""
+	if s.receiveObserved && s.activeCandidate >= 0 && s.activeCandidate < len(s.srtpCandidates) {
+		previousReceiveJID = s.srtpCandidates[s.activeCandidate].receiveJID
+	}
+	selectedReceiveJID := s.srtpCandidates[selected].receiveJID
+	receiveChanged := !s.receiveObserved || selected != s.activeCandidate
+	s.activeCandidate = selected
+	s.receiveObserved = true
+
+	ssrcChanged := false
 	if first {
-		previous, changed = s.commitPeerSSRC(actual)
+		previous, ssrcChanged = s.commitPeerSSRC(actual)
 	}
-	return packet, previous, actual, changed, nil
+	return packet, previous, actual, ssrcChanged, previousReceiveJID, selectedReceiveJID, receiveChanged, nil
+}
+
+func isSRTPAuthenticationFailure(err error) bool {
+	var srtpErr *SRTPError
+	return errors.As(err, &srtpErr) && srtpErr.Type == SRTPErrAuthFailed
 }
 
 func (s *packetSession) close() {
@@ -103,10 +186,16 @@ func (s *packetSession) close() {
 	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	if s.srtp != nil {
-		s.srtp.Close()
+	for index := range s.srtpCandidates {
+		if s.srtpCandidates[index].session != nil {
+			s.srtpCandidates[index].session.Close()
+		}
+		s.srtpCandidates[index].session = nil
+		s.srtpCandidates[index].receiveJID = ""
 	}
-	s.srtp = nil
+	s.srtpCandidates = nil
+	s.activeCandidate = 0
+	s.receiveObserved = false
 	s.rtp = nil
 	s.selfSSRC = 0
 	s.peerSSRC = 0
@@ -154,9 +243,11 @@ func (r *PacketRegistry) Attach(instanceID string, client *whatsmeow.Client) {
 		delete(r.sessions, instanceID)
 		r.mu.Unlock()
 		closePacketSessions(sessions)
+		attachPeerCallKeyObserver(r, instanceID, client)
 		return
 	}
 	r.mu.Unlock()
+	attachPeerCallKeyObserver(r, instanceID, client)
 }
 
 func (r *PacketRegistry) Prepare(instanceID, callID string) error {
@@ -199,21 +290,61 @@ func (r *PacketRegistry) Prepare(instanceID, callID string) error {
 	if err != nil {
 		return err
 	}
-	return r.PrepareWithDevices(instanceID, callID, selfDevice, peerDevice, selfSSRC, peerSSRC)
+
+	receiveJIDs := receiveSRTPJIDCandidates(state, peerDevice)
+	return r.PrepareWithDeviceCandidates(instanceID, callID, selfDevice, receiveJIDs, selfSSRC, peerSSRC)
+}
+
+func receiveSRTPJIDCandidates(state *call_state.Info, relayPeerDevice string) []string {
+	if state == nil {
+		return uniqueDeviceJIDs(relayPeerDevice)
+	}
+	peerAccount := ensureDeviceJIDString(state.PeerJID)
+	creator := ""
+	if state.Direction == core.CallDirectionIncoming {
+		creator = ensureDeviceJIDString(state.CallCreator)
+		return uniqueDeviceJIDs(relayPeerDevice, creator, peerAccount)
+	}
+	return uniqueDeviceJIDs(peerAccount, relayPeerDevice)
+}
+
+func uniqueDeviceJIDs(values ...string) []string {
+	seen := make(map[string]struct{}, len(values))
+	output := make([]string, 0, len(values))
+	for _, value := range values {
+		value = ensureDeviceJIDString(value)
+		if value == "" {
+			continue
+		}
+		if _, exists := seen[value]; exists {
+			continue
+		}
+		seen[value] = struct{}{}
+		output = append(output, value)
+	}
+	return output
 }
 
 func (r *PacketRegistry) PrepareWithDevices(instanceID, callID, selfDeviceJID, peerDeviceJID string, selfSSRC, peerSSRC uint32) error {
+	return r.PrepareWithDeviceCandidates(instanceID, callID, selfDeviceJID, []string{peerDeviceJID}, selfSSRC, peerSSRC)
+}
+
+func (r *PacketRegistry) PrepareWithDeviceCandidates(instanceID, callID, selfDeviceJID string, receiveJIDs []string, selfSSRC, peerSSRC uint32) error {
 	if r == nil || r.source == nil {
 		return ErrPacketSessionNotReady
 	}
-	sendKeying, receiveKeying, err := r.source.SRTPKeying(instanceID, callID, selfDeviceJID, peerDeviceJID)
+	receiveJIDs = uniqueDeviceJIDs(receiveJIDs...)
+	if len(receiveJIDs) == 0 {
+		return fmt.Errorf("call %s has no SRTP receive JID candidates", callID)
+	}
+
+	keyings, err := buildPacketSRTPCandidates(r, instanceID, callID, selfDeviceJID, receiveJIDs)
 	if err != nil {
 		return err
 	}
-	defer sendKeying.Wipe()
-	defer receiveKeying.Wipe()
+	defer wipePacketCandidateKeyings(keyings)
 
-	candidate, err := newPacketSession(sendKeying, receiveKeying, selfSSRC, peerSSRC)
+	candidate, err := newPacketSessionCandidates(keyings, selfSSRC, peerSSRC)
 	if err != nil {
 		return err
 	}
@@ -230,6 +361,17 @@ func (r *PacketRegistry) PrepareWithDevices(instanceID, callID, selfDeviceJID, p
 	if previous != nil {
 		previous.close()
 	}
+
+	labels := make([]string, 0, len(keyings))
+	for _, keying := range keyings {
+		labels = append(labels, keying.receiveJID)
+	}
+	slog.Info("WhatsApp SRTP receive candidates prepared",
+		"instance", instanceID,
+		"call_id", callID,
+		"self_jid", selfDeviceJID,
+		"receive_jids", labels,
+	)
 	return nil
 }
 
@@ -249,11 +391,19 @@ func (r *PacketRegistry) Unprotect(instanceID, callID string, frame []byte) (*RT
 	if err != nil {
 		return nil, err
 	}
-	packet, previous, actual, changed, err := session.unprotect(frame)
+	packet, previous, actual, ssrcChanged, previousReceiveJID, selectedReceiveJID, receiveChanged, err := session.unprotect(frame)
 	if err != nil {
 		return nil, err
 	}
-	if changed {
+	if receiveChanged {
+		slog.Info("WhatsApp SRTP receive key selected",
+			"instance", instanceID,
+			"call_id", callID,
+			"previous_receive_jid", previousReceiveJID,
+			"receive_jid", selectedReceiveJID,
+		)
+	}
+	if ssrcChanged {
 		r.mu.RLock()
 		callback := r.onPeerSSRC
 		r.mu.RUnlock()
@@ -316,12 +466,14 @@ func (r *PacketRegistry) Remove(instanceID, callID string) {
 	if session != nil {
 		session.close()
 	}
+	removePeerCallKey(r, instanceID, callID)
 }
 
 func (r *PacketRegistry) Close(instanceID string) {
 	if r == nil {
 		return
 	}
+	detachPeerCallKeyObserver(r, instanceID)
 	r.mu.Lock()
 	delete(r.clients, instanceID)
 	sessions := r.sessions[instanceID]

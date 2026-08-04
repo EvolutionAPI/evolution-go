@@ -11,12 +11,13 @@ import (
 func TestSessionDerivesSRTPWithoutExposingCallKey(t *testing.T) {
 	callKey := bytes.Repeat([]byte{0x42}, 32)
 	session := newSession(nil)
-	peer := types.NewJID("5511999999999", types.DefaultUserServer)
-	creator := types.NewJID("5511000000000", types.DefaultUserServer)
+	peer := types.NewJID("5511999999999", types.HiddenUserServer)
+	creator := types.NewJID("5511000000000", types.HiddenUserServer)
 	session.storeOutgoing("call-1", callKey, peer, creator, false, nil)
 	defer session.clear()
 
-	send, receive, err := session.deriveSRTPKeying("call-1", "self:1@lid", "peer:2@lid")
+	const receiveCandidate = "5511999999999:99@hosted.lid"
+	send, receive, err := session.deriveSRTPKeying("call-1", "self:1@lid", receiveCandidate)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -28,7 +29,7 @@ func TestSessionDerivesSRTPWithoutExposingCallKey(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer wantSend.Wipe()
-	wantReceive, err := call_media.DerivePerJIDSRTPKey(callKey, "peer:2@lid")
+	wantReceive, err := call_media.DerivePerJIDSRTPKey(callKey, receiveCandidate)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -43,7 +44,7 @@ func TestSessionDerivesSRTPWithoutExposingCallKey(t *testing.T) {
 
 	zeroBytes(send.MasterKey)
 	zeroBytes(send.MasterSalt)
-	again, againReceive, err := session.deriveSRTPKeying("call-1", "self:1@lid", "peer:2@lid")
+	again, againReceive, err := session.deriveSRTPKeying("call-1", "self:1@lid", receiveCandidate)
 	if err != nil {
 		t.Fatal(err)
 	}

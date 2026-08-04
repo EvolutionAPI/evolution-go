@@ -33,7 +33,7 @@ type Coordinator struct {
 	onCallMediaCleanup     func(instanceID, callID string)
 	onInstanceMediaCleanup func(instanceID string)
 
-	incomingEnabled   map[string]bool
+	incomingEnabled    map[string]bool
 	mediaErrorReported map[string]bool
 }
 
@@ -41,10 +41,10 @@ func NewCoordinator() *Coordinator {
 	incoming := call_incoming.NewRegistry()
 	packets := call_media.NewPacketRegistry(incoming)
 	coordinator := &Coordinator{
-		runtimes:          call_runtime.NewRegistry(),
-		incoming:          incoming,
-		packets:           packets,
-		incomingEnabled:   make(map[string]bool),
+		runtimes:           call_runtime.NewRegistry(),
+		incoming:           incoming,
+		packets:            packets,
+		incomingEnabled:    make(map[string]bool),
 		mediaErrorReported: make(map[string]bool),
 	}
 	coordinator.audio = call_media.NewAudioRegistry(func(instanceID, callID string, payload []byte, durationSamples uint32, marker bool) error {
@@ -155,6 +155,16 @@ func (c *Coordinator) clearInstanceMediaErrors(instanceID string) {
 	c.mu.Unlock()
 }
 
+func (c *Coordinator) configureRuntime(runtime *call_runtime.Runtime) {
+	if c == nil || runtime == nil {
+		return
+	}
+	runtime.SetOnTimeout(func(instanceID, callID string) {
+		slog.Warn("WhatsApp call negotiation timed out", "instance", instanceID, "call_id", callID)
+		c.RemovePrivate(instanceID, callID)
+	})
+}
+
 // AttachClient is called by the WhatsApp client lifecycle. Public call state is
 // always monitored. Private outgoing negotiation remains available even when
 // incoming offer preparation is disabled by automatic rejection settings.
@@ -167,7 +177,8 @@ func (c *Coordinator) AttachClient(instanceID string, client *whatsmeow.Client, 
 	c.incomingEnabled[instanceID] = prepareIncoming
 	c.mu.Unlock()
 
-	c.runtimes.Attach(instanceID, client)
+	runtime := c.runtimes.Attach(instanceID, client)
+	c.configureRuntime(runtime)
 	c.incoming.Attach(instanceID, client, prepareIncoming)
 	c.packets.Attach(instanceID, client)
 	c.relays.Attach(instanceID, client)
@@ -198,7 +209,8 @@ func (c *Coordinator) Attach(instanceID string, client *whatsmeow.Client) {
 	if c == nil || instanceID == "" || client == nil {
 		return
 	}
-	c.runtimes.Attach(instanceID, client)
+	runtime := c.runtimes.Attach(instanceID, client)
+	c.configureRuntime(runtime)
 
 	c.mu.RLock()
 	prepareIncoming, configured := c.incomingEnabled[instanceID]

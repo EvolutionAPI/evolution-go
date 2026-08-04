@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log/slog"
 	"sync"
+	"time"
 
 	call_state "github.com/evolution-foundation/evolution-go/pkg/call/voip/call"
 	"github.com/evolution-foundation/evolution-go/pkg/call/voip/core"
@@ -38,6 +39,9 @@ type relaySession struct {
 	log         *slog.Logger
 	transports  map[string]call_transport.RelayTransport
 	configuring map[string]bool
+	started     map[string]bool
+	connected   map[string]bool
+	activated   map[string]bool
 	ownJID      func() types.JID
 	onConnected func(instanceID, callID string)
 	onPacket    func(instanceID, callID string, packet []byte)
@@ -60,6 +64,9 @@ func newRelaySession(instanceID string, client *whatsmeow.Client, source Negotia
 		log:         log,
 		transports:  make(map[string]call_transport.RelayTransport),
 		configuring: make(map[string]bool),
+		started:     make(map[string]bool),
+		connected:   make(map[string]bool),
+		activated:   make(map[string]bool),
 	}
 	session.ownJID = func() types.JID {
 		if client == nil {
@@ -86,13 +93,21 @@ func (s *relaySession) usesClient(client *whatsmeow.Client) bool {
 
 func (s *relaySession) handleEvent(rawEvent interface{}) {
 	switch event := rawEvent.(type) {
+	case *events.CallPreAccept:
+		// Pre-connect the relays while the peer is still ringing, but do not mark
+		// media active until the final CallAccept advances private state.
+		s.source.CaptureRelayNode(s.instanceID, event.CallID, event.Data)
+		go s.startLogged(event.CallID)
 	case *events.CallAccept:
 		_ = s.source.EnsureRemoteAccepted(s.instanceID, event.CallID)
 		s.source.CaptureRelayNode(s.instanceID, event.CallID, event.Data)
+		go s.sendOutgoingPostAccept(event.CallID)
 		go s.startLogged(event.CallID)
+		go s.activateIfReady(event.CallID)
 	case *events.CallTransport:
 		s.source.CaptureRelayNode(s.instanceID, event.CallID, event.Data)
 		go s.startLogged(event.CallID)
+		go s.activateIfReady(event.CallID)
 	case *events.CallReject:
 		s.remove(event.CallID)
 	case *events.CallTerminate:
@@ -118,7 +133,7 @@ func (s *relaySession) start(callID string) error {
 	if !ok || state == nil {
 		return fmt.Errorf("call %s has no private relay state", callID)
 	}
-	if state.StateData.State != core.CallStateConnecting {
+	if state.StateData.State != core.CallStateRinging && state.StateData.State != core.CallStateConnecting {
 		return nil
 	}
 	relayData, ok := s.source.RelayData(s.instanceID, callID)
@@ -133,21 +148,44 @@ func (s *relaySession) start(callID string) error {
 	defer call_transport.ZeroRelayConfigs(configs)
 
 	s.mu.Lock()
+	if s.started[callID] {
+		relay := s.transports[callID]
+		connected := s.connected[callID] || (relay != nil && relay.HasConnection())
+		if connected {
+			s.connected[callID] = true
+		}
+		s.mu.Unlock()
+		if connected {
+			s.activateIfReady(callID)
+		}
+		return nil
+	}
 	if s.configuring[callID] {
 		s.mu.Unlock()
 		return nil
 	}
 	s.configuring[callID] = true
-	relay := s.transports[callID]
-	if relay == nil {
-		relay = s.factory(s.log)
-		s.transports[callID] = relay
-	}
+	s.started[callID] = true
+	relay := s.factory(s.log)
+	s.transports[callID] = relay
 	s.mu.Unlock()
+
+	setupSucceeded := false
 	defer func() {
 		s.mu.Lock()
 		delete(s.configuring, callID)
+		if !setupSucceeded {
+			delete(s.started, callID)
+			delete(s.connected, callID)
+			delete(s.activated, callID)
+			if s.transports[callID] == relay {
+				delete(s.transports, callID)
+			}
+		}
 		s.mu.Unlock()
+		if !setupSucceeded && relay != nil {
+			relay.Cleanup()
+		}
 	}()
 
 	ownJID := types.JID{}
@@ -180,21 +218,34 @@ func (s *relaySession) start(callID string) error {
 		"relays", len(configs),
 	)
 
+	var retryOnce sync.Once
+	var firstFrame sync.Once
 	relay.SetSSRC(selfSSRC)
 	relay.SetSubscriptionSSRC(peerSSRC)
 	relay.SetOnConnected(func(_ string, _ int) {
-		if err := s.source.MarkMediaConnected(s.instanceID, callID); err != nil {
-			s.log.Debug("ignore stale relay connection callback", "instance", s.instanceID, "call_id", callID, "err", err)
-			return
-		}
 		s.mu.Lock()
-		callback := s.onConnected
+		s.connected[callID] = true
 		s.mu.Unlock()
-		if callback != nil {
-			callback(s.instanceID, callID)
-		}
+		retryOnce.Do(func() {
+			go retryRelaySubscriptions(relay)
+		})
+		s.activateIfReady(callID)
 	})
 	relay.SetOnReceive(func(packet []byte) {
+		firstFrame.Do(func() {
+			rtpCandidate := len(packet) >= 12 && packet[0]&0xc0 == 0x80
+			payloadType := uint8(0)
+			if len(packet) >= 2 {
+				payloadType = packet[1] & 0x7f
+			}
+			s.log.Info("WhatsApp relay first inbound frame",
+				"instance", s.instanceID,
+				"call_id", callID,
+				"bytes", len(packet),
+				"rtp_candidate", rtpCandidate,
+				"payload_type", payloadType,
+			)
+		})
 		s.mu.Lock()
 		callback := s.onPacket
 		s.mu.Unlock()
@@ -205,12 +256,73 @@ func (s *relaySession) start(callID string) error {
 
 	if err := relay.ConfigureRelays(configs); err != nil {
 		if errors.Is(err, call_transport.ErrSCTPUnavailable) {
-			s.remove(callID)
 			return nil
 		}
 		return fmt.Errorf("configure relays for call %s: %w", callID, err)
 	}
+	setupSucceeded = true
+	if relay.HasConnection() {
+		s.mu.Lock()
+		s.connected[callID] = true
+		s.mu.Unlock()
+		s.activateIfReady(callID)
+	}
 	return nil
+}
+
+func (s *relaySession) activateIfReady(callID string) {
+	if s == nil || s.source == nil || callID == "" {
+		return
+	}
+
+	// Reserve activation before consulting mutable call state. Multiple relays
+	// may connect at nearly the same time, but only one goroutine may transition
+	// and notify the media pipeline.
+	s.mu.Lock()
+	if !s.connected[callID] || s.activated[callID] {
+		s.mu.Unlock()
+		return
+	}
+	s.activated[callID] = true
+	callback := s.onConnected
+	s.mu.Unlock()
+
+	state, ok := s.source.State(s.instanceID, callID)
+	if !ok || state == nil || state.StateData.State != core.CallStateConnecting {
+		s.mu.Lock()
+		s.activated[callID] = false
+		s.mu.Unlock()
+		return
+	}
+	if err := s.source.MarkMediaConnected(s.instanceID, callID); err != nil {
+		s.mu.Lock()
+		s.activated[callID] = false
+		s.mu.Unlock()
+		s.log.Debug("defer WhatsApp media activation", "instance", s.instanceID, "call_id", callID, "err", err)
+		return
+	}
+	if callback != nil {
+		callback(s.instanceID, callID)
+	}
+}
+
+func retryRelaySubscriptions(relay call_transport.RelayTransport) {
+	if relay == nil {
+		return
+	}
+	for _, delay := range []time.Duration{
+		50 * time.Millisecond,
+		150 * time.Millisecond,
+		500 * time.Millisecond,
+		3 * time.Second,
+	} {
+		timer := time.NewTimer(delay)
+		<-timer.C
+		if !relay.HasConnection() {
+			return
+		}
+		relay.ResendSubscriptions()
+	}
 }
 
 // selectDeviceJIDs is retained for compatibility with existing tests and
@@ -225,6 +337,9 @@ func (s *relaySession) remove(callID string) {
 	relay := s.transports[callID]
 	delete(s.transports, callID)
 	delete(s.configuring, callID)
+	delete(s.started, callID)
+	delete(s.connected, callID)
+	delete(s.activated, callID)
 	callback := s.onRemoved
 	s.mu.Unlock()
 	if relay != nil {
@@ -243,6 +358,9 @@ func (s *relaySession) cleanup() {
 		delete(s.transports, callID)
 	}
 	s.configuring = make(map[string]bool)
+	s.started = make(map[string]bool)
+	s.connected = make(map[string]bool)
+	s.activated = make(map[string]bool)
 	callback := s.onCleanup
 	s.mu.Unlock()
 	for _, relay := range transports {

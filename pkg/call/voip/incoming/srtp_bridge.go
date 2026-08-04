@@ -32,7 +32,7 @@ func (s *session) deriveSRTPKeying(callID, selfDeviceJID, peerDeviceJID string) 
 	receiveKeying, err := call_media.DerivePerJIDSRTPKey(callKey, peerDeviceJID)
 	if err != nil {
 		sendKeying.Wipe()
-		return core.SRTPKeyingMaterial{}, core.SRTPKeyingMaterial{}, fmt.Errorf("derive receive SRTP keying: %w", err)
+		return core.SRTPKeyingMaterial{}, core.SRTPKeyingMaterial{}, fmt.Errorf("derive receive SRTP keying for %s: %w", peerDeviceJID, err)
 	}
 	return sendKeying, receiveKeying, nil
 }
