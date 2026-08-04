@@ -46,6 +46,7 @@ import (
 	label_repository "github.com/evolution-foundation/evolution-go/pkg/label/repository"
 	label_service "github.com/evolution-foundation/evolution-go/pkg/label/service"
 	logger_wrapper "github.com/evolution-foundation/evolution-go/pkg/logger"
+	managerauth "github.com/evolution-foundation/evolution-go/pkg/managerauth"
 	message_handler "github.com/evolution-foundation/evolution-go/pkg/message/handler"
 	message_model "github.com/evolution-foundation/evolution-go/pkg/message/model"
 	message_repository "github.com/evolution-foundation/evolution-go/pkg/message/repository"
@@ -203,6 +204,7 @@ func setupRouter(db *gorm.DB, authDB *sql.DB, sqliteDB *sql.DB, config *config.C
 
 	// NOVO: PollHandler usando PollService já inicializado no whatsmeowService (evita dupla inicialização)
 	pollHandler := poll_handler.NewPollHandler(whatsmeowService.GetPollService(), loggerWrapper)
+	managerAuth := managerauth.NewService(db, config.ManagerJWTSecret)
 
 	r := gin.Default()
 
@@ -228,9 +230,10 @@ func setupRouter(db *gorm.DB, authDB *sql.DB, sqliteDB *sql.DB, config *config.C
 	// Passkey ceremony routes — PUBLIC (called by the browser extension from the
 	// web.whatsapp.com origin, gated only by an opaque ephemeral token).
 	passkey_handler.RegisterRoutes(r, whatsmeowService)
+	managerauth.NewHandler(managerAuth).RegisterRoutes(r)
 
 	routes.NewRouter(
-		auth_middleware.NewMiddleware(config, instanceService),
+		auth_middleware.NewMiddleware(config, instanceService, managerAuth),
 		instance_handler.NewInstanceHandler(instanceService, config),
 		user_handler.NewUserHandler(userService),
 		send_handler.NewSendHandler(sendMessageService),
@@ -266,7 +269,7 @@ func setupRouter(db *gorm.DB, authDB *sql.DB, sqliteDB *sql.DB, config *config.C
 }
 
 func migrate(db *gorm.DB) {
-	err := db.AutoMigrate(&instance_model.Instance{}, &message_model.Message{}, &label_model.Label{})
+	err := db.AutoMigrate(&instance_model.Instance{}, &message_model.Message{}, &label_model.Label{}, &managerauth.Administrator{})
 
 	if err != nil {
 		log.Fatal(err)

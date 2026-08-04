@@ -26,6 +26,7 @@ type Config struct {
 	PostgresDB           string
 	DatabaseSaveMessages bool
 	GlobalApiKey         string
+	ManagerJWTSecret     string
 	WaDebug              string
 	LogType              string
 	WebhookFiles         bool
@@ -229,6 +230,13 @@ func Load() *Config {
 	globalApiKey := os.Getenv(config_env.GLOBAL_API_KEY)
 	panicIfEmpty(config_env.GLOBAL_API_KEY, globalApiKey)
 
+	managerJWTSecret := os.Getenv(config_env.MANAGER_JWT_SECRET)
+	if managerJWTSecret == "" {
+		// Keep the Manager protected out of the box. Deployments may set a
+		// dedicated secret to rotate Manager sessions independently.
+		managerJWTSecret = globalApiKey
+	}
+
 	clientName := os.Getenv(config_env.CLIENT_NAME)
 
 	waDebug := os.Getenv(config_env.WA_DEBUG)
@@ -347,6 +355,7 @@ func Load() *Config {
 		postgresUsersDB:      postgresUsersDB,
 		DatabaseSaveMessages: databaseSaveMessages == "true",
 		GlobalApiKey:         globalApiKey,
+		ManagerJWTSecret:     managerJWTSecret,
 		WaDebug:              waDebug,
 		LogType:              logType,
 		WebhookFiles:         webhookFiles == "true",

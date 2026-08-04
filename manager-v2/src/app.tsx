@@ -4,13 +4,13 @@ import { EvolutionApi, loadConnection, saveConnection, type EvolutionConnection 
 import { CallWorkspace } from "./call-workspace";
 import { ConnectionEditor, InstanceWorkspace } from "./instance";
 
-type View = "instance" | "api" | "calls" | "settings";
+type View = "instances" | "api" | "calls" | "settings";
 
-const NAV_ITEMS: Array<{ id: View; icon: string; label: string }> = [
-  { id: "instance", icon: "◫", label: "Instância" },
-  { id: "api", icon: "⌘", label: "API Lab" },
-  { id: "calls", icon: "☎", label: "Chamadas" },
-  { id: "settings", icon: "⚙", label: "Configuração" },
+const NAV_ITEMS: Array<{ id: View; marker: string; label: string }> = [
+  { id: "instances", marker: "I", label: "Instâncias" },
+  { id: "api", marker: "A", label: "API Lab" },
+  { id: "calls", marker: "C", label: "Chamadas" },
+  { id: "settings", marker: "S", label: "Configurações" },
 ];
 
 function connectionHost(value: string): string {
@@ -22,40 +22,43 @@ function connectionHost(value: string): string {
 }
 
 export function App() {
-  const [view, setView] = useState<View>("instance");
+  const [view, setView] = useState<View>("instances");
   const [connection, setConnection] = useState(loadConnection);
-  const hasAnyKey = Boolean(connection.apiKey || connection.adminApiKey);
-  const api = useMemo(() => hasAnyKey ? new EvolutionApi(connection) : null, [connection, hasAnyKey]);
+  const hasAdminKey = Boolean(connection.adminApiKey.trim());
+  const hasInstanceKey = Boolean(connection.apiKey.trim());
+  const api = useMemo(() => hasAdminKey || hasInstanceKey ? new EvolutionApi(connection) : null, [connection, hasAdminKey, hasInstanceKey]);
 
   const updateConnection = (next: EvolutionConnection) => {
     saveConnection(next);
     setConnection(next);
   };
 
-  const connectionLabel = connection.apiKey
-    ? "Chave da instância salva"
-    : connection.adminApiKey
-      ? "Chave global salva"
+  const connectionLabel = hasAdminKey
+    ? "Acesso administrativo"
+    : hasInstanceKey
+      ? "Acesso à instância"
       : "Configuração necessária";
+
+  const currentLabel = NAV_ITEMS.find((item) => item.id === view)?.label;
 
   return (
     <div className="app-shell">
       <aside className="sidebar">
         <div className="brand">
           <span className="brand-mark">E</span>
-          <div><strong>Evolution GO</strong><small>API Test Manager</small></div>
+          <div><strong>Evolution GO</strong><small>Manager</small></div>
         </div>
-        <nav>
+        <nav aria-label="Navegação principal">
           {NAV_ITEMS.map((item) => (
             <button key={item.id} className={view === item.id ? "active" : ""} onClick={() => setView(item.id)}>
-              <span>{item.icon}</span>{item.label}
+              <span className="nav-marker" aria-hidden="true">{item.marker}</span>{item.label}
             </button>
           ))}
         </nav>
         <div className="sidebar-foot">
-          <span className={`status-dot ${hasAnyKey ? "online" : "offline"}`} />
+          <span className={`status-dot ${hasAdminKey || hasInstanceKey ? "online" : "offline"}`} />
           <div>
-            <strong>{connection.instanceId || (hasAnyKey ? "Acesso configurado" : "Sem acesso")}</strong>
+            <strong>{connection.instanceId || (hasAdminKey ? "Administrador" : "Sem acesso")}</strong>
             <small>{connectionHost(connection.baseUrl)}</small>
           </div>
         </div>
@@ -63,22 +66,25 @@ export function App() {
 
       <main>
         <header className="topbar">
-          <div><span className="breadcrumb">Manager V2 /</span><strong>{NAV_ITEMS.find((item) => item.id === view)?.label}</strong></div>
+          <div><span className="breadcrumb">Manager /</span><strong>{currentLabel}</strong></div>
           <div className="top-actions">
-            <span className={`connection-pill ${hasAnyKey ? "connected" : "disconnected"}`}>{connectionLabel}</span>
-            <button className="profile-button" title="API Test Manager">API</button>
+            <span className={`connection-pill ${hasAdminKey || hasInstanceKey ? "connected" : "disconnected"}`}>{connectionLabel}</span>
+            {view !== "settings" && <button type="button" className="settings-shortcut" onClick={() => setView("settings")}>Configurações</button>}
           </div>
         </header>
 
         <div className="content">
-          {view === "instance" && <InstanceWorkspace api={api} connection={connection} onSave={updateConnection} />}
+          {view === "instances" && <InstanceWorkspace api={api} connection={connection} onSave={updateConnection} onOpenSettings={() => setView("settings")} />}
           {view === "api" && <ApiLab api={api} connection={connection} />}
           {view === "calls" && <CallWorkspace api={api} />}
-          {view === "settings" && <ConnectionEditor value={connection} onSave={updateConnection} />}
-
-          {!hasAnyKey && !["instance", "settings"].includes(view) && (
-            <div className="setup-overlay">
-              <ConnectionEditor value={connection} onSave={updateConnection} compact />
+          {view === "settings" && (
+            <div className="settings-workspace">
+              <section className="settings-intro">
+                <span className="eyebrow">Manager</span>
+                <h1>Configurações</h1>
+                <p>Defina o acesso da API para gerenciar suas instâncias com segurança.</p>
+              </section>
+              <ConnectionEditor value={connection} onSave={updateConnection} />
             </div>
           )}
         </div>

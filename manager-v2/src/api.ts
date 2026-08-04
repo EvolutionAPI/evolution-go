@@ -1,9 +1,35 @@
 export interface EvolutionConnection {
   baseUrl: string;
   apiKey: string;
-  adminApiKey: string;
   instanceId: string;
   remember: boolean;
+}
+
+export interface ManagedInstance {
+  id: string;
+  name: string;
+  token?: string;
+  webhook?: string;
+  jid?: string;
+  connected: boolean;
+  createdAt?: string;
+  clientName?: string;
+  osName?: string;
+  disconnect_reason?: string;
+}
+
+export interface AdvancedInstanceSettings {
+  alwaysOnline: boolean;
+  rejectCall: boolean;
+  msgRejectCall: string;
+  readMessages: boolean;
+  ignoreGroups: boolean;
+  ignoreStatus: boolean;
+}
+
+export interface CreateInstanceInput {
+  name: string;
+  token: string;
 }
 
 export type ApiAuthMode = "instance" | "admin" | "none";
@@ -107,7 +133,6 @@ export function loadConnection(): EvolutionConnection {
   return {
     baseUrl: normalizeBaseUrl(value.baseUrl || window.location.origin),
     apiKey: value.apiKey || "",
-    adminApiKey: value.adminApiKey || "",
     instanceId: value.instanceId || "",
     remember: Boolean(persistent),
   };
@@ -141,23 +166,22 @@ export function displayPhone(value: string): string {
 export class EvolutionApi {
   private readonly baseUrl: string;
   private readonly instanceApiKey: string;
-  private readonly adminApiKey: string;
+  private readonly managerBaseUrl: string;
 
   constructor(connection: EvolutionConnection) {
     this.baseUrl = normalizeBaseUrl(connection.baseUrl);
     this.instanceApiKey = connection.apiKey.trim();
-    this.adminApiKey = connection.adminApiKey.trim();
+    this.managerBaseUrl = normalizeBaseUrl(window.location.origin);
   }
 
   async execute(request: ApiExecutionRequest): Promise<ApiExecutionResult> {
     const path = request.path.startsWith("/") ? request.path : `/${request.path}`;
-    const url = `${this.baseUrl}${path}`;
-    const headers = new Headers(request.headers);
     const auth = request.auth ?? "instance";
-    const key = auth === "admin" ? (this.adminApiKey || this.instanceApiKey) : this.instanceApiKey;
-    if (auth !== "none") {
-      if (!key) throw new Error(auth === "admin" ? "Informe a API key global" : "Informe a API key da instância");
-      headers.set("apikey", key);
+    const url = `${auth === "admin" ? this.managerBaseUrl : this.baseUrl}${path}`;
+    const headers = new Headers(request.headers);
+    if (auth === "instance") {
+      if (!this.instanceApiKey) throw new Error("Informe a API key da instância em Configurações");
+      headers.set("apikey", this.instanceApiKey);
     }
     const isFormData = typeof FormData !== "undefined" && request.body instanceof FormData;
     if (request.body !== undefined && request.body !== null && !isFormData && !headers.has("Content-Type")) {
@@ -169,6 +193,7 @@ export class EvolutionApi {
       method: request.method.toUpperCase(),
       headers,
       body: ["GET", "HEAD"].includes(request.method.toUpperCase()) ? undefined : request.body,
+      credentials: "include",
     });
     const rawText = await response.text();
     let data: unknown = rawText;
@@ -211,6 +236,65 @@ export class EvolutionApi {
       throw new Error(message);
     }
     return result.data as T;
+  }
+
+  private async adminRequest<T>(path: string, init: RequestInit = {}): Promise<T> {
+    const result = await this.execute({
+      path,
+      method: init.method || "GET",
+      body: init.body,
+      headers: init.headers,
+      auth: "admin",
+    });
+    if (!result.ok) {
+      const body = result.data as Record<string, unknown> | null;
+      const message = body && typeof body === "object" && typeof body.error === "string"
+        ? body.error
+        : body && typeof body === "object" && typeof body.message === "string"
+          ? body.message
+          : `HTTP ${result.status}`;
+      throw new Error(message);
+    }
+    return result.data as T;
+  }
+
+  async listInstances(): Promise<ManagedInstance[]> {
+    const response = await this.adminRequest<ApiEnvelope<ManagedInstance[]> | ManagedInstance[]>("/instance/all");
+    const instances = Array.isArray(response) ? response : response.data;
+    return Array.isArray(instances) ? instances : [];
+  }
+
+  async createInstance(input: CreateInstanceInput): Promise<ManagedInstance> {
+    const response = await this.adminRequest<ApiEnvelope<ManagedInstance>>("/instance/create", {
+      method: "POST",
+      body: JSON.stringify({
+        instanceId: input.name,
+        name: input.name,
+        token: input.token,
+        proxy: null,
+        advancedSettings: null,
+      }),
+    });
+    return "data" in response ? response.data : response;
+  }
+
+  deleteInstance(instanceId: string): Promise<unknown> {
+    return this.adminRequest(`/instance/delete/${encodeURIComponent(instanceId)}`, { method: "DELETE" });
+  }
+
+  getAdvancedSettings(instanceId: string): Promise<AdvancedInstanceSettings> {
+    return this.request<AdvancedInstanceSettings>(`/instance/${encodeURIComponent(instanceId)}/advanced-settings`);
+  }
+
+  updateAdvancedSettings(instanceId: string, settings: AdvancedInstanceSettings): Promise<unknown> {
+    return this.request(`/instance/${encodeURIComponent(instanceId)}/advanced-settings`, {
+      method: "PUT",
+      body: JSON.stringify(settings),
+    });
+  }
+
+  disconnectInstance(): Promise<unknown> {
+    return this.request("/instance/disconnect", { method: "POST", body: JSON.stringify({}) });
   }
 
   callStatus(): Promise<CallStatusSnapshot> {
