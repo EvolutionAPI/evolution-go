@@ -1,8 +1,0 @@
-{"timestamp":"2026-08-04T15:36:50.3365886-03:00","level":"INFO","instance_id":"evolution","message":"Connecting all instances on startup"}
-{"timestamp":"2026-08-04T15:36:50.6422626-03:00","level":"INFO","instance_id":"evolution","message":"[evolution] Found 0 connected instances"}
-{"timestamp":"2026-08-04T17:18:26.5144132-03:00","level":"INFO","instance_id":"evolution","message":"Connecting all instances on startup"}
-{"timestamp":"2026-08-04T17:18:26.8217464-03:00","level":"INFO","instance_id":"evolution","message":"[evolution] Found 1 connected instances"}
-{"timestamp":"2026-08-04T17:18:26.8217464-03:00","level":"INFO","instance_id":"evolution","message":"[evolution] Starting client for user 'c8cdef81-4371-4930-9db2-fa5421175f42'"}
-{"timestamp":"2026-08-04T17:26:44.6747113-03:00","level":"INFO","instance_id":"evolution","message":"Connecting all instances on startup"}
-{"timestamp":"2026-08-04T17:26:44.9805975-03:00","level":"INFO","instance_id":"evolution","message":"[evolution] Found 1 connected instances"}
-{"timestamp":"2026-08-04T17:26:44.9805975-03:00","level":"INFO","instance_id":"evolution","message":"[evolution] Starting client for user 'c8cdef81-4371-4930-9db2-fa5421175f42'"}
