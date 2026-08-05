@@ -23,7 +23,10 @@ import (
 
 const signalingTimeout = 30 * time.Second
 
-var ErrCallNotActive = errors.New("call media is not active")
+var (
+	ErrCallNotActive        = errors.New("call media is not active")
+	ErrIncomingCallNotReady = errors.New("incoming call is still being prepared")
+)
 
 type CallService interface {
 	StartCall(data *StartCallStruct, instance *instance_model.Instance) (call_runtime.Call, error)
@@ -173,6 +176,9 @@ func (c *callService) AcceptCall(callID string, instance *instance_model.Instanc
 	}
 	if call.State != call_runtime.StateRinging {
 		return call_runtime.Call{}, fmt.Errorf("call %s cannot be accepted in state %s", callID, call.State)
+	}
+	if call.Preparation != call_runtime.PreparationReady {
+		return call_runtime.Call{}, fmt.Errorf("%w: call %s is %s", ErrIncomingCallNotReady, callID, call.Preparation)
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), signalingTimeout)

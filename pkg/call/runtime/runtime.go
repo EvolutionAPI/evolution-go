@@ -36,19 +36,31 @@ const (
 	DirectionOutgoing Direction = "outgoing"
 )
 
+// Preparation describes whether the private incoming-call signaling material is
+// ready for a local answer. It intentionally contains no private call keys or
+// relay data.
+type Preparation string
+
+const (
+	PreparationPreparing Preparation = "preparing"
+	PreparationReady     Preparation = "ready"
+	PreparationFailed    Preparation = "failed"
+)
+
 // Call contains transport-independent call state.
 type Call struct {
-	ID         string     `json:"id"`
-	Peer       string     `json:"peer"`
-	Direction  Direction  `json:"direction"`
-	State      State      `json:"state"`
-	Video      bool       `json:"video"`
-	EndReason  string     `json:"endReason,omitempty"`
-	Error      string     `json:"error,omitempty"`
-	AnsweredBy string     `json:"answeredBy,omitempty"`
-	AnsweredAt *time.Time `json:"answeredAt,omitempty"`
-	CreatedAt  time.Time  `json:"createdAt"`
-	UpdatedAt  time.Time  `json:"updatedAt"`
+	ID          string      `json:"id"`
+	Peer        string      `json:"peer"`
+	Direction   Direction   `json:"direction"`
+	State       State       `json:"state"`
+	Video       bool        `json:"video"`
+	Preparation Preparation `json:"preparation,omitempty"`
+	EndReason   string      `json:"endReason,omitempty"`
+	Error       string      `json:"error,omitempty"`
+	AnsweredBy  string      `json:"answeredBy,omitempty"`
+	AnsweredAt  *time.Time  `json:"answeredAt,omitempty"`
+	CreatedAt   time.Time   `json:"createdAt"`
+	UpdatedAt   time.Time   `json:"updatedAt"`
 }
 
 // Snapshot is a safe, serializable view of one instance runtime.
@@ -221,6 +233,49 @@ func (r *Runtime) ClearAnswerMetadata(callID string) (Call, bool) {
 	return call, true
 }
 
+// MarkIncomingPrepared enables a local answer only after the private call key
+// was stored and the preaccept stanza was successfully sent.
+func (r *Runtime) MarkIncomingPrepared(callID string) (Call, bool) {
+	if r == nil || callID == "" {
+		return Call{}, false
+	}
+
+	r.mu.Lock()
+	call, exists := r.calls[callID]
+	if !exists || call.Direction != DirectionIncoming || call.State != StateRinging {
+		r.mu.Unlock()
+		return call, exists
+	}
+	call.Preparation = PreparationReady
+	call.UpdatedAt = time.Now().UTC()
+	r.calls[callID] = call
+	r.mu.Unlock()
+	r.notifyChange(call)
+	return call, true
+}
+
+// MarkIncomingPreparationFailed keeps the incoming call visible but prevents
+// the Manager from attempting an answer that cannot complete safely. Detailed
+// diagnostics remain only in server logs.
+func (r *Runtime) MarkIncomingPreparationFailed(callID string) (Call, bool) {
+	if r == nil || callID == "" {
+		return Call{}, false
+	}
+
+	r.mu.Lock()
+	call, exists := r.calls[callID]
+	if !exists || call.Direction != DirectionIncoming || call.State != StateRinging || call.Preparation == PreparationReady {
+		r.mu.Unlock()
+		return call, exists
+	}
+	call.Preparation = PreparationFailed
+	call.UpdatedAt = time.Now().UTC()
+	r.calls[callID] = call
+	r.mu.Unlock()
+	r.notifyChange(call)
+	return call, true
+}
+
 // MarkAnsweredElsewhere turns an incoming ringing call into a terminal state
 // when another linked WhatsApp device accepts it. This removes the answer
 // controls immediately and makes the outcome explicit to the Manager.
@@ -269,6 +324,9 @@ func (r *Runtime) Transition(callID, peer string, direction Direction, state Sta
 		call = Call{
 			ID:        callID,
 			CreatedAt: now,
+		}
+		if direction == DirectionIncoming && state == StateRinging {
+			call.Preparation = PreparationPreparing
 		}
 	}
 	if shouldReplacePeer(call.Peer, peer) {
@@ -395,7 +453,6 @@ func (r *Runtime) handleEvent(rawEvent interface{}) {
 			slog.Info("ignoring already-ended WhatsApp call offer",
 				"instance", r.instanceID,
 				"call_id", event.CallID,
-				"from", event.From.String(),
 			)
 			return
 		}
@@ -409,14 +466,13 @@ func (r *Runtime) handleEvent(rawEvent interface{}) {
 			"",
 		)
 	case *events.CallOfferNotice:
-		video := strings.EqualFold(event.Media, "video") || callNodeContainsVideo(event.Data)
-		r.Transition(
-			event.CallID,
-			r.eventPeer(event.CallCreator, event.From),
-			DirectionIncoming,
-			StateRinging,
-			&video,
-			"",
+		// Whatsmeow documents offer notices as group-call signaling. The private
+		// negotiation pipeline supports one-to-one calls only, so do not expose
+		// an unusable group call as an actionable Manager incoming call.
+		slog.Info("ignoring unsupported WhatsApp call offer notice",
+			"instance", r.instanceID,
+			"call_id", event.CallID,
+			"type", event.Type,
 		)
 	case *events.CallPreAccept:
 		call, exists := r.Call(event.CallID)
@@ -478,7 +534,7 @@ func (r *Runtime) handleEvent(rawEvent interface{}) {
 					if r.eventFromOwnDevice(event.From) {
 						reason = "rejected_elsewhere"
 					} else {
-						reason = "caller_cancelled"
+						reason = "ended_before_answer"
 					}
 				} else {
 					reason = "peer_ended"
@@ -490,7 +546,6 @@ func (r *Runtime) handleEvent(rawEvent interface{}) {
 		slog.Info("WhatsApp call reject received",
 			"instance", r.instanceID,
 			"call_id", event.CallID,
-			"from", event.From.String(),
 			"direction", direction,
 			"previous_state", previousState,
 			"outcome", reason,

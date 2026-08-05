@@ -51,6 +51,17 @@ func NewCoordinator() *Coordinator {
 	coordinator.audio = call_media.NewAudioRegistry(func(instanceID, callID string, payload []byte, durationSamples uint32, marker bool) error {
 		return coordinator.SendOpus(instanceID, callID, payload, durationSamples, marker)
 	}, nil)
+	incoming.SetOnPreparation(func(instanceID, callID string, err error) {
+		runtime, ok := coordinator.runtimes.Get(instanceID)
+		if !ok {
+			return
+		}
+		if err != nil {
+			runtime.MarkIncomingPreparationFailed(callID)
+			return
+		}
+		runtime.MarkIncomingPrepared(callID)
+	})
 	coordinator.audio.SetOnPCM(coordinator.dispatchPCM)
 	coordinator.relays = call_media.NewRelayRegistry(incoming, nil, nil)
 	coordinator.relays.SetOnRemoved(func(instanceID, callID string) {

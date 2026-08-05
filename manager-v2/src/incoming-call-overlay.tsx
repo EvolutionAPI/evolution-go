@@ -40,8 +40,14 @@ function outcomeLabel(call: EvolutionCall): string {
 	if (call.endReason === "answered_elsewhere") return "Atendida em outro dispositivo";
 	if (call.endReason === "rejected_elsewhere") return "Recusada por outro dispositivo";
 	if (call.endReason === "rejected") return "Chamada recusada";
-	if (call.endReason === "caller_cancelled") return "Chamada encerrada antes do atendimento";
+	if (call.endReason === "caller_cancelled" || call.endReason === "ended_before_answer") return "Chamada encerrada antes do atendimento";
 	return "Chamada encerrada";
+}
+
+function preparationLabel(call: EvolutionCall): string {
+	if (call.preparation === "preparing") return "Preparando conexão segura…";
+	if (call.preparation === "failed") return "Não foi possível preparar esta chamada. Consulte os logs pelo ID da chamada.";
+	return "";
 }
 
 export function IncomingCallOverlay({
@@ -63,6 +69,8 @@ export function IncomingCallOverlay({
 		.filter((call) => call.direction === "incoming" && call.state === "ringing")
 		.reverse(), [desk.snapshot.calls]);
 	const incoming = incomingCalls[0] ?? null;
+	const canAccept = incoming?.preparation !== "preparing" && incoming?.preparation !== "failed";
+	const preparation = incoming ? preparationLabel(incoming) : "";
 	const callerIdentity = incoming && identity.callId === incoming.id ? identity : { callId: "", name: "", avatarUrl: null };
 	const callerName = callerIdentity.name || (incoming ? displayPhone(incoming.peer) : "");
 	const alerts = useIncomingCallAlerts(incoming, callerName);
@@ -161,6 +169,7 @@ export function IncomingCallOverlay({
 				<span className="eyebrow">Ligação recebida · {elapsed}</span>
 				<h2 id="incoming-call-title">{callerName}</h2>
 				<p>{displayPhone(incoming.peer)} · {desk.snapshot.instanceId ? `Instância ${desk.snapshot.instanceId}` : "Instância selecionada"}</p>
+				{preparation && <p className="incoming-call-queue-note">{preparation}</p>}
 				{incomingCalls.length > 1 && <p className="incoming-call-queue-note">+{incomingCalls.length - 1} ligação(ões) aguardando na fila</p>}
 				{desk.error && <div className="incoming-call-error" role="alert">{desk.error}</div>}
 			</div>
@@ -169,7 +178,7 @@ export function IncomingCallOverlay({
 				<button type="button" className="incoming-call-alert-toggle" onClick={alerts.toggleMuted}>{alerts.muted ? "Ativar toque" : "Silenciar toque"}</button>
 				{alerts.notificationAccess === "default" && <button type="button" className="incoming-call-alert-toggle" onClick={() => void alerts.requestNotifications()}>Ativar alertas</button>}
 				<button type="button" className="incoming-call-reject" onClick={() => void reject()} disabled={action !== null}>{action === "reject" ? "Recusando…" : "Recusar"}</button>
-				<button type="button" className="incoming-call-accept" onClick={() => void accept()} disabled={action !== null}>{action === "accept" ? "Atendendo…" : "Atender"}</button>
+				<button type="button" className="incoming-call-accept" onClick={() => void accept()} disabled={action !== null || !canAccept} title={!canAccept ? preparation : undefined}>{action === "accept" ? "Atendendo…" : "Atender"}</button>
 			</div>
 		</aside>
 	);

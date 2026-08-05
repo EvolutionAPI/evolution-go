@@ -1,6 +1,7 @@
 package incoming
 
 import (
+	"errors"
 	"testing"
 
 	"github.com/evolution-foundation/evolution-go/pkg/call/voip/core"
@@ -153,5 +154,43 @@ func TestStoreMergesRelayCapturedBeforeKey(t *testing.T) {
 	}
 	if stored.relayData == nil || stored.relayData.Endpoints[0].IP != "10.0.0.9" {
 		t.Fatal("relay captured before key was not preserved")
+	}
+}
+
+func TestSessionReportsPreparationResultsWithoutPrivateMaterial(t *testing.T) {
+	reported := make(chan error, 2)
+	s := newTestSession()
+	s.setOnPreparation(func(_ string, err error) { reported <- err })
+
+	s.reportPreparation("call-1", nil)
+	failed := errors.New("preaccept failed")
+	s.reportPreparation("call-1", failed)
+
+	if err := <-reported; err != nil {
+		t.Fatalf("successful preparation reported error: %v", err)
+	}
+	if err := <-reported; !errors.Is(err, failed) {
+		t.Fatalf("failed preparation error = %v, want %v", err, failed)
+	}
+}
+
+func TestRegistryForwardsPreparationResultWithInstanceID(t *testing.T) {
+	registry := NewRegistry()
+	type result struct {
+		instanceID string
+		callID     string
+		err        error
+	}
+	reported := make(chan result, 1)
+	registry.SetOnPreparation(func(instanceID, callID string, err error) {
+		reported <- result{instanceID: instanceID, callID: callID, err: err}
+	})
+
+	failed := errors.New("call key unavailable")
+	registry.notifyPreparation("instance-1", "call-1", failed)
+
+	got := <-reported
+	if got.instanceID != "instance-1" || got.callID != "call-1" || !errors.Is(got.err, failed) {
+		t.Fatalf("unexpected preparation result: %+v", got)
 	}
 }

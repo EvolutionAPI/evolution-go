@@ -1922,7 +1922,7 @@ func (mycli *MyClient) myEventHandler(rawEvt interface{}) {
 
 		// Verifica se deve rejeitar chamadas automaticamente
 		if mycli.Instance.RejectCall {
-			mycli.loggerWrapper.GetLogger(mycli.userID).LogInfo("[%s] Auto-rejecting call from %s", mycli.userID, evt.CallCreator.String())
+			mycli.loggerWrapper.GetLogger(mycli.userID).LogInfo("[%s] Auto-rejecting call - CallID: %s", mycli.userID, evt.CallID)
 
 			// Rejeita a chamada
 			mycli.WAClient.RejectCall(context.Background(), evt.CallCreator, evt.CallID)
@@ -1939,29 +1939,29 @@ func (mycli *MyClient) myEventHandler(rawEvt interface{}) {
 				if err != nil {
 					mycli.loggerWrapper.GetLogger(mycli.userID).LogError("[%s] Failed to send reject call message: %v", mycli.userID, err)
 				} else {
-					mycli.loggerWrapper.GetLogger(mycli.userID).LogInfo("[%s] Sent reject call message to %s", mycli.userID, evt.CallCreator.String())
+					mycli.loggerWrapper.GetLogger(mycli.userID).LogInfo("[%s] Sent reject call message - CallID: %s", mycli.userID, evt.CallID)
 				}
 			}
 			return
 		}
 
-		mycli.loggerWrapper.GetLogger(mycli.userID).LogInfo("[%s] Got call offer %+v", mycli.userID, evt)
+		mycli.loggerWrapper.GetLogger(mycli.userID).LogInfo("[%s] Got call offer - CallID: %s", mycli.userID, evt.CallID)
 	case *events.CallAccept:
 		doWebhook = true
 		postMap["event"] = "CallAccept"
-		mycli.loggerWrapper.GetLogger(mycli.userID).LogInfo("[%s] Got call accept %+v", mycli.userID, evt)
+		mycli.loggerWrapper.GetLogger(mycli.userID).LogInfo("[%s] Got call accept - CallID: %s", mycli.userID, evt.CallID)
 	case *events.CallTerminate:
 		doWebhook = true
 		postMap["event"] = "CallTerminate"
-		mycli.loggerWrapper.GetLogger(mycli.userID).LogInfo("[%s] Got call terminate %+v", mycli.userID, evt)
+		mycli.loggerWrapper.GetLogger(mycli.userID).LogInfo("[%s] Got call terminate - CallID: %s, Reason: %s", mycli.userID, evt.CallID, evt.Reason)
 	case *events.CallOfferNotice:
 		doWebhook = true
 		postMap["event"] = "CallOfferNotice"
-		mycli.loggerWrapper.GetLogger(mycli.userID).LogInfo("[%s] Got call offer notice %+v", mycli.userID, evt)
+		mycli.loggerWrapper.GetLogger(mycli.userID).LogInfo("[%s] Got call offer notice - CallID: %s, Type: %s", mycli.userID, evt.CallID, evt.Type)
 	case *events.CallRelayLatency:
 		doWebhook = true
 		postMap["event"] = "CallRelayLatency"
-		mycli.loggerWrapper.GetLogger(mycli.userID).LogInfo("[%s] Got call relay latency %+v", mycli.userID, evt)
+		mycli.loggerWrapper.GetLogger(mycli.userID).LogInfo("[%s] Got call relay latency - CallID: %s", mycli.userID, evt.CallID)
 	case *events.OfflineSyncCompleted:
 		doWebhook = true
 		postMap["event"] = "OfflineSyncCompleted"

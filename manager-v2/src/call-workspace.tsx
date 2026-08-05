@@ -20,12 +20,18 @@ function formatLogTimestamp(value: string): string {
 type CallStatePresentation = {
 	state: string;
 	direction?: string;
+	preparation?: string;
 	endReason?: string;
 	error?: string;
 };
 
 function stateLabel(call: CallStatePresentation): string {
-	if (call.state === "ringing") return call.direction === "incoming" ? "Tocando" : "Chamando";
+	if (call.state === "ringing") {
+		if (call.direction !== "incoming") return "Chamando";
+		if (call.preparation === "preparing") return "Preparando atendimento";
+		if (call.preparation === "failed") return "Preparação falhou";
+		return "Tocando";
+	}
 	if (call.state === "connecting") return call.direction === "incoming" ? "Preparando atendimento" : "Conectando áudio";
 	if (call.state === "active") return "Em chamada";
 	if (call.state === "failed") return call.error ? `Falhou: ${call.error}` : "Falhou";
@@ -36,6 +42,17 @@ function stateLabel(call: CallStatePresentation): string {
 		return "Encerrada";
 	}
 	return call.state === "idle" ? "Inativa" : call.state;
+}
+
+function canAnswerIncomingCall(call: EvolutionCall): boolean {
+	return call.direction === "incoming" && call.state === "ringing" && call.preparation !== "preparing" && call.preparation !== "failed";
+}
+
+function preparationLabel(preparation?: string): string {
+	if (preparation === "preparing") return "em preparação";
+	if (preparation === "ready") return "pronta";
+	if (preparation === "failed") return "falhou";
+	return "";
 }
 
 function formatCallTimestamp(value?: string): string {
@@ -352,7 +369,7 @@ export function CallWorkspace({
 									<div className="call-queue-actions">
 										<button type="button" className="text-button" onClick={() => desk.setSelectedCallId(call.id)}>Ver</button>
 										<button type="button" className="button secondary" disabled={desk.loading} onClick={() => void rejectIncoming(call)}>Recusar</button>
-										<button type="button" className="button call-button" disabled={desk.loading} onClick={() => void acceptIncoming(call)}>Atender</button>
+										<button type="button" className="button call-button" disabled={desk.loading || !canAnswerIncomingCall(call)} onClick={() => void acceptIncoming(call)}>Atender</button>
 									</div>
 								</article>
 							))}
@@ -366,14 +383,14 @@ export function CallWorkspace({
             <div className="active-call-content">
               <span className="eyebrow">{selected.direction === "incoming" ? "Chamada recebida" : "Chamada realizada"}</span>
               <h2>{displayPhone(selected.peer)}</h2>
-              <div className="call-meta"><span className={`state-badge state-${selected.state}`}>{stateLabel(selected)}</span><span>ID {selected.id}</span>{selected.answeredBy && <span>Atendida por {selected.answeredBy}</span>}</div>
+								<div className="call-meta"><span className={`state-badge state-${selected.state}`}>{stateLabel(selected)}</span><span>ID {selected.id}</span>{selected.preparation && <span>Negociação: {preparationLabel(selected.preparation)}</span>}{selected.answeredBy && <span>Atendida por {selected.answeredBy}</span>}</div>
 						{selected.endReason && <p className="call-outcome-detail">Motivo: {selected.endReason}</p>}
               <div className="media-strip"><span>Áudio: {mediaStatus}</span><span>↑ {stats.sent}</span><span>↓ {stats.received}</span><span>Descartados {stats.dropped}</span></div>
             </div>
             <div className="call-actions">
               {selected.direction === "incoming" && selected.state === "ringing" && (
                 <>
-                  <button className="round-action accept" title="Atender" onClick={() => void acceptIncoming(selected)}>✓</button>
+									<button className="round-action accept" title={canAnswerIncomingCall(selected) ? "Atender" : "Aguardando preparação da chamada"} disabled={!canAnswerIncomingCall(selected)} onClick={() => void acceptIncoming(selected)}>✓</button>
                   <button className="round-action danger" title="Recusar" onClick={() => void rejectIncoming(selected)}>×</button>
                 </>
               )}

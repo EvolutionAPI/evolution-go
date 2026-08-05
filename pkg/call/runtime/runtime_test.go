@@ -146,6 +146,9 @@ func TestRuntimeTracksWhatsmeowCallLifecycle(t *testing.T) {
 	if call.State != StateRinging || call.Direction != DirectionIncoming {
 		t.Fatalf("unexpected offered call: %+v", call)
 	}
+	if call.Preparation != PreparationPreparing {
+		t.Fatalf("incoming call preparation = %q, want %q", call.Preparation, PreparationPreparing)
+	}
 	if !call.Video {
 		t.Fatal("expected video call metadata")
 	}
@@ -206,6 +209,62 @@ func TestRuntimeKeepsIncomingCallRingingAfterPreAccept(t *testing.T) {
 	}
 	if call.Direction != DirectionIncoming || call.State != StateRinging {
 		t.Fatalf("preaccept changed an incoming call: %+v", call)
+	}
+}
+
+func TestRuntimeMarksIncomingCallReadyOnlyAfterPreparation(t *testing.T) {
+	runtime := New("instance-1", nil)
+	runtime.Transition("incoming-call", "5511999999999@s.whatsapp.net", DirectionIncoming, StateRinging, nil, "")
+
+	call, ok := runtime.Call("incoming-call")
+	if !ok || call.Preparation != PreparationPreparing {
+		t.Fatalf("incoming call must begin preparing: %+v", call)
+	}
+
+	runtime.MarkIncomingPrepared("incoming-call")
+	call, _ = runtime.Call("incoming-call")
+	if call.Preparation != PreparationReady {
+		t.Fatalf("incoming call preparation = %q, want %q", call.Preparation, PreparationReady)
+	}
+
+	// A late failure report must not revoke a preparation that already
+	// succeeded and made the call answerable.
+	runtime.MarkIncomingPreparationFailed("incoming-call")
+	call, _ = runtime.Call("incoming-call")
+	if call.Preparation != PreparationReady {
+		t.Fatalf("late failure changed prepared call: %+v", call)
+	}
+}
+
+func TestRuntimeKeepsTerminalIncomingCallAfterDelayedPreAccept(t *testing.T) {
+	runtime := New("instance-1", nil)
+	creator := types.NewJID("5511999999999", types.DefaultUserServer)
+	runtime.handleEvent(&events.CallOffer{
+		BasicCallMeta: types.BasicCallMeta{From: creator, CallCreator: creator, CallID: "incoming-call"},
+		Data:          &waBinary.Node{Tag: "offer"},
+	})
+	runtime.handleEvent(&events.CallReject{
+		BasicCallMeta: types.BasicCallMeta{From: creator, CallCreator: creator, CallID: "incoming-call"},
+	})
+	runtime.handleEvent(&events.CallPreAccept{
+		BasicCallMeta: types.BasicCallMeta{From: creator, CallCreator: creator, CallID: "incoming-call"},
+	})
+
+	call, ok := runtime.Call("incoming-call")
+	if !ok || call.State != StateEnded || call.EndReason != "ended_before_answer" {
+		t.Fatalf("delayed preaccept changed terminal outcome: %+v", call)
+	}
+}
+
+func TestRuntimeIgnoresUnsupportedOfferNotice(t *testing.T) {
+	runtime := New("instance-1", nil)
+	runtime.handleEvent(&events.CallOfferNotice{
+		BasicCallMeta: types.BasicCallMeta{CallID: "group-call"},
+		Type:          "group",
+	})
+
+	if _, exists := runtime.Call("group-call"); exists {
+		t.Fatal("unsupported offer notice created an actionable call")
 	}
 }
 

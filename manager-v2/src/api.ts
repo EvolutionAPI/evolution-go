@@ -111,6 +111,7 @@ export interface ApiExecutionResult {
 
 export type CallDirection = "incoming" | "outgoing";
 export type CallState = "idle" | "ringing" | "connecting" | "active" | "ended" | "failed";
+export type CallPreparation = "preparing" | "ready" | "failed";
 
 export interface EvolutionCall {
 	id: string;
@@ -118,6 +119,7 @@ export interface EvolutionCall {
 	direction: CallDirection;
 	state: CallState;
 	video?: boolean;
+	preparation?: CallPreparation;
 	endReason?: string;
 	error?: string;
 	answeredBy?: string;

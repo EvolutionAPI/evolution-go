@@ -100,6 +100,10 @@ func (g *callHandler) AcceptCall(ctx *gin.Context) {
 
 	call, err := g.callService.AcceptCall(callID, instance, g.answerActor(ctx))
 	if err != nil {
+		if errors.Is(err, call_service.ErrIncomingCallNotReady) {
+			ctx.JSON(http.StatusConflict, gin.H{"error": "incoming call is still being prepared"})
+			return
+		}
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}

@@ -37,6 +37,7 @@ type session struct {
 	handlerID       uint32
 	prepareIncoming bool
 	materials       map[string]*callMaterial
+	onPreparation   func(callID string, err error)
 }
 
 func newSession(client *whatsmeow.Client, prepareIncoming ...bool) *session {
@@ -44,10 +45,15 @@ func newSession(client *whatsmeow.Client, prepareIncoming ...bool) *session {
 	if len(prepareIncoming) > 0 {
 		enabled = prepareIncoming[0]
 	}
+	return newSessionWithPreparation(client, enabled, nil)
+}
+
+func newSessionWithPreparation(client *whatsmeow.Client, prepareIncoming bool, callback func(callID string, err error)) *session {
 	s := &session{
 		client:          client,
-		prepareIncoming: enabled,
+		prepareIncoming: prepareIncoming,
 		materials:       make(map[string]*callMaterial),
+		onPreparation:   callback,
 	}
 	if client != nil {
 		s.handlerID = client.AddEventHandler(s.handleEvent)
@@ -65,6 +71,21 @@ func (s *session) setPrepareIncoming(enabled bool) {
 	s.mu.Lock()
 	s.prepareIncoming = enabled
 	s.mu.Unlock()
+}
+
+func (s *session) setOnPreparation(callback func(callID string, err error)) {
+	s.mu.Lock()
+	s.onPreparation = callback
+	s.mu.Unlock()
+}
+
+func (s *session) reportPreparation(callID string, err error) {
+	s.mu.RLock()
+	callback := s.onPreparation
+	s.mu.RUnlock()
+	if callback != nil {
+		callback(callID, err)
+	}
 }
 
 func (s *session) handleEvent(rawEvent interface{}) {
@@ -106,7 +127,7 @@ func (s *session) prepareOffer(event *events.CallOffer) {
 		return
 	}
 	if signaling.IsAlreadyEndedOffer(event.Data) {
-		slog.Info("ignoring already-ended incoming WhatsApp call offer", "call_id", event.CallID, "from", event.From.String())
+		slog.Info("ignoring already-ended incoming WhatsApp call offer", "call_id", event.CallID)
 		return
 	}
 
@@ -115,6 +136,9 @@ func (s *session) prepareOffer(event *events.CallOffer) {
 	prepareIncoming := s.prepareIncoming
 	s.mu.RUnlock()
 	if client == nil || !prepareIncoming {
+		if client == nil {
+			s.reportPreparation(event.CallID, fmt.Errorf("incoming call client is detached"))
+		}
 		return
 	}
 
@@ -128,6 +152,7 @@ func (s *session) prepareOffer(event *events.CallOffer) {
 	}
 	if peer.IsEmpty() || creator.IsEmpty() {
 		slog.Warn("cannot prepare incoming WhatsApp call without peer metadata", "call_id", event.CallID)
+		s.reportPreparation(event.CallID, fmt.Errorf("incoming call peer metadata is missing"))
 		return
 	}
 
@@ -139,19 +164,17 @@ func (s *session) prepareOffer(event *events.CallOffer) {
 	if err != nil {
 		slog.Warn("failed to decrypt incoming WhatsApp call key",
 			"call_id", event.CallID,
-			"peer", peer.String(),
-			"creator", creator.String(),
 			"err", err,
 		)
+		s.reportPreparation(event.CallID, err)
 		return
 	}
 	if len(callKey) != 32 {
 		slog.Warn("incoming WhatsApp call key has invalid length",
 			"call_id", event.CallID,
-			"peer", peer.String(),
-			"creator", creator.String(),
 			"key_bytes", len(callKey),
 		)
+		s.reportPreparation(event.CallID, fmt.Errorf("incoming call key has invalid length %d", len(callKey)))
 		return
 	}
 	if !s.usesClient(client) {
@@ -178,11 +201,12 @@ func (s *session) prepareOffer(event *events.CallOffer) {
 	if err := socket.SendNode(ctx, signaling.BuildPreacceptStanza(peer, event.CallID, creator)); err != nil {
 		slog.Warn("failed to send WhatsApp call preaccept",
 			"call_id", event.CallID,
-			"peer", peer.String(),
-			"creator", creator.String(),
 			"err", err,
 		)
+		s.reportPreparation(event.CallID, err)
+		return
 	}
+	s.reportPreparation(event.CallID, nil)
 }
 
 func (s *session) storeOutgoing(callID string, callKey []byte, peer, creator types.JID, video bool, relayData *core.RelayData) {
@@ -437,12 +461,33 @@ func zeroBytes(value []byte) {
 
 // Registry stores one private call-negotiation session per Evolution instance.
 type Registry struct {
-	mu       sync.RWMutex
-	sessions map[string]*session
+	mu            sync.RWMutex
+	sessions      map[string]*session
+	onPreparation func(instanceID, callID string, err error)
 }
 
 func NewRegistry() *Registry {
 	return &Registry{sessions: make(map[string]*session)}
+}
+
+// SetOnPreparation receives the result of private incoming-call setup. The
+// callback never receives call keys, relay tokens or other private material.
+func (r *Registry) SetOnPreparation(callback func(instanceID, callID string, err error)) {
+	if r == nil {
+		return
+	}
+	r.mu.Lock()
+	r.onPreparation = callback
+	r.mu.Unlock()
+}
+
+func (r *Registry) notifyPreparation(instanceID, callID string, err error) {
+	r.mu.RLock()
+	callback := r.onPreparation
+	r.mu.RUnlock()
+	if callback != nil {
+		callback(instanceID, callID, err)
+	}
 }
 
 func (r *Registry) Attach(instanceID string, client *whatsmeow.Client, prepareIncoming ...bool) {
@@ -463,7 +508,9 @@ func (r *Registry) Attach(instanceID string, client *whatsmeow.Client, prepareIn
 	}
 	r.mu.RUnlock()
 
-	candidate := newSession(client, enabled)
+	candidate := newSessionWithPreparation(client, enabled, func(callID string, err error) {
+		r.notifyPreparation(instanceID, callID, err)
+	})
 
 	r.mu.Lock()
 	previous := r.sessions[instanceID]
