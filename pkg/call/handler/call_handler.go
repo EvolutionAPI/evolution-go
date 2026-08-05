@@ -4,11 +4,14 @@ import (
 	"context"
 	"errors"
 	"net/http"
+	"strconv"
+	"strings"
 	"time"
 
 	call_service "github.com/evolution-foundation/evolution-go/pkg/call/service"
 	call_browser "github.com/evolution-foundation/evolution-go/pkg/call/voip/browser"
 	instance_model "github.com/evolution-foundation/evolution-go/pkg/instance/model"
+	managerauth "github.com/evolution-foundation/evolution-go/pkg/managerauth"
 	"github.com/gin-gonic/gin"
 )
 
@@ -18,6 +21,7 @@ type CallHandler interface {
 	TerminateCall(ctx *gin.Context)
 	RejectCall(ctx *gin.Context)
 	Status(ctx *gin.Context)
+	History(ctx *gin.Context)
 	CreateWebRTC(ctx *gin.Context)
 	ListWebRTC(ctx *gin.Context)
 	CloseWebRTC(ctx *gin.Context)
@@ -25,6 +29,7 @@ type CallHandler interface {
 
 type callHandler struct {
 	callService call_service.CallService
+	managerAuth *managerauth.Service
 }
 
 func instanceFromContext(ctx *gin.Context) (*instance_model.Instance, bool) {
@@ -93,7 +98,7 @@ func (g *callHandler) AcceptCall(ctx *gin.Context) {
 		return
 	}
 
-	call, err := g.callService.AcceptCall(callID, instance)
+	call, err := g.callService.AcceptCall(callID, instance, g.answerActor(ctx))
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -181,6 +186,46 @@ func (g *callHandler) Status(ctx *gin.Context) {
 	}
 
 	ctx.JSON(http.StatusOK, status)
+}
+
+// History returns durable, public call records. Unlike /call/status, it does
+// not depend on an active WhatsApp client and survives process restarts.
+// @Summary Get persisted WhatsApp call history
+// @Tags Call
+// @Produce json
+// @Param limit query int false "Maximum entries (1-500)"
+// @Success 200 {array} gin.H
+// @Router /call/history [get]
+func (g *callHandler) History(ctx *gin.Context) {
+	instance, ok := instanceFromContext(ctx)
+	if !ok {
+		return
+	}
+	limit, err := strconv.Atoi(ctx.DefaultQuery("limit", "100"))
+	if err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "limit must be a number"})
+		return
+	}
+	entries, err := g.callService.History(instance, limit)
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	ctx.JSON(http.StatusOK, entries)
+}
+
+func (g *callHandler) answerActor(ctx *gin.Context) string {
+	if g == nil || g.managerAuth == nil || ctx == nil {
+		return ""
+	}
+	admin, err := g.managerAuth.AdministratorFromRequest(ctx.Request.Context(), ctx.Request)
+	if err != nil || admin == nil {
+		return ""
+	}
+	if name := strings.TrimSpace(admin.Name); name != "" {
+		return name
+	}
+	return strings.TrimSpace(admin.Email)
 }
 
 func browserHTTPStatus(err error) int {
@@ -275,6 +320,6 @@ func (g *callHandler) CloseWebRTC(ctx *gin.Context) {
 	ctx.JSON(http.StatusOK, gin.H{"message": "browser media session closed"})
 }
 
-func NewCallHandler(callService call_service.CallService) CallHandler {
-	return &callHandler{callService: callService}
+func NewCallHandler(callService call_service.CallService, managerAuth *managerauth.Service) CallHandler {
+	return &callHandler{callService: callService, managerAuth: managerAuth}
 }

@@ -197,6 +197,7 @@ func (r *Routes) AssignRoutes(eng *gin.Engine) {
 		routes.Use(r.authMiddleware.Auth)
 		{
 			routes.GET("/status", r.callHandler.Status)
+			routes.GET("/history", r.callHandler.History)
 			routes.POST("/start", r.callHandler.StartCall)
 			routes.POST("/:callId/accept", r.callHandler.AcceptCall)
 			routes.POST("/:callId/webrtc", r.callHandler.CreateWebRTC)

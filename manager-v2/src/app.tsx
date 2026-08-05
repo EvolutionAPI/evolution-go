@@ -1,8 +1,10 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { ApiLab } from "./api-lab";
 import { clearConnection, EvolutionApi, loadConnection, saveConnection, type EvolutionConnection } from "./api";
 import { loadManagerSession, logoutManager, ManagerAuthScreen, type ManagerSession, type ManagerUser } from "./auth";
 import { CallWorkspace } from "./call-workspace";
+import { useCallDesk } from "./calls";
+import { IncomingCallOverlay } from "./incoming-call-overlay";
 import { InstanceSettingsWorkspace, InstanceWorkspace } from "./instance";
 import { InfrastructureSettingsPanel } from "./infrastructure-settings";
 
@@ -43,9 +45,12 @@ export function App() {
   const [connection, setConnection] = useState(loadConnection);
   const [auth, setAuth] = useState<AuthState>({ checking: true, authenticated: false, setupRequired: false });
   const [isLoggingOut, setIsLoggingOut] = useState(false);
+  const [autoConnectCallId, setAutoConnectCallId] = useState("");
   const view = route.view;
   const hasInstanceKey = Boolean(connection.apiKey.trim());
   const api = useMemo(() => new EvolutionApi(connection), [connection]);
+  const callsApi = auth.authenticated && connection.instanceId.trim() && connection.apiKey.trim() ? api : null;
+  const callDesk = useCallDesk(callsApi);
 
   useEffect(() => {
     void loadManagerSession()
@@ -69,6 +74,8 @@ export function App() {
     saveConnection(next);
     setConnection(next);
   };
+
+  const clearAutoConnectCall = useCallback(() => setAutoConnectCallId(""), []);
 
   const authenticated = (user: ManagerUser) => {
     setAuth({ checking: false, authenticated: true, setupRequired: false, user });
@@ -137,7 +144,7 @@ export function App() {
           {view === "instances" && <InstanceWorkspace api={api} connection={connection} onSave={updateConnection} onOpenSettings={() => navigate({ view: "settings" })} onOpenInstanceSettings={(instanceId) => navigate({ view: "instance-settings", instanceId })} canManage />}
           {view === "instance-settings" && <InstanceSettingsWorkspace api={api} connection={connection} onSave={updateConnection} instanceId={route.instanceId} onBack={() => navigate({ view: "instances" })} />}
           {view === "api" && <ApiLab api={api} connection={connection} onSelectInstance={updateConnection} />}
-          {view === "calls" && <CallWorkspace api={api} connection={connection} onSelectInstance={updateConnection} />}
+          {view === "calls" && <CallWorkspace api={api} connection={connection} onSelectInstance={updateConnection} desk={callDesk} autoConnectCallId={autoConnectCallId} onAutoConnectHandled={clearAutoConnectCall} />}
           {view === "settings" && (
             <div className="settings-workspace">
               <section className="card settings-hero">
@@ -161,6 +168,17 @@ export function App() {
           )}
         </div>
       </main>
+      <IncomingCallOverlay
+        api={callsApi}
+        desk={callDesk}
+        onOpenCalls={() => navigate({ view: "calls" })}
+        onAccept={async (call) => {
+          callDesk.setSelectedCallId(call.id);
+          setAutoConnectCallId(call.id);
+          navigate({ view: "calls" });
+          await callDesk.accept(call);
+        }}
+      />
     </div>
   );
 }
