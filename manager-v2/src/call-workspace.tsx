@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
-import { displayPhone, normalizePhone, type EvolutionApi, type EvolutionCall, type EvolutionConnection, type InstanceLogEntry, type ManagedInstance } from "./api";
-import { useCallDesk } from "./calls";
+import { displayPhone, normalizePhone, type CallHistoryEntry, type EvolutionApi, type EvolutionCall, type EvolutionConnection, type InstanceLogEntry, type ManagedInstance } from "./api";
+import type { CallDeskState } from "./calls";
 import { EvolutionPcmBridge, type MediaStats, type MediaStatus } from "./pcm";
 
 interface LogEntry {
@@ -17,31 +17,57 @@ function formatLogTimestamp(value: string): string {
   return Number.isNaN(date.getTime()) ? value : new Intl.DateTimeFormat("pt-BR", { dateStyle: "short", timeStyle: "medium" }).format(date);
 }
 
-function stateLabel(state: EvolutionCall["state"]): string {
-  return {
-    idle: "Inativa",
-    ringing: "Chamando",
-    connecting: "Conectando",
-    active: "Ativa",
-    ended: "Encerrada",
-    failed: "Falhou",
-  }[state] || state;
+type CallStatePresentation = {
+	state: string;
+	direction?: string;
+	endReason?: string;
+	error?: string;
+};
+
+function stateLabel(call: CallStatePresentation): string {
+	if (call.state === "ringing") return call.direction === "incoming" ? "Tocando" : "Chamando";
+	if (call.state === "connecting") return call.direction === "incoming" ? "Preparando atendimento" : "Conectando áudio";
+	if (call.state === "active") return "Em chamada";
+	if (call.state === "failed") return call.error ? `Falhou: ${call.error}` : "Falhou";
+	if (call.state === "ended") {
+		if (call.endReason === "answered_elsewhere") return "Atendida em outro dispositivo";
+		if (call.endReason === "rejected_elsewhere") return "Recusada por outro dispositivo";
+		if (call.endReason === "rejected") return "Recusada";
+		return "Encerrada";
+	}
+	return call.state === "idle" ? "Inativa" : call.state;
+}
+
+function formatCallTimestamp(value?: string): string {
+	if (!value) return "Data indisponível";
+	const date = new Date(value);
+	return Number.isNaN(date.getTime()) ? value : new Intl.DateTimeFormat("pt-BR", { dateStyle: "short", timeStyle: "medium" }).format(date);
+}
+
+function formatCallDuration(seconds?: number): string {
+	const total = Math.max(0, Math.floor(seconds || 0));
+	return `${String(Math.floor(total / 60)).padStart(2, "0")}:${String(total % 60).padStart(2, "0")}`;
 }
 
 export function CallWorkspace({
   api,
   connection,
   onSelectInstance,
+  desk,
+  autoConnectCallId,
+  onAutoConnectHandled,
 }: {
   api: EvolutionApi | null;
   connection: EvolutionConnection;
   onSelectInstance: (connection: EvolutionConnection) => void;
+  desk: CallDeskState;
+  autoConnectCallId: string;
+  onAutoConnectHandled: () => void;
 }) {
   const [instances, setInstances] = useState<ManagedInstance[]>([]);
   const [loadingInstances, setLoadingInstances] = useState(true);
   const [instanceError, setInstanceError] = useState("");
   const callsApi = connection.instanceId.trim() && connection.apiKey.trim() ? api : null;
-  const desk = useCallDesk(callsApi);
   const [number, setNumber] = useState("");
   const [mediaStatus, setMediaStatus] = useState<MediaStatus>("idle");
   const [stats, setStats] = useState<MediaStats>({ sent: 0, received: 0, dropped: 0 });
@@ -52,6 +78,10 @@ export function CallWorkspace({
   const [callLogsError, setCallLogsError] = useState("");
   const [callLogsRefresh, setCallLogsRefresh] = useState(0);
   const [showHistory, setShowHistory] = useState(false);
+	const [history, setHistory] = useState<CallHistoryEntry[]>([]);
+	const [loadingHistory, setLoadingHistory] = useState(false);
+	const [historyError, setHistoryError] = useState("");
+	const [historyRefresh, setHistoryRefresh] = useState(0);
   const [showLogs, setShowLogs] = useState(false);
   const [autoConnectId, setAutoConnectId] = useState("");
   const bridgeRef = useRef<EvolutionPcmBridge | null>(null);
@@ -83,7 +113,15 @@ export function CallWorkspace({
   useEffect(() => {
     setCallLogs([]);
     setCallLogsError("");
+		setHistory([]);
+		setHistoryError("");
   }, [connection.instanceId]);
+
+  useEffect(() => {
+    if (!autoConnectCallId) return;
+    setAutoConnectId(autoConnectCallId);
+    onAutoConnectHandled();
+  }, [autoConnectCallId, onAutoConnectHandled]);
 
   useEffect(() => {
     if (!showLogs) return;
@@ -106,6 +144,28 @@ export function CallWorkspace({
       .finally(() => { if (active) setLoadingCallLogs(false); });
     return () => { active = false; };
   }, [api, connection.instanceId, showLogs, callLogsRefresh]);
+
+	useEffect(() => {
+		if (!showHistory) return;
+		if (!callsApi) {
+			setHistory([]);
+			setHistoryError("Selecione uma instância para consultar o histórico persistente.");
+			return;
+		}
+		let active = true;
+		setLoadingHistory(true);
+		setHistoryError("");
+		void callsApi.callHistory()
+			.then((entries) => {
+				if (!active) return;
+				setHistory(entries);
+			})
+			.catch((cause) => {
+				if (active) setHistoryError(cause instanceof Error ? cause.message : "Não foi possível carregar o histórico persistente.");
+			})
+			.finally(() => { if (active) setLoadingHistory(false); });
+		return () => { active = false; };
+	}, [callsApi, historyRefresh, showHistory]);
 
   const log = (message: string, details?: unknown) => {
     setLogs((current) => [...current.slice(-119), {
@@ -167,8 +227,14 @@ export function CallWorkspace({
   }, [autoConnectId, desk.selectedCall, desk.snapshot.calls, mediaStatus]);
 
   const selected = desk.selectedCall;
-  const incoming = desk.snapshot.calls.filter((call) => call.direction === "incoming" && call.state === "ringing").length;
+  const waitingCalls = desk.snapshot.calls.filter((call) => call.direction === "incoming" && call.state === "ringing");
+  const incoming = waitingCalls.length;
   const live = desk.snapshot.calls.filter((call) => !["ended", "failed"].includes(call.state)).length;
+  const realtimeLabel = desk.realtime === "connected"
+    ? "tempo real"
+    : desk.realtime === "connecting"
+      ? "conectando eventos"
+      : "recuperação por polling";
 
   const beginCall = async () => {
     const normalized = normalizePhone(number);
@@ -200,6 +266,20 @@ export function CallWorkspace({
     await desk.terminate(call).catch(() => undefined);
     log("Chamada encerrada", call.id);
   };
+
+	const acceptIncoming = async (call: EvolutionCall) => {
+		desk.setSelectedCallId(call.id);
+		setAutoConnectId(call.id);
+		await desk.accept(call)
+			.then(() => log("Chamada aceita", call.id))
+			.catch(() => undefined);
+	};
+
+	const rejectIncoming = async (call: EvolutionCall) => {
+		await desk.reject(call)
+			.then(() => log("Chamada recusada", call.id))
+			.catch(() => undefined);
+	};
 
   return (
     <div className="call-layout call-layout-single">
@@ -257,23 +337,44 @@ export function CallWorkspace({
           {desk.error && <div className="alert error">{desk.error}</div>}
         </section>
 
+				{waitingCalls.length > 0 && (
+					<section className="card call-queue-card" aria-labelledby="call-queue-title">
+						<div className="section-heading">
+							<div><span className="eyebrow">Fila de chamadas</span><h2 id="call-queue-title">{waitingCalls.length} aguardando atendimento</h2></div>
+							<span className="queue-count">{waitingCalls.length}</span>
+						</div>
+						<p className="call-queue-description">A conversa em andamento permanece selecionada. Escolha uma ligação para trocar o foco, atender ou recusar sem perder o contexto.</p>
+						<div className="call-queue-list">
+							{waitingCalls.map((call) => (
+								<article key={call.id} className={`call-queue-item ${desk.selectedCallId === call.id ? "selected" : ""}`}>
+									<div className="call-avatar small">{displayPhone(call.peer).slice(-2)}</div>
+									<div className="call-queue-person"><strong>{displayPhone(call.peer)}</strong><span>{stateLabel(call)} · ID {call.id}</span></div>
+									<div className="call-queue-actions">
+										<button type="button" className="text-button" onClick={() => desk.setSelectedCallId(call.id)}>Ver</button>
+										<button type="button" className="button secondary" disabled={desk.loading} onClick={() => void rejectIncoming(call)}>Recusar</button>
+										<button type="button" className="button call-button" disabled={desk.loading} onClick={() => void acceptIncoming(call)}>Atender</button>
+									</div>
+								</article>
+							))}
+						</div>
+					</section>
+				)}
+
         {selected ? (
           <section className="card active-call-card">
             <div className="call-avatar">{displayPhone(selected.peer).slice(-2)}</div>
             <div className="active-call-content">
               <span className="eyebrow">{selected.direction === "incoming" ? "Chamada recebida" : "Chamada realizada"}</span>
               <h2>{displayPhone(selected.peer)}</h2>
-              <div className="call-meta"><span className={`state-badge state-${selected.state}`}>{stateLabel(selected.state)}</span><span>ID {selected.id}</span></div>
+              <div className="call-meta"><span className={`state-badge state-${selected.state}`}>{stateLabel(selected)}</span><span>ID {selected.id}</span>{selected.answeredBy && <span>Atendida por {selected.answeredBy}</span>}</div>
+						{selected.endReason && <p className="call-outcome-detail">Motivo: {selected.endReason}</p>}
               <div className="media-strip"><span>Áudio: {mediaStatus}</span><span>↑ {stats.sent}</span><span>↓ {stats.received}</span><span>Descartados {stats.dropped}</span></div>
             </div>
             <div className="call-actions">
               {selected.direction === "incoming" && selected.state === "ringing" && (
                 <>
-                  <button className="round-action accept" title="Atender" onClick={() => {
-                    setAutoConnectId(selected.id);
-                    void desk.accept(selected).then(() => log("Chamada aceita", selected.id)).catch(() => undefined);
-                  }}>✓</button>
-                  <button className="round-action danger" title="Recusar" onClick={() => void desk.reject(selected).then(() => log("Chamada recusada", selected.id)).catch(() => undefined)}>×</button>
+                  <button className="round-action accept" title="Atender" onClick={() => void acceptIncoming(selected)}>✓</button>
+                  <button className="round-action danger" title="Recusar" onClick={() => void rejectIncoming(selected)}>×</button>
                 </>
               )}
               {selected.state === "active" && mediaStatus === "idle" && <button className="button secondary" onClick={() => void connectAudio()}>Conectar áudio</button>}
@@ -295,10 +396,10 @@ export function CallWorkspace({
           <div>
             <span className="eyebrow">Monitoramento</span>
             <h2>Controle da sessão</h2>
-            <p>Áudio: <strong>{mediaStatus}</strong> · {stats.received > 0 ? "Fluxo de mídia recebido" : "Aguardando mídia"}</p>
+            <p>Eventos: <strong>{realtimeLabel}</strong> · Áudio: <strong>{mediaStatus}</strong> · {stats.received > 0 ? "Fluxo de mídia recebido" : "Aguardando mídia"}</p>
           </div>
           <div className="call-utility-actions">
-            <button type="button" className="button secondary" onClick={() => setShowHistory(true)}>Histórico <span>{desk.snapshot.calls.length}</span></button>
+            <button type="button" className="button secondary" onClick={() => setShowHistory(true)}>Histórico salvo <span>{history.length || "–"}</span></button>
             <button type="button" className="button secondary" onClick={() => setShowLogs(true)}>Logs <span>{callLogs.length || "–"}</span></button>
           </div>
         </section>
@@ -307,16 +408,21 @@ export function CallWorkspace({
       {showHistory && (
         <div className="dialog-backdrop" role="presentation">
           <section className="card call-dialog" role="dialog" aria-modal="true" aria-labelledby="call-history-title">
-            <div className="section-heading"><div><span className="eyebrow">GET /call/status</span><h2 id="call-history-title">Histórico de chamadas</h2></div><div className="call-dialog-actions"><button type="button" className="icon-button" title="Atualizar histórico" onClick={() => void desk.refresh(false)} disabled={desk.loading}>↻</button><button type="button" className="text-button" onClick={() => setShowHistory(false)}>Fechar</button></div></div>
+            <div className="section-heading"><div><span className="eyebrow">GET /call/history</span><h2 id="call-history-title">Histórico persistente</h2></div><div className="call-dialog-actions"><button type="button" className="icon-button" title="Atualizar histórico" onClick={() => setHistoryRefresh((current) => current + 1)} disabled={loadingHistory}>↻</button><button type="button" className="text-button" onClick={() => setShowHistory(false)}>Fechar</button></div></div>
+            <p className="call-logs-description">Dados salvos pelo servidor: data, número, direção, duração, motivo e quem atendeu. Permanecem disponíveis após reiniciar o serviço.</p>
             <div className="call-table call-dialog-scroll">
-              {desk.snapshot.calls.length === 0 ? <div className="table-empty">Nenhuma chamada registrada.</div> : [...desk.snapshot.calls].reverse().map((call) => (
-                <button key={call.id} className={`call-row ${desk.selectedCallId === call.id ? "selected" : ""}`} onClick={() => { desk.setSelectedCallId(call.id); setShowHistory(false); }}>
-                  <span className={`direction-icon ${call.direction}`}>{call.direction === "incoming" ? "↙" : "↗"}</span>
-                  <span className="call-person"><strong>{displayPhone(call.peer)}</strong><small>{call.id}</small></span>
-                  <span>{call.direction === "incoming" ? "Recebida" : "Realizada"}</span>
-                  <span className={`state-badge state-${call.state}`}>{stateLabel(call.state)}</span>
-                </button>
-              ))}
+					{loadingHistory ? <div className="table-empty">Carregando histórico persistente…</div> : historyError ? <div className="alert error" role="alert">{historyError}</div> : history.length === 0 ? <div className="table-empty">Nenhuma chamada persistida ainda.</div> : history.map((call) => {
+						const liveCall = desk.snapshot.calls.find((item) => item.id === call.callId);
+						return (
+							<article key={call.callId} className={`call-row persisted-call-row ${desk.selectedCallId === call.callId ? "selected" : ""}`}>
+								<span className={`direction-icon ${call.direction}`}>{call.direction === "incoming" ? "↙" : "↗"}</span>
+								<span className="call-person"><strong>{displayPhone(call.peer)}</strong><small>{formatCallTimestamp(call.startedAt)} · {call.callId}</small></span>
+								<span className="call-history-summary"><b>{call.direction === "incoming" ? "Recebida" : "Realizada"}</b><small>{formatCallDuration(call.durationSeconds)} · {call.answeredBy ? `Atendida por ${call.answeredBy}` : call.endReason || "Sem motivo"}</small></span>
+								<span className={`state-badge state-${call.state}`}>{stateLabel(call)}</span>
+								{liveCall && <button type="button" className="text-button call-history-open" onClick={() => { desk.setSelectedCallId(liveCall.id); setShowHistory(false); }}>Abrir</button>}
+							</article>
+						);
+					})}
             </div>
           </section>
         </div>

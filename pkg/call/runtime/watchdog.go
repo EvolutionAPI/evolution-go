@@ -130,6 +130,7 @@ func (r *Runtime) expireWatchdog(callID string, generation uint64, expectedState
 	r.calls[callID] = call
 	instanceID := r.instanceID
 	r.mu.Unlock()
+	r.notifyChange(call)
 
 	if callback != nil {
 		callback(instanceID, callID)

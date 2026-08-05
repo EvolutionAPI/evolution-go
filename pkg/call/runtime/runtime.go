@@ -36,15 +36,17 @@ const (
 
 // Call contains transport-independent call state.
 type Call struct {
-	ID        string    `json:"id"`
-	Peer      string    `json:"peer"`
-	Direction Direction `json:"direction"`
-	State     State     `json:"state"`
-	Video     bool      `json:"video"`
-	EndReason string    `json:"endReason,omitempty"`
-	Error     string    `json:"error,omitempty"`
-	CreatedAt time.Time `json:"createdAt"`
-	UpdatedAt time.Time `json:"updatedAt"`
+	ID         string     `json:"id"`
+	Peer       string     `json:"peer"`
+	Direction  Direction  `json:"direction"`
+	State      State      `json:"state"`
+	Video      bool       `json:"video"`
+	EndReason  string     `json:"endReason,omitempty"`
+	Error      string     `json:"error,omitempty"`
+	AnsweredBy string     `json:"answeredBy,omitempty"`
+	AnsweredAt *time.Time `json:"answeredAt,omitempty"`
+	CreatedAt  time.Time  `json:"createdAt"`
+	UpdatedAt  time.Time  `json:"updatedAt"`
 }
 
 // Snapshot is a safe, serializable view of one instance runtime.
@@ -61,6 +63,7 @@ type Runtime struct {
 	client         *whatsmeow.Client
 	eventHandlerID uint32
 	calls          map[string]Call
+	onChange       func(Call)
 }
 
 func New(instanceID string, client *whatsmeow.Client) *Runtime {
@@ -140,6 +143,13 @@ func (r *Runtime) UpsertCall(call Call) {
 		if call.Peer == "" {
 			call.Peer = current.Peer
 		}
+		if call.AnsweredAt == nil && current.AnsweredAt != nil {
+			answeredAt := *current.AnsweredAt
+			call.AnsweredAt = &answeredAt
+		}
+		if call.AnsweredBy == "" {
+			call.AnsweredBy = current.AnsweredBy
+		}
 	} else if call.CreatedAt.IsZero() {
 		call.CreatedAt = now
 	}
@@ -150,6 +160,97 @@ func (r *Runtime) UpsertCall(call Call) {
 	r.calls[call.ID] = call
 	r.mu.Unlock()
 	r.syncWatchdog(call)
+	r.notifyChange(call)
+}
+
+// MarkAnswered records the authenticated Manager user that is answering an
+// incoming call. It is called before the accept stanza is sent so a companion
+// echo of that stanza is not mistaken for another device answering first.
+func (r *Runtime) MarkAnswered(callID, answeredBy string) (Call, bool) {
+	if r == nil || callID == "" {
+		return Call{}, false
+	}
+
+	r.mu.Lock()
+	call, exists := r.calls[callID]
+	if !exists {
+		r.mu.Unlock()
+		return Call{}, false
+	}
+	now := time.Now().UTC()
+	if call.AnsweredAt == nil {
+		answeredAt := now
+		call.AnsweredAt = &answeredAt
+	}
+	if strings.TrimSpace(answeredBy) != "" {
+		call.AnsweredBy = strings.TrimSpace(answeredBy)
+	}
+	call.UpdatedAt = now
+	r.calls[callID] = call
+	r.mu.Unlock()
+	r.notifyChange(call)
+	return call, true
+}
+
+// ClearAnswerMetadata rolls back a failed local answer attempt while the call
+// is still ringing. Once signaling has advanced, retaining the metadata is
+// safer than reviving or rewriting a real remote outcome.
+func (r *Runtime) ClearAnswerMetadata(callID string) (Call, bool) {
+	if r == nil || callID == "" {
+		return Call{}, false
+	}
+
+	r.mu.Lock()
+	call, exists := r.calls[callID]
+	if !exists {
+		r.mu.Unlock()
+		return Call{}, false
+	}
+	if call.State != StateRinging {
+		r.mu.Unlock()
+		return call, true
+	}
+	call.AnsweredAt = nil
+	call.AnsweredBy = ""
+	call.UpdatedAt = time.Now().UTC()
+	r.calls[callID] = call
+	r.mu.Unlock()
+	r.notifyChange(call)
+	return call, true
+}
+
+// MarkAnsweredElsewhere turns an incoming ringing call into a terminal state
+// when another linked WhatsApp device accepts it. This removes the answer
+// controls immediately and makes the outcome explicit to the Manager.
+func (r *Runtime) MarkAnsweredElsewhere(callID string) (Call, bool) {
+	if r == nil || callID == "" {
+		return Call{}, false
+	}
+
+	r.mu.Lock()
+	call, exists := r.calls[callID]
+	if !exists {
+		r.mu.Unlock()
+		return Call{}, false
+	}
+	if call.State == StateEnded || call.State == StateFailed {
+		r.mu.Unlock()
+		return call, true
+	}
+	now := time.Now().UTC()
+	if call.AnsweredAt == nil {
+		answeredAt := now
+		call.AnsweredAt = &answeredAt
+	}
+	call.AnsweredBy = "Outro dispositivo"
+	call.State = StateEnded
+	call.EndReason = "answered_elsewhere"
+	call.UpdatedAt = now
+	r.calls[callID] = call
+	r.mu.Unlock()
+	r.cancelWatchdog(callID)
+	r.notifyChange(call)
+	return call, true
 }
 
 // Transition applies a partial lifecycle update without erasing metadata that
@@ -174,19 +275,59 @@ func (r *Runtime) Transition(callID, peer string, direction Direction, state Sta
 	if direction != "" && call.Direction == "" {
 		call.Direction = direction
 	}
-	if state != "" {
+	// WhatsApp signaling can be delivered out of order. Once a call has a
+	// terminal outcome, a delayed transport/preaccept stanza must not revive
+	// it and make the Manager show actionable controls again.
+	if state != "" && !(isTerminalState(call.State) && !isTerminalState(state)) {
 		call.State = state
 	}
 	if video != nil {
 		call.Video = *video
 	}
-	if endReason != "" {
+	if endReason != "" && !preserveExternalOutcome(call.EndReason, endReason) {
 		call.EndReason = endReason
 	}
 	call.UpdatedAt = now
 	r.calls[callID] = call
 	r.mu.Unlock()
 	r.syncWatchdog(call)
+	r.notifyChange(call)
+}
+
+func isTerminalState(state State) bool {
+	return state == StateEnded || state == StateFailed
+}
+
+func preserveExternalOutcome(current, candidate string) bool {
+	if current == candidate {
+		return false
+	}
+	return current == "answered_elsewhere" || current == "rejected_elsewhere"
+}
+
+// SetOnChange registers a callback that receives every public call state
+// change. Callbacks are invoked after the runtime lock has been released so
+// observers can safely read a snapshot without blocking the WhatsApp event
+// handler.
+func (r *Runtime) SetOnChange(callback func(Call)) {
+	if r == nil {
+		return
+	}
+	r.mu.Lock()
+	r.onChange = callback
+	r.mu.Unlock()
+}
+
+func (r *Runtime) notifyChange(call Call) {
+	if r == nil {
+		return
+	}
+	r.mu.RLock()
+	callback := r.onChange
+	r.mu.RUnlock()
+	if callback != nil {
+		callback(call)
+	}
 }
 
 func shouldReplacePeer(current, candidate string) bool {
@@ -229,6 +370,10 @@ func (r *Runtime) Snapshot() Snapshot {
 
 	for index := range calls {
 		calls[index].Peer = resolveDisplayPeer(client, calls[index].Peer)
+		if calls[index].AnsweredAt != nil {
+			answeredAt := *calls[index].AnsweredAt
+			calls[index].AnsweredAt = &answeredAt
+		}
 	}
 	sort.Slice(calls, func(i, j int) bool {
 		return calls[i].CreatedAt.Before(calls[j].CreatedAt)
@@ -273,6 +418,10 @@ func (r *Runtime) handleEvent(rawEvent interface{}) {
 			"",
 		)
 	case *events.CallAccept:
+		if call, exists := r.Call(event.CallID); exists && call.Direction == DirectionIncoming && call.AnsweredBy == "" {
+			r.MarkAnsweredElsewhere(event.CallID)
+			return
+		}
 		r.Transition(
 			event.CallID,
 			r.eventPeer(event.From, event.CallCreator),
@@ -298,7 +447,14 @@ func (r *Runtime) handleEvent(rawEvent interface{}) {
 			direction = call.Direction
 			if call.Direction == DirectionIncoming {
 				if call.State == StateRinging {
-					reason = "caller_cancelled"
+					// A reject stanza emitted by one of our linked devices means the
+					// browser did not lose the call: it was explicitly dismissed
+					// elsewhere. A peer-originated reject is the caller cancelling.
+					if r.eventFromOwnDevice(event.From) {
+						reason = "rejected_elsewhere"
+					} else {
+						reason = "caller_cancelled"
+					}
 				} else {
 					reason = "peer_ended"
 				}
@@ -328,6 +484,16 @@ func (r *Runtime) handleEvent(rawEvent interface{}) {
 	case *events.LoggedOut:
 		r.failOpenCalls("whatsapp client logged out")
 	}
+}
+
+func (r *Runtime) eventFromOwnDevice(jid types.JID) bool {
+	if r == nil || jid.IsEmpty() {
+		return false
+	}
+	r.mu.RLock()
+	client := r.client
+	r.mu.RUnlock()
+	return isOwnJID(client, jid)
 }
 
 func (r *Runtime) eventPeer(primary, secondary types.JID) string {
@@ -387,7 +553,7 @@ func isOwnJID(client *whatsmeow.Client, jid types.JID) bool {
 func (r *Runtime) failOpenCalls(reason string) {
 	r.mu.Lock()
 	now := time.Now().UTC()
-	failedCallIDs := make([]string, 0)
+	failedCalls := make([]Call, 0)
 	for callID, call := range r.calls {
 		if call.State == StateEnded || call.State == StateFailed {
 			continue
@@ -396,11 +562,12 @@ func (r *Runtime) failOpenCalls(reason string) {
 		call.Error = reason
 		call.UpdatedAt = now
 		r.calls[callID] = call
-		failedCallIDs = append(failedCallIDs, callID)
+		failedCalls = append(failedCalls, call)
 	}
 	r.mu.Unlock()
-	for _, callID := range failedCallIDs {
-		r.cancelWatchdog(callID)
+	for _, call := range failedCalls {
+		r.cancelWatchdog(call.ID)
+		r.notifyChange(call)
 	}
 }
 
@@ -456,16 +623,24 @@ func NewRegistry() *Registry {
 // Attach returns the existing runtime or creates it. On reconnect it updates the
 // runtime to point at the newly-created whatsmeow client.
 func (r *Registry) Attach(instanceID string, client *whatsmeow.Client) *Runtime {
-	r.mu.Lock()
-	defer r.mu.Unlock()
+	runtime := r.Ensure(instanceID)
+	runtime.AttachClient(client)
+	return runtime
+}
 
+// Ensure returns the public runtime without registering a WhatsApp event
+// handler. Coordinators can use it to configure observers before attaching a
+// client, so an early incoming offer cannot be missed.
+func (r *Registry) Ensure(instanceID string) *Runtime {
+	r.mu.Lock()
 	if runtime, ok := r.runtimes[instanceID]; ok {
-		runtime.AttachClient(client)
+		r.mu.Unlock()
 		return runtime
 	}
 
-	runtime := New(instanceID, client)
+	runtime := New(instanceID, nil)
 	r.runtimes[instanceID] = runtime
+	r.mu.Unlock()
 	return runtime
 }
 

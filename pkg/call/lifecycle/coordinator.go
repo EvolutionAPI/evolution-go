@@ -30,6 +30,7 @@ type Coordinator struct {
 	onRTP                  func(instanceID, callID string, packet *call_media.RTPPacket)
 	onPCM                  func(instanceID, callID string, pcm []float32)
 	browserPCM             func(instanceID, callID string, pcm []float32)
+	onCallChanges          []func(instanceID string, call call_runtime.Call)
 	onCallMediaCleanup     func(instanceID, callID string)
 	onInstanceMediaCleanup func(instanceID string)
 
@@ -159,10 +160,49 @@ func (c *Coordinator) configureRuntime(runtime *call_runtime.Runtime) {
 	if c == nil || runtime == nil {
 		return
 	}
+	runtime.SetOnChange(func(call call_runtime.Call) {
+		c.mu.RLock()
+		callbacks := append([]func(instanceID string, call call_runtime.Call){}, c.onCallChanges...)
+		c.mu.RUnlock()
+		for _, callback := range callbacks {
+			if callback == nil {
+				continue
+			}
+			callback(runtime.InstanceID(), call)
+		}
+	})
 	runtime.SetOnTimeout(func(instanceID, callID string) {
 		slog.Warn("WhatsApp call negotiation timed out", "instance", instanceID, "call_id", callID)
 		c.RemovePrivate(instanceID, callID)
 	})
+}
+
+// SetOnCallChange installs an observer for public call lifecycle changes. It
+// deliberately receives only the serializable call state, never private call
+// keys or relay data.
+func (c *Coordinator) SetOnCallChange(callback func(instanceID string, call call_runtime.Call)) {
+	if c == nil {
+		return
+	}
+	c.mu.Lock()
+	if callback == nil {
+		c.onCallChanges = nil
+	} else {
+		c.onCallChanges = []func(instanceID string, call call_runtime.Call){callback}
+	}
+	c.mu.Unlock()
+}
+
+// AddOnCallChange appends an observer without replacing the existing Manager
+// event stream. This allows persistence and real-time UI updates to consume
+// the same public lifecycle safely.
+func (c *Coordinator) AddOnCallChange(callback func(instanceID string, call call_runtime.Call)) {
+	if c == nil || callback == nil {
+		return
+	}
+	c.mu.Lock()
+	c.onCallChanges = append(c.onCallChanges, callback)
+	c.mu.Unlock()
 }
 
 // AttachClient is called by the WhatsApp client lifecycle. Public call state is
@@ -177,8 +217,9 @@ func (c *Coordinator) AttachClient(instanceID string, client *whatsmeow.Client, 
 	c.incomingEnabled[instanceID] = prepareIncoming
 	c.mu.Unlock()
 
-	runtime := c.runtimes.Attach(instanceID, client)
+	runtime := c.runtimes.Ensure(instanceID)
 	c.configureRuntime(runtime)
+	runtime.AttachClient(client)
 	c.incoming.Attach(instanceID, client, prepareIncoming)
 	c.packets.Attach(instanceID, client)
 	c.relays.Attach(instanceID, client)
@@ -209,8 +250,9 @@ func (c *Coordinator) Attach(instanceID string, client *whatsmeow.Client) {
 	if c == nil || instanceID == "" || client == nil {
 		return
 	}
-	runtime := c.runtimes.Attach(instanceID, client)
+	runtime := c.runtimes.Ensure(instanceID)
 	c.configureRuntime(runtime)
+	runtime.AttachClient(client)
 
 	c.mu.RLock()
 	prepareIncoming, configured := c.incomingEnabled[instanceID]

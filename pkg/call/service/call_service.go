@@ -4,8 +4,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
+	call_history "github.com/evolution-foundation/evolution-go/pkg/call/history"
 	call_lifecycle "github.com/evolution-foundation/evolution-go/pkg/call/lifecycle"
 	call_runtime "github.com/evolution-foundation/evolution-go/pkg/call/runtime"
 	call_browser "github.com/evolution-foundation/evolution-go/pkg/call/voip/browser"
@@ -25,10 +27,11 @@ var ErrCallNotActive = errors.New("call media is not active")
 
 type CallService interface {
 	StartCall(data *StartCallStruct, instance *instance_model.Instance) (call_runtime.Call, error)
-	AcceptCall(callID string, instance *instance_model.Instance) (call_runtime.Call, error)
+	AcceptCall(callID string, instance *instance_model.Instance, answeredBy string) (call_runtime.Call, error)
 	TerminateCall(callID string, instance *instance_model.Instance) (call_runtime.Call, error)
 	RejectCall(data *RejectCallStruct, instance *instance_model.Instance) error
 	RuntimeStatus(instance *instance_model.Instance) (call_runtime.Snapshot, error)
+	History(instance *instance_model.Instance, limit int) ([]call_history.Record, error)
 	CreateWebRTC(ctx context.Context, callID string, request call_browser.CreateRequest, instance *instance_model.Instance) (call_browser.CreateResponse, error)
 	WebRTCSessions(callID string, instance *instance_model.Instance) ([]call_browser.SessionInfo, error)
 	CloseWebRTC(callID, sessionID string, instance *instance_model.Instance) error
@@ -39,6 +42,7 @@ type callService struct {
 	whatsmeowService whatsmeow_service.WhatsmeowService
 	loggerWrapper    *logger_wrapper.LoggerManager
 	coordinator      *call_lifecycle.Coordinator
+	history          call_history.Store
 	browser          call_browser.Manager
 }
 
@@ -153,7 +157,7 @@ func (c *callService) StartCall(data *StartCallStruct, instance *instance_model.
 	return call, nil
 }
 
-func (c *callService) AcceptCall(callID string, instance *instance_model.Instance) (call_runtime.Call, error) {
+func (c *callService) AcceptCall(callID string, instance *instance_model.Instance, answeredBy string) (call_runtime.Call, error) {
 	client, err := c.ensureClientConnected(instance.Id)
 	if err != nil {
 		return call_runtime.Call{}, err
@@ -167,13 +171,20 @@ func (c *callService) AcceptCall(callID string, instance *instance_model.Instanc
 	if call.Direction != call_runtime.DirectionIncoming {
 		return call_runtime.Call{}, fmt.Errorf("call %s is not incoming", callID)
 	}
-	if call.State == call_runtime.StateEnded || call.State == call_runtime.StateFailed {
+	if call.State != call_runtime.StateRinging {
 		return call_runtime.Call{}, fmt.Errorf("call %s cannot be accepted in state %s", callID, call.State)
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), signalingTimeout)
 	defer cancel()
+	if strings.TrimSpace(answeredBy) == "" {
+		answeredBy = "API"
+	}
+	// Mark before writing signaling so a CallAccept event echoed back to this
+	// linked client remains a local Manager acceptance, not "other device".
+	runtime.MarkAnswered(callID, answeredBy)
 	if err := c.coordinator.AcceptIncoming(ctx, instance.Id, callID); err != nil {
+		runtime.ClearAnswerMetadata(callID)
 		return call_runtime.Call{}, err
 	}
 
@@ -249,6 +260,15 @@ func (c *callService) RuntimeStatus(instance *instance_model.Instance) (call_run
 	return runtime.Snapshot(), nil
 }
 
+// History is intentionally independent of the live WhatsApp client. It lets
+// the Manager inspect completed calls after a service restart or disconnect.
+func (c *callService) History(instance *instance_model.Instance, limit int) ([]call_history.Record, error) {
+	if instance == nil || c.history == nil {
+		return []call_history.Record{}, nil
+	}
+	return c.history.List(instance.Id, limit)
+}
+
 func (c *callService) CreateWebRTC(ctx context.Context, callID string, request call_browser.CreateRequest, instance *instance_model.Instance) (call_browser.CreateResponse, error) {
 	client, err := c.ensureClientConnected(instance.Id)
 	if err != nil {
@@ -284,6 +304,7 @@ func NewCallService(
 	whatsmeowService whatsmeow_service.WhatsmeowService,
 	loggerWrapper *logger_wrapper.LoggerManager,
 	coordinator *call_lifecycle.Coordinator,
+	history call_history.Store,
 ) CallService {
 	if coordinator == nil {
 		coordinator = call_lifecycle.NewCoordinator()
@@ -293,6 +314,7 @@ func NewCallService(
 		whatsmeowService: whatsmeowService,
 		loggerWrapper:    loggerWrapper,
 		coordinator:      coordinator,
+		history:          history,
 	}
 	service.browser = call_browser.NewManager(coordinator.FeedPCM)
 	coordinator.SetBrowserPCM(service.browser.HandlePCM)

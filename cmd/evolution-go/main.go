@@ -22,6 +22,7 @@ import (
 	_ "modernc.org/sqlite"
 
 	call_handler "github.com/evolution-foundation/evolution-go/pkg/call/handler"
+	call_history "github.com/evolution-foundation/evolution-go/pkg/call/history"
 	call_lifecycle "github.com/evolution-foundation/evolution-go/pkg/call/lifecycle"
 	call_service "github.com/evolution-foundation/evolution-go/pkg/call/service"
 	chat_handler "github.com/evolution-foundation/evolution-go/pkg/chat/handler"
@@ -47,6 +48,7 @@ import (
 	label_service "github.com/evolution-foundation/evolution-go/pkg/label/service"
 	logger_wrapper "github.com/evolution-foundation/evolution-go/pkg/logger"
 	managerauth "github.com/evolution-foundation/evolution-go/pkg/managerauth"
+	managercalls "github.com/evolution-foundation/evolution-go/pkg/managercalls"
 	managerconfig "github.com/evolution-foundation/evolution-go/pkg/managerconfig"
 	message_handler "github.com/evolution-foundation/evolution-go/pkg/message/handler"
 	message_model "github.com/evolution-foundation/evolution-go/pkg/message/model"
@@ -239,7 +241,8 @@ func setupRouter(db *gorm.DB, authDB *sql.DB, sqliteDB *sql.DB, config *config.C
 	messageService := message_service.NewMessageService(clientPointer, messageRepository, whatsmeowService, loggerWrapper)
 	chatService := chat_service.NewChatService(clientPointer, whatsmeowService, loggerWrapper)
 	groupService := group_service.NewGroupService(clientPointer, whatsmeowService, loggerWrapper)
-	callService := call_service.NewCallService(clientPointer, whatsmeowService, loggerWrapper, callCoordinator)
+	callHistory := call_history.NewService(db)
+	callService := call_service.NewCallService(clientPointer, whatsmeowService, loggerWrapper, callCoordinator, callHistory)
 	communityService := community_service.NewCommunityService(clientPointer, whatsmeowService, loggerWrapper)
 	labelService := label_service.NewLabelService(clientPointer, whatsmeowService, labelRepository, loggerWrapper)
 	newsletterService := newsletter_service.NewNewsletterService(clientPointer, whatsmeowService, loggerWrapper)
@@ -247,6 +250,9 @@ func setupRouter(db *gorm.DB, authDB *sql.DB, sqliteDB *sql.DB, config *config.C
 	// NOVO: PollHandler usando PollService já inicializado no whatsmeowService (evita dupla inicialização)
 	pollHandler := poll_handler.NewPollHandler(whatsmeowService.GetPollService(), loggerWrapper)
 	managerAuth := managerauth.NewService(db, config.ManagerJWTSecret)
+	managerCallEvents := managercalls.NewHub()
+	callCoordinator.AddOnCallChange(managerCallEvents.Publish)
+	callCoordinator.AddOnCallChange(callHistory.Record)
 
 	r := gin.Default()
 
@@ -274,6 +280,7 @@ func setupRouter(db *gorm.DB, authDB *sql.DB, sqliteDB *sql.DB, config *config.C
 	passkey_handler.RegisterRoutes(r, whatsmeowService)
 	managerauth.NewHandler(managerAuth).RegisterRoutes(r)
 	managerconfig.NewHandler(managerConfig, managerAuth).RegisterRoutes(r)
+	managercalls.NewHandler(managerCallEvents, managerAuth).RegisterRoutes(r)
 
 	routes.NewRouter(
 		auth_middleware.NewMiddleware(config, instanceService, managerAuth),
@@ -283,7 +290,7 @@ func setupRouter(db *gorm.DB, authDB *sql.DB, sqliteDB *sql.DB, config *config.C
 		message_handler.NewMessageHandler(messageService),
 		chat_handler.NewChatHandler(chatService),
 		group_handler.NewGroupHandler(groupService),
-		call_handler.NewCallHandler(callService),
+		call_handler.NewCallHandler(callService, managerAuth),
 		community_handler.NewCommunityHandler(communityService),
 		label_handler.NewLabelHandler(labelService),
 		newsletter_handler.NewNewsletterHandler(newsletterService),
@@ -312,7 +319,7 @@ func setupRouter(db *gorm.DB, authDB *sql.DB, sqliteDB *sql.DB, config *config.C
 }
 
 func migrate(db *gorm.DB) {
-	err := db.AutoMigrate(&instance_model.Instance{}, &message_model.Message{}, &label_model.Label{}, &managerauth.Administrator{}, &managerconfig.StoredInfrastructureSettings{})
+	err := db.AutoMigrate(&instance_model.Instance{}, &message_model.Message{}, &label_model.Label{}, &managerauth.Administrator{}, &managerconfig.StoredInfrastructureSettings{}, &call_history.Record{})
 
 	if err != nil {
 		log.Fatal(err)
