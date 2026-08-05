@@ -32,6 +32,18 @@ func NodeContainsVideo(node *waBinary.Node) bool {
 	return false
 }
 
+// IsAlreadyEndedOffer reports whether WhatsApp delivered a call-history update
+// using an offer-shaped stanza. These are terminal notifications (for example,
+// a call accepted on another device), not an incoming call that can be
+// preaccepted or answered.
+func IsAlreadyEndedOffer(node *waBinary.Node) bool {
+	if node == nil {
+		return false
+	}
+	attrs := node.AttrGetter()
+	return attrs.OptionalString("is_call_ended") == "1" || attrs.OptionalString("terminate_reason") != ""
+}
+
 func findEncryptedCallKeyNode(inner *waBinary.Node) *waBinary.Node {
 	if inner == nil {
 		return nil

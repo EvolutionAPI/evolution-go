@@ -40,7 +40,7 @@ function outcomeLabel(call: EvolutionCall): string {
 	if (call.endReason === "answered_elsewhere") return "Atendida em outro dispositivo";
 	if (call.endReason === "rejected_elsewhere") return "Recusada por outro dispositivo";
 	if (call.endReason === "rejected") return "Chamada recusada";
-	if (call.endReason === "caller_cancelled") return "A pessoa encerrou a chamada";
+	if (call.endReason === "caller_cancelled") return "Chamada encerrada antes do atendimento";
 	return "Chamada encerrada";
 }
 

@@ -188,6 +188,63 @@ func TestRuntimeTracksWhatsmeowCallLifecycle(t *testing.T) {
 	}
 }
 
+func TestRuntimeKeepsIncomingCallRingingAfterPreAccept(t *testing.T) {
+	runtime := New("instance-1", nil)
+	creator := types.NewJID("5511999999999", types.DefaultUserServer)
+	runtime.handleEvent(&events.CallOffer{
+		BasicCallMeta: types.BasicCallMeta{From: creator, CallCreator: creator, CallID: "incoming-call"},
+		Data:          &waBinary.Node{Tag: "offer"},
+	})
+
+	runtime.handleEvent(&events.CallPreAccept{
+		BasicCallMeta: types.BasicCallMeta{From: creator, CallCreator: creator, CallID: "incoming-call"},
+	})
+
+	call, ok := runtime.Call("incoming-call")
+	if !ok {
+		t.Fatal("expected incoming call to remain tracked")
+	}
+	if call.Direction != DirectionIncoming || call.State != StateRinging {
+		t.Fatalf("preaccept changed an incoming call: %+v", call)
+	}
+}
+
+func TestRuntimePreAcceptAdvancesOutgoingCall(t *testing.T) {
+	runtime := New("instance-1", nil)
+	creator := types.NewJID("5511999999999", types.DefaultUserServer)
+	runtime.Transition("outgoing-call", creator.String(), DirectionOutgoing, StateRinging, nil, "")
+
+	runtime.handleEvent(&events.CallPreAccept{
+		BasicCallMeta: types.BasicCallMeta{From: creator, CallCreator: creator, CallID: "outgoing-call"},
+	})
+
+	call, ok := runtime.Call("outgoing-call")
+	if !ok || call.State != StateConnecting || call.Direction != DirectionOutgoing {
+		t.Fatalf("preaccept did not advance the outgoing call: %+v", call)
+	}
+}
+
+func TestRuntimeIgnoresAlreadyEndedOffer(t *testing.T) {
+	runtime := New("instance-1", nil)
+	creator := types.NewJID("5511999999999", types.DefaultUserServer)
+
+	for name, attrs := range map[string]waBinary.Attrs{
+		"ended flag":       {"is_call_ended": "1"},
+		"terminate reason": {"terminate_reason": "accepted_elsewhere"},
+	} {
+		t.Run(name, func(t *testing.T) {
+			callID := "ended-" + name
+			runtime.handleEvent(&events.CallOffer{
+				BasicCallMeta: types.BasicCallMeta{From: creator, CallCreator: creator, CallID: callID},
+				Data:          &waBinary.Node{Tag: "offer", Attrs: attrs},
+			})
+			if _, exists := runtime.Call(callID); exists {
+				t.Fatalf("already-ended offer %q created an actionable call", name)
+			}
+		})
+	}
+}
+
 func TestRuntimeMarksIncomingCallAnsweredElsewhere(t *testing.T) {
 	runtime := New("instance-1", nil)
 	creator := types.NewJID("5511999999999", types.DefaultUserServer)

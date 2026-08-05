@@ -2,11 +2,13 @@ package call_runtime
 
 import (
 	"context"
+	"log/slog"
 	"sort"
 	"strings"
 	"sync"
 	"time"
 
+	call_signaling "github.com/evolution-foundation/evolution-go/pkg/call/voip/signaling"
 	call_wa "github.com/evolution-foundation/evolution-go/pkg/call/voip/wa"
 	"go.mau.fi/whatsmeow"
 	waBinary "go.mau.fi/whatsmeow/binary"
@@ -389,6 +391,14 @@ func (r *Runtime) Snapshot() Snapshot {
 func (r *Runtime) handleEvent(rawEvent interface{}) {
 	switch event := rawEvent.(type) {
 	case *events.CallOffer:
+		if call_signaling.IsAlreadyEndedOffer(event.Data) {
+			slog.Info("ignoring already-ended WhatsApp call offer",
+				"instance", r.instanceID,
+				"call_id", event.CallID,
+				"from", event.From.String(),
+			)
+			return
+		}
 		video := callNodeContainsVideo(event.Data)
 		r.Transition(
 			event.CallID,
@@ -409,6 +419,18 @@ func (r *Runtime) handleEvent(rawEvent interface{}) {
 			"",
 		)
 	case *events.CallPreAccept:
+		call, exists := r.Call(event.CallID)
+		// A preaccept is received from the remote device while a locally started
+		// call is ringing. It must not advance an incoming call: doing so hides
+		// the Manager's answer controls before the local user can answer.
+		if !exists || call.Direction != DirectionOutgoing {
+			slog.Debug("ignoring WhatsApp preaccept for non-outgoing call",
+				"instance", r.instanceID,
+				"call_id", event.CallID,
+				"direction", call.Direction,
+			)
+			return
+		}
 		r.Transition(
 			event.CallID,
 			r.eventPeer(event.From, event.CallCreator),
@@ -443,13 +465,16 @@ func (r *Runtime) handleEvent(rawEvent interface{}) {
 		call, exists := r.Call(event.CallID)
 		reason := "rejected"
 		direction := DirectionOutgoing
+		previousState := State("")
 		if exists {
 			direction = call.Direction
+			previousState = call.State
 			if call.Direction == DirectionIncoming {
 				if call.State == StateRinging {
 					// A reject stanza emitted by one of our linked devices means the
 					// browser did not lose the call: it was explicitly dismissed
-					// elsewhere. A peer-originated reject is the caller cancelling.
+					// elsewhere. A peer-originated reject means WhatsApp ended the
+					// call before the local user answered it.
 					if r.eventFromOwnDevice(event.From) {
 						reason = "rejected_elsewhere"
 					} else {
@@ -462,6 +487,14 @@ func (r *Runtime) handleEvent(rawEvent interface{}) {
 				reason = "peer_ended"
 			}
 		}
+		slog.Info("WhatsApp call reject received",
+			"instance", r.instanceID,
+			"call_id", event.CallID,
+			"from", event.From.String(),
+			"direction", direction,
+			"previous_state", previousState,
+			"outcome", reason,
+		)
 		r.Transition(
 			event.CallID,
 			r.eventPeer(event.CallCreator, event.From),

@@ -6,6 +6,7 @@ package incoming
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"sync"
 	"time"
 
@@ -104,6 +105,10 @@ func (s *session) prepareOffer(event *events.CallOffer) {
 	if event == nil || event.CallID == "" || event.Data == nil {
 		return
 	}
+	if signaling.IsAlreadyEndedOffer(event.Data) {
+		slog.Info("ignoring already-ended incoming WhatsApp call offer", "call_id", event.CallID, "from", event.From.String())
+		return
+	}
 
 	s.mu.RLock()
 	client := s.client
@@ -122,6 +127,7 @@ func (s *session) prepareOffer(event *events.CallOffer) {
 		peer = creator
 	}
 	if peer.IsEmpty() || creator.IsEmpty() {
+		slog.Warn("cannot prepare incoming WhatsApp call without peer metadata", "call_id", event.CallID)
 		return
 	}
 
@@ -130,7 +136,22 @@ func (s *session) prepareOffer(event *events.CallOffer) {
 
 	socket := wa.NewSocket(client)
 	callKey, err := signaling.DecryptCallKeyInNode(ctx, socket, event.Data, peer)
-	if err != nil || len(callKey) != 32 {
+	if err != nil {
+		slog.Warn("failed to decrypt incoming WhatsApp call key",
+			"call_id", event.CallID,
+			"peer", peer.String(),
+			"creator", creator.String(),
+			"err", err,
+		)
+		return
+	}
+	if len(callKey) != 32 {
+		slog.Warn("incoming WhatsApp call key has invalid length",
+			"call_id", event.CallID,
+			"peer", peer.String(),
+			"creator", creator.String(),
+			"key_bytes", len(callKey),
+		)
 		return
 	}
 	if !s.usesClient(client) {
@@ -154,7 +175,14 @@ func (s *session) prepareOffer(event *events.CallOffer) {
 	zeroBytes(callKey)
 	s.store(event.CallID, material)
 
-	_ = socket.SendNode(ctx, signaling.BuildPreacceptStanza(peer, event.CallID, creator))
+	if err := socket.SendNode(ctx, signaling.BuildPreacceptStanza(peer, event.CallID, creator)); err != nil {
+		slog.Warn("failed to send WhatsApp call preaccept",
+			"call_id", event.CallID,
+			"peer", peer.String(),
+			"creator", creator.String(),
+			"err", err,
+		)
+	}
 }
 
 func (s *session) storeOutgoing(callID string, callKey []byte, peer, creator types.JID, video bool, relayData *core.RelayData) {
