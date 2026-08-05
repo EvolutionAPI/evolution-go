@@ -122,6 +122,7 @@ export const API_OPERATIONS: ApiOperation[] = [
   op("group-settings", "Grupo", "Configurações", "POST", "/group/settings", "Atualiza configurações do grupo.", { sample: { number: "120363000000000000@g.us", action: "announcement" } }),
 
   op("call-status", "Chamadas", "Status", "GET", "/call/status", "Lista chamadas da instância."),
+  op("call-history", "Chamadas", "Histórico persistente", "GET", "/call/history", "Lista chamadas salvas, inclusive após reiniciar o serviço."),
   op("call-start", "Chamadas", "Iniciar", "POST", "/call/start", "Inicia chamada de voz ou vídeo.", { sample: { number: "5562999999999", video: false } }),
   op("call-accept", "Chamadas", "Aceitar", "POST", "/call/:callId/accept", "Aceita chamada recebida.", { sample: {} }),
   op("call-webrtc-create", "Chamadas", "Criar WebRTC", "POST", "/call/:callId/webrtc", "Cria sessão WebRTC a partir de uma oferta SDP.", { sample: { offer: { type: "offer", sdp: "COLE_O_SDP" } } }),

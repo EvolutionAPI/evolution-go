@@ -88,6 +88,39 @@ func TestRuntimeTransitionPreservesCapturedMetadata(t *testing.T) {
 	}
 }
 
+func TestRuntimeNotifiesPublicCallChanges(t *testing.T) {
+	runtime := New("instance-1", nil)
+	updates := make([]Call, 0, 2)
+	runtime.SetOnChange(func(call Call) {
+		updates = append(updates, call)
+	})
+
+	runtime.Transition("call-1", "5511999999999@s.whatsapp.net", DirectionIncoming, StateRinging, nil, "")
+	runtime.Transition("call-1", "", DirectionIncoming, StateConnecting, nil, "")
+
+	if len(updates) != 2 {
+		t.Fatalf("expected 2 updates, got %d", len(updates))
+	}
+	if updates[0].State != StateRinging || updates[1].State != StateConnecting {
+		t.Fatalf("unexpected state updates: %+v", updates)
+	}
+	if updates[1].Peer != "5511999999999@s.whatsapp.net" {
+		t.Fatalf("expected retained peer in callback, got %s", updates[1].Peer)
+	}
+}
+
+func TestRuntimeClearsFailedAnswerAttemptWhileRinging(t *testing.T) {
+	runtime := New("instance-1", nil)
+	runtime.Transition("call-1", "5511999999999@s.whatsapp.net", DirectionIncoming, StateRinging, nil, "")
+	runtime.MarkAnswered("call-1", "Manager V2")
+	runtime.ClearAnswerMetadata("call-1")
+
+	call, _ := runtime.Call("call-1")
+	if call.AnsweredBy != "" || call.AnsweredAt != nil || call.State != StateRinging {
+		t.Fatalf("failed answer attempt was not rolled back: %+v", call)
+	}
+}
+
 func TestRuntimeTracksWhatsmeowCallLifecycle(t *testing.T) {
 	runtime := New("instance-1", nil)
 	creator := types.NewJID("5511999999999", types.DefaultUserServer)
@@ -117,6 +150,10 @@ func TestRuntimeTracksWhatsmeowCallLifecycle(t *testing.T) {
 		t.Fatal("expected video call metadata")
 	}
 
+	// A Manager-side answer records the local actor before the companion
+	// receives the CallAccept event. That keeps it distinct from a phone or
+	// another linked device accepting the same ringing call.
+	runtime.MarkAnswered("call-1", "Manager V2")
 	runtime.handleEvent(&events.CallAccept{
 		BasicCallMeta: types.BasicCallMeta{
 			From:        creator,
@@ -148,6 +185,56 @@ func TestRuntimeTracksWhatsmeowCallLifecycle(t *testing.T) {
 	}
 	if call.EndReason != "peer_hangup" {
 		t.Fatalf("unexpected end reason: %s", call.EndReason)
+	}
+}
+
+func TestRuntimeMarksIncomingCallAnsweredElsewhere(t *testing.T) {
+	runtime := New("instance-1", nil)
+	creator := types.NewJID("5511999999999", types.DefaultUserServer)
+	runtime.Transition("call-1", creator.String(), DirectionIncoming, StateRinging, nil, "")
+
+	runtime.handleEvent(&events.CallAccept{
+		BasicCallMeta: types.BasicCallMeta{
+			From:        creator,
+			CallCreator: creator,
+			CallID:      "call-1",
+		},
+	})
+
+	call, ok := runtime.Call("call-1")
+	if !ok {
+		t.Fatal("expected incoming call to be tracked")
+	}
+	if call.State != StateEnded || call.EndReason != "answered_elsewhere" {
+		t.Fatalf("unexpected other-device outcome: %+v", call)
+	}
+	if call.AnsweredBy != "Outro dispositivo" || call.AnsweredAt == nil {
+		t.Fatalf("answer metadata was not captured: %+v", call)
+	}
+}
+
+func TestRuntimeDoesNotReviveTerminalCallFromDelayedSignaling(t *testing.T) {
+	runtime := New("instance-1", nil)
+	runtime.Transition("call-1", "5511999999999@s.whatsapp.net", DirectionIncoming, StateEnded, nil, "answered_elsewhere")
+	runtime.Transition("call-1", "", DirectionIncoming, StateConnecting, nil, "")
+
+	call, ok := runtime.Call("call-1")
+	if !ok {
+		t.Fatal("expected call to exist")
+	}
+	if call.State != StateEnded || call.EndReason != "answered_elsewhere" {
+		t.Fatalf("terminal call was revived: %+v", call)
+	}
+}
+
+func TestRuntimeKeepsOtherDeviceOutcomeAfterTerminate(t *testing.T) {
+	runtime := New("instance-1", nil)
+	runtime.Transition("call-1", "5511999999999@s.whatsapp.net", DirectionIncoming, StateEnded, nil, "answered_elsewhere")
+	runtime.Transition("call-1", "", DirectionIncoming, StateEnded, nil, "peer_hangup")
+
+	call, _ := runtime.Call("call-1")
+	if call.EndReason != "answered_elsewhere" {
+		t.Fatalf("external answer outcome was overwritten: %+v", call)
 	}
 }
 

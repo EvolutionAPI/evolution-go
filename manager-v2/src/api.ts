@@ -113,20 +113,39 @@ export type CallDirection = "incoming" | "outgoing";
 export type CallState = "idle" | "ringing" | "connecting" | "active" | "ended" | "failed";
 
 export interface EvolutionCall {
-  id: string;
-  peer: string;
-  direction: CallDirection;
-  state: CallState;
-  video?: boolean;
-  endReason?: string;
-  createdAt?: string;
-  updatedAt?: string;
+	id: string;
+	peer: string;
+	direction: CallDirection;
+	state: CallState;
+	video?: boolean;
+	endReason?: string;
+	error?: string;
+	answeredBy?: string;
+	answeredAt?: string;
+	createdAt?: string;
+	updatedAt?: string;
 }
 
 export interface CallStatusSnapshot {
   instanceId?: string;
   connected: boolean;
   calls: EvolutionCall[];
+}
+
+export interface CallHistoryEntry {
+	instanceId: string;
+	callId: string;
+	peer: string;
+	direction: CallDirection | string;
+	state: CallState | string;
+	video?: boolean;
+	startedAt: string;
+	answeredAt?: string;
+	endedAt?: string;
+	durationSeconds?: number;
+	endReason?: string;
+	error?: string;
+	answeredBy?: string;
 }
 
 export interface WebRTCSessionResponse {
@@ -233,11 +252,13 @@ export function displayPhone(value: string): string {
 export class EvolutionApi {
   private readonly baseUrl: string;
   private readonly instanceApiKey: string;
+  private readonly instanceId: string;
   private readonly managerBaseUrl: string;
 
   constructor(connection: EvolutionConnection) {
     this.baseUrl = normalizeBaseUrl(connection.baseUrl);
     this.instanceApiKey = connection.apiKey.trim();
+    this.instanceId = connection.instanceId.trim();
     this.managerBaseUrl = normalizeBaseUrl(window.location.origin);
   }
 
@@ -404,8 +425,25 @@ export class EvolutionApi {
     return this.request("/instance/disconnect", { method: "POST", body: JSON.stringify({}) });
   }
 
-  callStatus(): Promise<CallStatusSnapshot> {
-    return this.request<CallStatusSnapshot>("/call/status");
+	callStatus(): Promise<CallStatusSnapshot> {
+		return this.request<CallStatusSnapshot>("/call/status");
+	}
+
+	async callHistory(limit = 100): Promise<CallHistoryEntry[]> {
+		const safeLimit = Math.max(1, Math.min(500, Math.floor(limit) || 100));
+		const entries = await this.request<CallHistoryEntry[] | null>(`/call/history?limit=${safeLimit}`);
+		return Array.isArray(entries) ? entries : [];
+	}
+
+  // Manager call events are authenticated with the HttpOnly Manager V2
+  // session cookie. They intentionally use the Manager origin rather than an
+  // instance API key in the URL or in the WebSocket handshake.
+  callEventsUrl(): string | null {
+    if (!this.instanceId || !this.instanceApiKey) return null;
+    const url = new URL("/manager-v2/calls/events", this.managerBaseUrl);
+    url.protocol = url.protocol === "https:" ? "wss:" : "ws:";
+    url.searchParams.set("instanceId", this.instanceId);
+    return url.toString();
   }
 
   startCall(number: string): Promise<EvolutionCall> {
@@ -444,10 +482,20 @@ export class EvolutionApi {
     );
   }
 
-  async contacts(): Promise<EvolutionContact[]> {
+	async contacts(): Promise<EvolutionContact[]> {
     const response = await this.request<ApiEnvelope<EvolutionContact[]>>("/user/contacts");
     return Array.isArray(response.data) ? response.data : [];
-  }
+	}
+
+	async avatar(number: string): Promise<string | null> {
+		if (!number.trim()) return null;
+		const response = await this.request<ApiEnvelope<{ URL?: string; url?: string }>>("/user/avatar", {
+			method: "POST",
+			body: JSON.stringify({ number, preview: true }),
+		});
+		const url = response.data?.URL ?? response.data?.url;
+		return typeof url === "string" && url.trim() ? url : null;
+	}
 
   async checkUser(number: string): Promise<CheckedUser | null> {
     const normalized = normalizePhone(number);
