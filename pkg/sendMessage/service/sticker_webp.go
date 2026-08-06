@@ -16,30 +16,51 @@ package send_service
 
 import (
 	"bytes"
+	"context"
 	"encoding/binary"
 	"fmt"
 	"image"
 	"io"
 	"net/http"
+	"time"
 
 	"github.com/chai2010/webp"
 )
 
-// maxStickerBytes caps the sticker download. WhatsApp rejects stickers far smaller than this; the
-// limit exists so a hostile URL cannot exhaust the process memory — relevant now that the payload
-// is uploaded rather than decoded, so nothing downstream constrains its size either.
-const maxStickerBytes = 10 << 20 // 10 MiB
+const (
+	// maxStickerBytes caps the sticker download. WhatsApp rejects stickers far smaller than this;
+	// the limit exists so a hostile URL cannot exhaust the process memory — relevant now that the
+	// payload is uploaded rather than decoded, so nothing downstream constrains its size either.
+	maxStickerBytes = 10 << 20 // 10 MiB
+
+	// stickerFetchTimeout bounds the download. The sticker URL is supplied by the API caller and
+	// may point anywhere, so a server that accepts the connection and then stalls would otherwise
+	// hold the goroutine open indefinitely.
+	stickerFetchTimeout = 30 * time.Second
+)
+
+var stickerFetchClient = &http.Client{Timeout: stickerFetchTimeout}
 
 // stickerWebP fetches the sticker URL and returns WebP bytes ready to upload.
 //
 // A source that is already a valid WebP is returned untouched; anything else is decoded and
 // encoded to WebP as before.
-func stickerWebP(url string) ([]byte, error) {
-	resp, err := http.Get(url)
+func stickerWebP(ctx context.Context, url string) ([]byte, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to build request for sticker URL: %v", err)
+	}
+	resp, err := stickerFetchClient.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch image from URL: %v", err)
 	}
 	defer resp.Body.Close()
+
+	// Without this, an HTML error page is read as if it were image data: it fails later, deeper,
+	// with a decode error that says nothing about the URL having answered 404.
+	if resp.StatusCode < 200 || resp.StatusCode > 299 {
+		return nil, fmt.Errorf("sticker URL returned HTTP %d", resp.StatusCode)
+	}
 
 	raw, err := io.ReadAll(io.LimitReader(resp.Body, maxStickerBytes+1))
 	if err != nil {
