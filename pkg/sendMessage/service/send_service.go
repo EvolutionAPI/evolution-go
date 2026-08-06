@@ -1568,7 +1568,7 @@ func (s *sendService) SendSticker(data *StickerStruct, instance *instance_model.
 	var filedata []byte
 
 	if strings.HasPrefix(data.Sticker, "http") {
-		webpData, err := convertToWebP(data.Sticker)
+		webpData, err := stickerWebP(data.Sticker)
 		if err != nil {
 			return nil, fmt.Errorf("failed to convert image to WebP: %v", err)
 		}
@@ -1591,6 +1591,7 @@ func (s *sendService) SendSticker(data *StickerStruct, instance *instance_model.
 		FileEncSHA256: uploaded.FileEncSHA256,
 		FileSHA256:    uploaded.FileSHA256,
 		FileLength:    proto.Uint64(uint64(len(filedata))),
+		IsAnimated:    proto.Bool(webpIsAnimated(filedata)),
 	}}
 
 	message, err := s.SendMessage(instance, msg, "StickerMessage", &SendDataStruct{
