@@ -316,21 +316,24 @@ func (w whatsmeowService) StartClient(cd *ClientData) {
 
 	var container *sqlstore.Container
 
+	var dbLog waLog.Logger
 	if w.config.WaDebug != "" {
-		dbLog := waLog.Stdout("Database", w.config.WaDebug, true)
-		if w.config.PostgresAuthDB != "" {
-			container, err = sqlstore.New(context.Background(), "postgres", w.config.PostgresAuthDB, dbLog)
-		} else {
-			dsn := fmt.Sprintf("file:%s/dbdata/main.db?_pragma=foreign_keys(1)&_busy_timeout=5000&cache=shared&mode=rwc&_journal_mode=WAL", w.exPath)
-			container, err = sqlstore.New(context.Background(), "sqlite", dsn, dbLog)
-		}
+		dbLog = waLog.Stdout("Database", w.config.WaDebug, true)
+	}
+
+	if w.config.PostgresAuthDB != "" {
+		// Reuse the shared, pool-limited connection (w.authDB, configured with
+		// SetMaxOpenConns/SetConnMaxIdleTime in initPostgresAuthDB) instead of
+		// opening a brand-new, unbounded Postgres connection pool on every call.
+		// sqlstore.New() calls sql.Open() internally, and the resulting
+		// container was never closed here — every reconnect (disconnect retry,
+		// session check, API ConnectInstance) leaked one idle connection that
+		// accumulated for days until the shared Postgres pool was exhausted.
+		container = sqlstore.NewWithDB(w.authDB, "postgres", dbLog)
+		err = container.Upgrade(context.Background()) // NewWithDB skips the auto-upgrade New() does
 	} else {
-		if w.config.PostgresAuthDB != "" {
-			container, err = sqlstore.New(context.Background(), "postgres", w.config.PostgresAuthDB, nil)
-		} else {
-			dsn := fmt.Sprintf("file:%s/dbdata/main.db?_pragma=foreign_keys(1)&_busy_timeout=5000&cache=shared&mode=rwc&_journal_mode=WAL", w.exPath)
-			container, err = sqlstore.New(context.Background(), "sqlite", dsn, nil)
-		}
+		dsn := fmt.Sprintf("file:%s/dbdata/main.db?_pragma=foreign_keys(1)&_busy_timeout=5000&cache=shared&mode=rwc&_journal_mode=WAL", w.exPath)
+		container, err = sqlstore.New(context.Background(), "sqlite", dsn, dbLog)
 	}
 
 	if err != nil {
