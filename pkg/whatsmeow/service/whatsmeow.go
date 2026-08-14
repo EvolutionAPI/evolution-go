@@ -316,13 +316,15 @@ func (w whatsmeowService) StartClient(cd *ClientData) {
 
 	var container *sqlstore.Container
 
+	if w.config.PostgresAuthDB != "" && w.authDB == nil {
+		w.loggerWrapper.GetLogger(cd.Instance.Id).LogError("[%s] PostgresAuthDB is set but authDB was never initialized", cd.Instance.Id)
+		return
+	}
+
 	if w.config.WaDebug != "" {
 		dbLog := waLog.Stdout("Database", w.config.WaDebug, true)
 		if w.config.PostgresAuthDB != "" {
-			// Reaproveita o pool já existente e limitado (w.authDB) em vez de abrir
-			// um *sql.DB novo e sem limites a cada StartClient — sqlstore.New()
-			// vazava um pool inteiro por chamada (nunca fechado), esgotando o
-			// max_connections do Postgres em produção.
+			// Reuse the shared, pooled authDB instead of opening a new unbounded pool per call.
 			container = sqlstore.NewWithDB(w.authDB, "postgres", dbLog)
 			err = container.Upgrade(context.Background())
 		} else {
