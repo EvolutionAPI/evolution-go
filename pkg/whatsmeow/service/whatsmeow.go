@@ -1,3 +1,16 @@
+// This file was modified by Saphira Code from the original Evolution Go source,
+// as required by Section 4(b) of the Apache License 2.0.
+//
+// Change: StartClient no longer builds a sqlstore.Container per call. The
+// process now shares a single container, created lazily by getWAContainer and
+// backed — on Postgres — by the already-pooled authDB handle. The original code
+// called sqlstore.New on every instance (re)start, which opened a fresh *sql.DB
+// each time, and container.Close() was never called anywhere, so every
+// reconnect cycle stranded one idle Postgres connection until the connection
+// pool was exhausted and QR pairing stopped working.
+//
+// Licensed under the Apache License, Version 2.0 — see LICENSE.
+
 package whatsmeow_service
 
 import (
@@ -97,6 +110,7 @@ type whatsmeowService struct {
 	natsProducer       producer_interfaces.Producer
 	loggerWrapper      *logger_wrapper.LoggerManager
 	passkeyCeremony    *ceremony.Store
+	waContainer        *waContainerHolder
 }
 
 type MyClient struct {
@@ -301,12 +315,77 @@ func (w whatsmeowService) ForceUpdateJid(instanceId string, number string) error
 	return nil
 }
 
+// waContainerHolder guarda o unico sqlstore.Container do processo. E ponteiro
+// porque os metodos de whatsmeowService tem receiver por valor: um campo direto
+// seria copiado a cada chamada e o cache nunca sobreviveria.
+type waContainerHolder struct {
+	mu   sync.Mutex
+	cont *sqlstore.Container
+}
+
+// getWAContainer devolve o Container unico do processo, criando-o na primeira
+// chamada.
+//
+// sqlstore.Container e, por design, "a wrapper for a SQL database that can
+// contain multiple whatsmeow sessions" — um so atende todas as instancias.
+// Criar um por StartClient (como era antes) chamava sqlstore.New a cada
+// (re)inicio de instancia, e sqlstore.New faz sql.Open: um *sql.DB novo, com
+// pool proprio, seguido de Upgrade(). Como container.Close() nunca era chamado
+// e o Go nao fecha conexoes de database/sql no GC, cada ciclo de reconexao
+// deixava uma conexao Postgres ociosa presa para sempre, ate esgotar o pool do
+// PgBouncer e travar a geracao de QR code (DENT-248).
+//
+// No caminho Postgres reaproveitamos w.authDB, que aponta para o mesmo DSN
+// (POSTGRES_AUTH_DB) e ja vem com pool configurado por initPostgresAuthDB
+// (MaxOpenConns/MaxIdleConns/ConnMaxLifetime/ConnMaxIdleTime). Assim o whatsmeow
+// passa a respeitar o mesmo teto do resto da aplicacao em vez de abrir pools
+// ilimitados por fora dela.
+//
+// A criacao e preguicosa, e nao no construtor, para que um banco indisponivel no
+// boot nao deixe o processo permanentemente quebrado: a proxima chamada tenta de
+// novo.
+func (w whatsmeowService) getWAContainer() (*sqlstore.Container, error) {
+	w.waContainer.mu.Lock()
+	defer w.waContainer.mu.Unlock()
+
+	if w.waContainer.cont != nil {
+		return w.waContainer.cont, nil
+	}
+
+	var dbLog waLog.Logger
+	if w.config.WaDebug != "" {
+		dbLog = waLog.Stdout("Database", w.config.WaDebug, true)
+	}
+
+	var (
+		cont *sqlstore.Container
+		err  error
+	)
+
+	if w.config.PostgresAuthDB != "" {
+		if w.authDB == nil {
+			return nil, fmt.Errorf("POSTGRES_AUTH_DB is set but the auth DB handle was not initialized")
+		}
+		cont = sqlstore.NewWithDB(w.authDB, "postgres", dbLog)
+		err = cont.Upgrade(context.Background())
+	} else {
+		dsn := fmt.Sprintf("file:%s/dbdata/main.db?_pragma=foreign_keys(1)&_busy_timeout=5000&cache=shared&mode=rwc&_journal_mode=WAL", w.exPath)
+		cont, err = sqlstore.New(context.Background(), "sqlite", dsn, dbLog)
+	}
+
+	if err != nil {
+		return nil, err
+	}
+
+	w.waContainer.cont = cont
+	return cont, nil
+}
+
 func (w whatsmeowService) StartClient(cd *ClientData) {
 
 	w.loggerWrapper.GetLogger(cd.Instance.Id).LogInfo("Starting websocket connection to Whatsapp for user '%s'", cd.Instance.Id)
 
 	var deviceStore *store.Device
-	var err error
 
 	if w.clientPointer[cd.Instance.Id] != nil {
 		if w.clientPointer[cd.Instance.Id].IsConnected() {
@@ -314,25 +393,9 @@ func (w whatsmeowService) StartClient(cd *ClientData) {
 		}
 	}
 
-	var container *sqlstore.Container
-
-	if w.config.WaDebug != "" {
-		dbLog := waLog.Stdout("Database", w.config.WaDebug, true)
-		if w.config.PostgresAuthDB != "" {
-			container, err = sqlstore.New(context.Background(), "postgres", w.config.PostgresAuthDB, dbLog)
-		} else {
-			dsn := fmt.Sprintf("file:%s/dbdata/main.db?_pragma=foreign_keys(1)&_busy_timeout=5000&cache=shared&mode=rwc&_journal_mode=WAL", w.exPath)
-			container, err = sqlstore.New(context.Background(), "sqlite", dsn, dbLog)
-		}
-	} else {
-		if w.config.PostgresAuthDB != "" {
-			container, err = sqlstore.New(context.Background(), "postgres", w.config.PostgresAuthDB, nil)
-		} else {
-			dsn := fmt.Sprintf("file:%s/dbdata/main.db?_pragma=foreign_keys(1)&_busy_timeout=5000&cache=shared&mode=rwc&_journal_mode=WAL", w.exPath)
-			container, err = sqlstore.New(context.Background(), "sqlite", dsn, nil)
-		}
-	}
-
+	// Container unico do processo — ver getWAContainer. Antes era um
+	// sqlstore.New por chamada, que vazava uma conexao Postgres por reconexao.
+	container, err := w.getWAContainer()
 	if err != nil {
 		w.loggerWrapper.GetLogger(cd.Instance.Id).LogError("[%s] Failed to create container: %v", cd.Instance.Id, err)
 		return
@@ -2831,6 +2894,7 @@ func NewWhatsmeowService(
 		natsProducer:       natsProducer,
 		loggerWrapper:      loggerWrapper,
 		passkeyCeremony:    ceremony.NewStore(),
+		waContainer:        &waContainerHolder{},
 	}
 }
 

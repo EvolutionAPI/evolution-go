@@ -1,0 +1,83 @@
+# Publica a imagem deste fork no GHCR.
+#
+# Diferencas em relacao ao publish_docker_image.yml do upstream, que continua no
+# repo e deve ser desabilitado pela aba Actions (sem editar o arquivo, para nao
+# criar divergencia a rebasear a cada versao nova do fornecedor):
+#
+#   - Publica em ghcr.io/saphiracode, nao no Docker Hub do fornecedor.
+#   - Dispara em tag, nao em push para main. Publicar e ato deliberado, e a tag
+#     e o que os manifests do d360-backend referenciam.
+#   - Constroi apenas linux/arm64, em runner arm64 nativo. O no do k8s (Ampere,
+#     OCI) e o servidor de homolog sao ambos aarch64, e o Dockerfile usa
+#     CGO_ENABLED=1 — nao existe binario universal. Runner nativo evita emulacao
+#     QEMU, que com CGO e lenta e fragil.
+#   - Nao gera "latest". Tag imutavel e o que permite saber qual binario esta em
+#     producao, que era exatamente o que faltava no incidente DENT-248.
+
+name: Publish image to GHCR
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Build and push (linux/arm64)
+    # Runner arm64 nativo — gratuito em repositorio publico.
+    runs-on: ubuntu-24.04-arm
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Docker meta
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          # Minusculas: o GHCR rejeita maiusculas no nome e a org e "SaphiraCode".
+          images: ghcr.io/saphiracode/evolution-go
+          # Tag v0.7.2-dent248.1 vira imagem 0.7.2-dent248.1.
+          tags: |
+            type=match,pattern=v(.*),group=1
+
+      - name: Stamp VERSION with the released tag
+        # O Dockerfile copia ./VERSION para /app/VERSION, e e la que a operacao
+        # confere qual build esta rodando. Sem isso o arquivo diria "0.7.2" e
+        # esconderia o patch. Feito aqui, e nao commitado, para nao divergir do
+        # upstream num arquivo que ele altera a cada release.
+        run: echo "${{ steps.meta.outputs.version }}" > VERSION
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push
+        id: build
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          platforms: linux/arm64
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          # Sem attestation de proveniencia: ela acrescenta uma entrada
+          # "unknown/unknown" ao manifest e polui a listagem do pacote.
+          provenance: false
+          build-args: |
+            VERSION=${{ steps.meta.outputs.version }}
+
+      - name: Image digest
+        run: echo "ghcr.io/saphiracode/evolution-go@${{ steps.build.outputs.digest }}"
