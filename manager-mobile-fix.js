@@ -53,10 +53,9 @@
     return true;
   }
 
-  // SPA: retry until React mounts
-  var tries = 0;
+  // SPA: retry until React mounts (sem limite — bundle pode demorar em rede lenta)
   var timer = setInterval(function(){
-    if(init() || ++tries > 60) clearInterval(timer);
+    if(init()) clearInterval(timer);
   }, 300);
   // also re-init on navigation (history changes)
   var _pushState = history.pushState;

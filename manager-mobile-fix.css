@@ -2,10 +2,11 @@
 /* Sidebar: hidden md:flex => drawer on <768px; instance actions: always visible (no hover) */
 
 /* Instance action bar — was opacity-0 group-hover:opacity-100, invisible on touch devices */
-.group .flex.border-t.opacity-0 { opacity: 1 !important; }
-
 /* Mobile drawer */
 @media (max-width: 767px) {
+  /* Instance actions: sempre visíveis só no mobile (desktop mantém hover) */
+  .group .flex.border-t.opacity-0 { opacity: 1 !important; }
+
   /* Sidebar becomes off-canvas drawer */
   div.hidden.md\:flex.bg-sidebar {
     display: flex !important;
