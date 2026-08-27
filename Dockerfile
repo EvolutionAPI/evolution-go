@@ -28,6 +28,11 @@ COPY --from=build /build/server .
 COPY --from=build /build/manager/dist ./manager/dist
 COPY --from=build /build/VERSION ./VERSION
 
+# Mobile UX fix: sidebar hidden on <768px + action bar hover-only
+COPY manager-mobile-fix.css manager-mobile-fix.js ./manager/dist/assets/
+RUN sed -i 's|</head>|<link rel="stylesheet" href="/assets/manager-mobile-fix.css"></head>|' ./manager/dist/index.html && \
+    sed -i 's|</body>|<script src="/assets/manager-mobile-fix.js"></script></body>|' ./manager/dist/index.html
+
 ENV TZ=America/Sao_Paulo
 
 ENTRYPOINT ["/app/server"]
