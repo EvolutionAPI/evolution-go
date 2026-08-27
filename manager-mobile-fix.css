@@ -1,0 +1,43 @@
+/* manager-mobile-fix.css — Evolution GO mobile UX fix (fork) */
+/* Sidebar: hidden md:flex => drawer on <768px; instance actions: always visible (no hover) */
+
+/* Instance action bar — was opacity-0 group-hover:opacity-100, invisible on touch devices */
+/* Mobile drawer */
+@media (max-width: 767px) {
+  /* Instance actions: sempre visíveis só no mobile (desktop mantém hover) */
+  .group .flex.border-t.opacity-0 { opacity: 1 !important; }
+
+  /* Sidebar becomes off-canvas drawer */
+  div.hidden.md\:flex.bg-sidebar {
+    display: flex !important;
+    position: fixed !important;
+    inset: 0 auto 0 0 !important;
+    z-index: 50 !important;
+    width: 16rem !important; /* w-64 */
+    transform: translateX(-100%) !important;
+    transition: transform 0.25s ease !important;
+    box-shadow: 4px 0 24px rgba(0,0,0,0.4);
+  }
+  div.hidden.md\:flex.bg-sidebar.open {
+    transform: translateX(0) !important;
+  }
+  /* Backdrop */
+  #mobile-sidebar-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.5);
+    z-index: 40;
+    display: none;
+  }
+  #mobile-sidebar-backdrop.open { display: block; }
+  /* Header: hide the empty w-56 spacer on mobile, make title visible */
+  header .w-56 { display: none !important; }
+  header { padding-left: 0.5rem !important; padding-right: 0.5rem !important; }
+  /* Instance grid: force single column on narrow screens */
+  /* (cards already responsive but ensure padding) */
+  main { padding-left: 0.5rem !important; padding-right: 0.5rem !important; }
+}
+@media (min-width: 768px) {
+  #mobile-sidebar-backdrop { display: none !important; }
+  #hamburger-btn { display: none !important; }
+}
